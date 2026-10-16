@@ -1,0 +1,24 @@
+---
+description: Screen and component patterns for Rep
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# Screens
+
+- Functional components typed with `React.FC`. Props use an interface.
+- Colocate a screen with its feature in `src/features/<feature>/`.
+- Navigate with React Navigation (`useNavigation`, `useRoute`). Do not import `expo-router`.
+- Style with `StyleSheet.create` and `src/theme/colors.ts`.
+- Name press handlers (`handleRemove`) instead of inline arrows in JSX.
+- Give inputs an `accessibilityLabel`. Icon-only presses need a label too.
+
+```tsx
+// ❌
+<Pressable onPress={() => remove(exercise.id)} />
+
+// ✅
+const handleRemove = useCallback(() => {
+  onRemove(exercise.id);
+}, [exercise.id, onRemove]);
+```

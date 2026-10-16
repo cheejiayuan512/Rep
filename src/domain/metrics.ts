@@ -50,6 +50,7 @@ export interface RecordCard {
   achievedAt: number | null;
 }
 
+/** Epley estimate. A single is the weight itself; more reps scale by `reps / 30`. */
 export function estimateOneRepMax(weight: number, reps: number): number {
   if (reps <= 1) {
     return weight;
@@ -95,6 +96,10 @@ export function bestsFromScored(sets: ScoredSet[]): Bests {
   return best;
 }
 
+/**
+ * Announces a record only when this set beats a prior best.
+ * The first logged set still shows on Progress, but it does not raise a banner.
+ */
 export function detectRecord(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit | null {
   const best = bestsFromScored(prior);
   if (current.oneRepMaxKg != null && best.oneRepMax?.oneRepMaxKg != null && current.oneRepMaxKg > best.oneRepMax.oneRepMaxKg + WEIGHT_EPSILON_KG) {

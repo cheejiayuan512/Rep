@@ -4,6 +4,10 @@ import type { Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/type
 import { isWeightUnit } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
+/**
+ * One JSON document for the whole log.
+ * AsyncStorage is used because the expo-sqlite web worker cannot resolve its wasm file.
+ */
 const STORAGE_KEY = 'rep.database.v1';
 
 export interface StoredExercise {

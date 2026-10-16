@@ -1,0 +1,21 @@
+---
+description: Workout log invariants for weights, records, notes, and RPE
+alwaysApply: true
+---
+
+# Workout domain
+
+- Store weight as kilograms. Convert to lb only in `src/domain/units.ts` at input and display.
+- A personal record is announced only when it beats a previous best. The first logged set is not a PR banner.
+- Warmups and incomplete sets do not count toward volume, charts, or records.
+- Notes belong on the exercise (`WorkoutExercise.notes`). RPE belongs on the set, optional, 0–10 with one decimal.
+- Removing an exercise deletes it immediately. Do not add a confirmation dialog for that action.
+- Keep one exercise in one card. Set rows stay inside that card.
+
+```typescript
+// ❌ store the number the user typed
+set.weightKg = unit === 'lb' ? 225 : 100;
+
+// ✅ persist kilograms
+set.weightKg = weightTextToKg(text, unit, set.weightKg);
+```

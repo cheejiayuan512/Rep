@@ -44,8 +44,10 @@ export interface SetRecord {
   id: string;
   position: number;
   setType: SetType;
+  /** Kilograms. Convert to the display unit only at the input and label. */
   weightKg: number | null;
   reps: number | null;
+  /** Optional effort from 0 to 10. Null means the lifter left RPE blank. */
   rpe: number | null;
   completed: boolean;
 }
@@ -63,6 +65,7 @@ export interface WorkoutExercise {
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   position: number;
+  /** Free text for this exercise in this workout, not for each set. */
   notes: string;
   sets: SetRecord[];
   previousSets: PreviousSet[];

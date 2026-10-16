@@ -1,5 +1,6 @@
 import type { WeightUnit } from './types';
 
+/** Display conversion only. Stored workout weight stays in kilograms. */
 const POUNDS_PER_KILOGRAM = 2.2046226218;
 
 export function displayToKg(value: number, unit: WeightUnit): number {
