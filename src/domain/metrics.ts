@@ -1,3 +1,7 @@
+/**
+ * Personal records and chart numbers. A set counts only when it is completed,
+ * not a warmup, and has at least one rep. The first set is saved but not announced.
+ */
 import type { ChartMetric, LoggedSet, SetType } from './types';
 import type { WeightUnit } from './types';
 import { formatLoggedLoad } from './format';

@@ -1,3 +1,7 @@
+/**
+ * Turns kilograms into the unit on screen, and typed text back into kilograms.
+ * Call these at the edges. Do not store a pound value on a set.
+ */
 import type { WeightUnit } from './types';
 
 /** Display conversion only. Stored workout weight stays in kilograms. */

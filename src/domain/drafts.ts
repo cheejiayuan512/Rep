@@ -1,3 +1,8 @@
+/**
+ * The text currently in a weight, reps, or RPE box.
+ * The database stores numbers. The box stores whatever the person has typed,
+ * including a half-finished "8." that is not a number yet.
+ */
 import type { WeightUnit } from './types';
 import { formatWeight, kgToDisplay } from './units';
 

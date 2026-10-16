@@ -1,3 +1,8 @@
+/**
+ * Shortcuts for screens. A hook is a function that starts with "use".
+ * These read the shared store and, when the revision counter changes, load
+ * fresh lists from storage.
+ */
 import { useCallback, useEffect, useState } from 'react';
 
 import { getActiveWorkoutSummary, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';

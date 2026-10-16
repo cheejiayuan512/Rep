@@ -1,3 +1,7 @@
+/**
+ * The Workout tab. Start an empty session, resume the one in progress,
+ * start a saved routine, or open the last finished workout.
+ */
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

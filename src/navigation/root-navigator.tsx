@@ -1,3 +1,9 @@
+/**
+ * Chooses which page is on screen.
+ * Tabs are the four buttons at the bottom. The stack is everything that
+ * slides in on top of them, such as the workout you are logging.
+ * On startup this opens the saved log, then shows the tabs.
+ */
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';

@@ -1,3 +1,7 @@
+/**
+ * Named colors. `accent` is the lime used for the main buttons and the selected tab.
+ * Change it here and the highlight color changes everywhere.
+ */
 export const colors = {
   bg: '#0C0F14',
   surface: '#161B22',

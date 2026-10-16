@@ -1,3 +1,7 @@
+/**
+ * The large lime button. `onPress` is the function that runs when it is tapped.
+ * That function is a prop: an input passed in by the parent screen.
+ */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 

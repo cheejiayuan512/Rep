@@ -1,3 +1,7 @@
+/**
+ * A popup that asks before a destructive action, such as discarding a workout.
+ * Removing one exercise does not use this. That delete happens immediately.
+ */
 import React, { useCallback } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 

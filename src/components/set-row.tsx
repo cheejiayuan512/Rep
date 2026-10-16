@@ -1,3 +1,7 @@
+/**
+ * One set inside an exercise card: set number, previous result, weight, reps, RPE, and a check.
+ * Tap the set number to mark it as a warmup. The boxes show text; the parent converts that text to numbers.
+ */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 

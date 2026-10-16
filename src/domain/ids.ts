@@ -1,3 +1,7 @@
+/**
+ * A unique id for a workout, exercise, or set. Uses the platform's randomUUID
+ * when it exists, otherwise a fallback that is still unique enough on one device.
+ */
 export function createId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
     return globalThis.crypto.randomUUID();

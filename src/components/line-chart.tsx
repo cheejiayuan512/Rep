@@ -1,3 +1,7 @@
+/**
+ * A simple line chart drawn with SVG. Points are already converted to the
+ * display unit by the progress screen before they get here.
+ */
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';

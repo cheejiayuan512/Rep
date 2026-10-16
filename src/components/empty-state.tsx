@@ -1,3 +1,6 @@
+/**
+ * The message shown when a list has nothing in it yet, plus an optional button.
+ */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 

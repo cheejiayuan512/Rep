@@ -1,3 +1,7 @@
+/**
+ * Records and the chart for one exercise. The 1RM / Weight / Volume chips
+ * only change which number the line is plotting.
+ */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';

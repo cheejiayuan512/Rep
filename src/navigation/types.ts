@@ -1,3 +1,8 @@
+/**
+ * The address book of screens. Each name is a page. The object next to it is
+ * the data that page expects, such as `{ workoutId: string }`.
+ * `undefined` means the page needs nothing extra.
+ */
 import { DarkTheme, type Theme } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';

@@ -1,3 +1,5 @@
+Humans new to the project should start at `README.md` and `docs/tour.md`.
+
 This is Rep, a local Expo workout log. One exercise is one card. Sets, reps, weight, and RPE live on that card. Notes live on the exercise.
 
 Read `.cursor/skills/workout-log/SKILL.md` before changing workouts, sets, records, units, or storage.

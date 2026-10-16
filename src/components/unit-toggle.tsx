@@ -1,3 +1,7 @@
+/**
+ * The kg / lb switch. It changes the display unit only.
+ * Saved weights stay in kilograms.
+ */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 

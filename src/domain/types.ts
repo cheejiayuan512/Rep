@@ -1,3 +1,8 @@
+/**
+ * The shapes of the data, with no behavior. A screen, a save, and a chart
+ * all talk about a SetRecord or a WorkoutDetail so they agree on the field names.
+ * Weight on a set is kilograms. RPE is optional. Notes hang off the exercise.
+ */
 export type WeightUnit = 'kg' | 'lb';
 
 export type SetType = 'normal' | 'warmup';

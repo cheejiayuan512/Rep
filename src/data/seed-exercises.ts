@@ -1,3 +1,8 @@
+/**
+ * The built-in exercise library. Ids are stable slugs like "barbell-bench-press"
+ * so a workout saved today still points at the same exercise tomorrow.
+ * Custom exercises the user creates are stored separately and are not listed here.
+ */
 import type { Equipment, MuscleGroup } from '../domain/types';
 
 export interface SeedExercise {

@@ -1,3 +1,7 @@
+/**
+ * One exercise, one card. The notes box is for the whole exercise.
+ * The rows under it are the sets. This component draws the card; the workout screen saves.
+ */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 

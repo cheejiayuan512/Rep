@@ -1,3 +1,7 @@
+/**
+ * A tiny vibration on a phone when a set is checked or a record is hit.
+ * Browsers cannot vibrate this way, so these functions do nothing on web.
+ */
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 

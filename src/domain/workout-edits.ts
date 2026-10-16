@@ -1,3 +1,7 @@
+/**
+ * Pure helpers for changing a workout object already in memory.
+ * They do not save. The screen saves after it calls one of these.
+ */
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
 
 export function findSet(workout: WorkoutDetail, setId: string): { exercise: WorkoutExercise; set: SetRecord } | null {

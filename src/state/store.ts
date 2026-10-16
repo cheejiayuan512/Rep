@@ -1,3 +1,9 @@
+/**
+ * Shared memory for the whole app: whether startup finished, kg or lb,
+ * the rest timer length, and which workout is open.
+ * The sets themselves are not stored here. Screens load those from src/data.
+ * `revision` is a counter. Screens reload their lists when it goes up.
+ */
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
 

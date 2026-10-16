@@ -1,3 +1,7 @@
+/**
+ * The bar at the top of a pushed screen: a left button, a title, and a right button.
+ * TextButton is the small word-style button used for Finish, Discard, and Back.
+ */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 

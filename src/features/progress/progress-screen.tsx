@@ -1,3 +1,6 @@
+/**
+ * Exercises you have actually trained, newest first. Tap one to open its chart.
+ */
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

@@ -1,3 +1,8 @@
+/**
+ * Every load and save the screens are allowed to do: settings, the exercise
+ * library, routines, and workouts. This file turns the raw saved document
+ * into the shapes declared in src/domain/types.ts.
+ */
 import { latestSessionSets } from '../domain/metrics';
 import { createId } from '../domain/ids';
 import type {

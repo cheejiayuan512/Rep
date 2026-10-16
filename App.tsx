@@ -1,3 +1,7 @@
+/**
+ * The root component. Provider lets any screen read the small shared store.
+ * SafeAreaProvider keeps content out from under the notch and the home indicator.
+ */
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Provider } from 'react-redux';

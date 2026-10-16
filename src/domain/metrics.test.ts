@@ -1,3 +1,7 @@
+/**
+ * Checks the record math without opening the app. Run `npx tsx src/domain/metrics.test.ts`.
+ * It prints "metrics ok" or throws.
+ */
 import { bestsFromScored, detectRecord, estimateOneRepMax, scoreLoggedSet, type ScoredSet } from './metrics';
 import type { LoggedSet } from './types';
 import { displayToKg, kgToDisplay } from './units';

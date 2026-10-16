@@ -1,3 +1,6 @@
+/**
+ * Finished workouts, grouped by month. Only workouts with a finish time appear here.
+ */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

@@ -1,3 +1,7 @@
+/**
+ * The page you see while a workout is open. It owns the typed text, waits a
+ * moment, then asks the repository to save. See docs/tour.md for the full path.
+ */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -97,6 +101,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
     ]);
   }, []);
 
+  // Wait until typing pauses, then save. A burst of keystrokes becomes one write.
   const queueSave = useCallback((setId: string, patch: PendingSet) => {
     pendingRef.current[setId] = patch;
     const existing = timersRef.current[setId];

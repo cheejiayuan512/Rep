@@ -1,3 +1,7 @@
+/**
+ * Rename a routine, reorder its exercises, or start a workout from it.
+ * A brand-new routine named "New routine" with no exercises is deleted if you leave.
+ */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';

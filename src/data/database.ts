@@ -1,3 +1,8 @@
+/**
+ * The on-device file for the whole log. Screens should not call this directly.
+ * They call src/data/repository.ts, which calls these read and write helpers.
+ * Writes are queued so two saves cannot overwrite each other.
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';

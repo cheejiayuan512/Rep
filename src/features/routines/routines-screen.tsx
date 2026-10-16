@@ -1,3 +1,6 @@
+/**
+ * The Routines tab: a list of saved exercise lists. Tap one to edit it.
+ */
 import React, { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';

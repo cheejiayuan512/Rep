@@ -1,3 +1,7 @@
+/**
+ * Search the exercise library and add one to the open workout or to a routine.
+ * The same screen serves both, which is why the route params include a mode.
+ */
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';

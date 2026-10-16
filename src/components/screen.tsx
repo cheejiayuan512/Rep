@@ -1,3 +1,7 @@
+/**
+ * The dark page background. It pads the top so content sits below the notch.
+ * Pass `bottomInset` when the page should also clear the home indicator.
+ */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

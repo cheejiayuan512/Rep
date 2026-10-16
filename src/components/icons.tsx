@@ -1,3 +1,6 @@
+/**
+ * The four pictures on the bottom tabs, drawn as SVG so they stay sharp.
+ */
 import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 

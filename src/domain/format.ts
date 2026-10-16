@@ -1,3 +1,6 @@
+/**
+ * Turns stored numbers into the words on screen: "80 × 8", "Today · 9:35 AM", "2 min".
+ */
 import type { WeightUnit } from './types';
 import { formatWeight, kgToDisplay } from './units';
 
