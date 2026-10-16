@@ -1,24 +1,9 @@
 /**
- * Checks the record math without opening the app. Run `npx tsx src/domain/metrics.test.ts`.
- * It prints "metrics ok" or throws.
+ * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, detectRecord, estimateOneRepMax, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, detectRecord, estimateOneRepMax, latestSessionSets, recordCardsFromSets, scoreLoggedSet, type ScoredSet } from './metrics';
+import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import type { LoggedSet } from './types';
-import { displayToKg, kgToDisplay } from './units';
-
-function assert(condition: unknown, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-const epley = estimateOneRepMax(100, 5);
-assert(Math.abs(epley - 100 * (1 + 5 / 30)) < 0.0001, 'epley formula');
-assert(estimateOneRepMax(100, 1) === 100, 'single rep is the weight');
-
-const pounds = kgToDisplay(100, 'lb');
-assert(Math.abs(pounds - 220.46226218) < 0.0001, 'kg to lb');
-assert(Math.abs(displayToKg(225, 'lb') - 225 / 2.2046226218) < 0.0001, 'lb to kg');
 
 function logged(overrides: Partial<LoggedSet>): LoggedSet {
   return {
@@ -42,18 +27,89 @@ function scored(overrides: Partial<LoggedSet>): ScoredSet {
   return set;
 }
 
-const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
-const current = scored({ performedAt: 2, reps: 5, weightKg: 102.5 });
-assert(detectRecord(current, [prior], 'kg')?.kind === 'oneRepMax', 'heavier set is a 1RM record');
-assert(scoreLoggedSet(logged({ setType: 'warmup', weightKg: 200 })) == null, 'warmups do not score');
+test('a single rep is the weight itself', () => {
+  assertEqual(estimateOneRepMax(100, 1), 100);
+});
 
-const bodyweight = scored({ reps: 10, weightKg: 0 });
-assert(bodyweight.oneRepMaxKg == null, 'bodyweight has no estimated max');
-assert(bodyweight.reps === 10, 'bodyweight reps still count');
+test('more reps use the Epley formula', () => {
+  assertClose(estimateOneRepMax(100, 5), 100 * (1 + 5 / 30));
+});
 
-const volumeBest = bestsFromScored([scored({ performedAt: 1, reps: 5, weightKg: 120 }), scored({ performedAt: 2, reps: 10, weightKg: 100 })]);
-assert(volumeBest.volume?.weightKg === 100, 'best volume is the heavier total');
-assert(volumeBest.heaviest?.weightKg === 120, 'heaviest weight is tracked separately');
-assert(detectRecord(prior, [], 'kg') == null, 'first logged set is not announced as a record');
+test('warmups, incomplete sets, and empty reps do not score', () => {
+  assertEqual(scoreLoggedSet(logged({ setType: 'warmup', weightKg: 200 })), null);
+  assertEqual(scoreLoggedSet(logged({ completed: false })), null);
+  assertEqual(scoreLoggedSet(logged({ reps: 0 })), null);
+  assertEqual(scoreLoggedSet(logged({ reps: null })), null);
+});
 
-console.log('metrics ok');
+test('bodyweight counts reps and has no estimated max', () => {
+  const bodyweight = scored({ reps: 10, weightKg: 0 });
+  assertEqual(bodyweight.oneRepMaxKg, null);
+  assertEqual(bodyweight.reps, 10);
+});
+
+test('a heavier set is announced as an estimated 1RM record', () => {
+  const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 5, weightKg: 102.5 });
+  assertEqual(detectRecord(current, [prior], 'kg')?.kind, 'oneRepMax');
+});
+
+test('the first logged set is stored but not announced', () => {
+  assertEqual(detectRecord(scored({ reps: 5, weightKg: 100 }), [], 'kg'), null);
+});
+
+test('a tiny increase inside the epsilon is not a record', () => {
+  const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 5, weightKg: 100.04 });
+  assertEqual(detectRecord(current, [prior], 'kg'), null);
+});
+
+test('volume can be a record when the estimated max did not rise', () => {
+  const prior = scored({ performedAt: 1, reps: 5, weightKg: 120 });
+  const current = scored({ performedAt: 2, reps: 10, weightKg: 100 });
+  assertEqual(detectRecord(current, [prior], 'kg')?.kind, 'volume');
+});
+
+test('a rep record is announced only after weight and volume do not win', () => {
+  const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 6, weightKg: 40 });
+  assertEqual(detectRecord(current, [prior], 'kg')?.kind, 'reps');
+});
+
+test('heaviest weight and best volume are tracked separately', () => {
+  const best = bestsFromScored([scored({ performedAt: 1, reps: 5, weightKg: 120 }), scored({ performedAt: 2, reps: 10, weightKg: 100 })]);
+  assertEqual(best.volume?.weightKg, 100);
+  assertEqual(best.heaviest?.weightKg, 120);
+});
+
+test('the latest session keeps its completed sets in order', () => {
+  const sets = latestSessionSets([
+    logged({ performedAt: 1, position: 1, workoutId: 'older' }),
+    logged({ completed: false, performedAt: 2, position: 1, weightKg: 50, workoutId: 'newer' }),
+    logged({ performedAt: 2, position: 2, weightKg: 90, workoutId: 'newer' }),
+    logged({ performedAt: 2, position: 0, weightKg: 70, workoutId: 'newer' }),
+  ]);
+  assertEqual(
+    sets.map((set) => set.weightKg),
+    [70, 90],
+  );
+});
+
+test('two sessions become two chart points in kilograms', () => {
+  const sessions = buildSessionStats([
+    logged({ performedAt: 1, reps: 8, weightKg: 80, workoutId: 'first' }),
+    logged({ performedAt: 2, reps: 8, weightKg: 85, workoutId: 'second' }),
+  ]);
+  const points = chartValues(sessions, 'volume', 'kg');
+  assertEqual(points.map((point) => point.value), [640, 680]);
+});
+
+test('record cards use the best estimated max', () => {
+  const cards = recordCardsFromSets(
+    [logged({ performedAt: 1, reps: 8, weightKg: 80 }), logged({ performedAt: 2, reps: 8, weightKg: 85 })],
+    'kg',
+  );
+  const estimated = cards.find((card) => card.label === 'Est. 1RM');
+  assertTrue(estimated != null, 'missing estimated max card');
+  assertEqual(estimated.value, '107.7 kg');
+});

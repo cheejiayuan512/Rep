@@ -1,6 +1,8 @@
 /**
  * The page you see while a workout is open. It owns the typed text, waits a
- * moment, then asks the repository to save. See docs/tour.md for the full path.
+ * moment, then asks the repository to save. The ticking clock and rest bar
+ * are separate components so this page does not redraw every second.
+ * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -11,13 +13,14 @@ import { useRestSeconds, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
+import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
+import { RestBar } from '../../components/rest-bar';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
-import { formatClock } from '../../domain/format';
 import { detectRecord, scoreLoggedSet, toLoggedSet } from '../../domain/metrics';
 import type { LoggedSet, WorkoutDetail } from '../../domain/types';
 import { findSet, moveById, updateSetInWorkout } from '../../domain/workout-edits';
@@ -64,7 +67,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const [now, setNow] = useState(Date.now());
   const workoutRef = useRef(workout);
   const draftsRef = useRef(drafts);
   const unitRef = useRef(unit);
@@ -75,8 +77,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const notePendingRef = useRef<Record<string, string>>({});
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const restEndsAtRef = useRef(restEndsAt);
 
   workoutRef.current = workout;
+  restEndsAtRef.current = restEndsAt;
   draftsRef.current = drafts;
   unitRef.current = unit;
   titleRef.current = title;
@@ -132,11 +136,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
       void flushPending();
     };
   }, [flushPending]);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const current = workoutRef.current;
@@ -456,6 +455,13 @@ export const ActiveWorkoutScreen: React.FC = () => {
     }
   }, []);
 
+  const pressAddSet = useCallback(
+    (id: string) => {
+      void handleAddSet(id);
+    },
+    [handleAddSet],
+  );
+
   const handleRemove = useCallback((workoutExerciseId: string) => {
     const current = workoutRef.current;
     const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
@@ -542,14 +548,14 @@ export const ActiveWorkoutScreen: React.FC = () => {
 
   const adjustRest = useCallback(
     (delta: number) => {
-      setRestEndsAt((current) => {
-        if (current == null) {
-          return current;
-        }
-        const next = Math.max(Date.now() + 1000, current + delta * 1000);
-        setRestSeconds(Math.round((next - Date.now()) / 1000));
-        return next;
-      });
+      const current = restEndsAtRef.current;
+      if (current == null) {
+        return;
+      }
+      const next = Math.max(Date.now() + 1000, current + delta * 1000);
+      restEndsAtRef.current = next;
+      setRestEndsAt(next);
+      setRestSeconds(Math.round((next - Date.now()) / 1000));
     },
     [setRestSeconds],
   );
@@ -557,8 +563,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const addRest = useCallback(() => adjustRest(15), [adjustRest]);
   const skipRest = useCallback(() => setRestEndsAt(null), []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
-
-  const elapsed = workout ? formatClock((now - workout.startedAt) / 1000) : '0:00';
 
   return (
     <Screen bottomInset={false}>
@@ -574,7 +578,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
             <View style={styles.intro}>
               <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
               <View style={styles.metaRow}>
-                <Text style={styles.elapsed}>{elapsed}</Text>
+                {workout ? <ElapsedClock startedAt={workout.startedAt} /> : <Text style={styles.elapsed}>0:00</Text>}
                 <UnitToggle onChange={setUnit} unit={unit} />
               </View>
               {banner ? <Text style={styles.banner}>{banner}</Text> : null}
@@ -590,9 +594,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   drafts={drafts}
                   exercise={exercise}
                   key={exercise.id}
-                  onAddSet={(id) => {
-                    void handleAddSet(id);
-                  }}
+                  onAddSet={pressAddSet}
                   onChangeNotes={handleChangeNotes}
                   onChangeReps={handleChangeReps}
                   onChangeRpe={handleChangeRpe}
@@ -617,7 +619,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
           <Text style={styles.recordText}>{recordBanner}</Text>
         </View>
       ) : null}
-      {restEndsAt ? <RestBar endsAt={restEndsAt} now={now} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
+      {restEndsAt ? <RestBar endsAt={restEndsAt} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
         destructive={confirm?.destructive}
@@ -629,31 +631,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
         visible={confirm != null}
       />
     </Screen>
-  );
-};
-
-interface RestBarProps {
-  endsAt: number;
-  now: number;
-  onSubtract: () => void;
-  onAdd: () => void;
-  onSkip: () => void;
-}
-
-const RestBar: React.FC<RestBarProps> = ({ endsAt, now, onSubtract, onAdd, onSkip }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={[styles.rest, { paddingBottom: insets.bottom + 12 }]}>
-      <View>
-        <Text style={styles.restLabel}>Rest</Text>
-        <Text style={styles.restTime}>{formatClock((endsAt - now) / 1000)}</Text>
-      </View>
-      <View style={styles.restActions}>
-        <TextButton label="-15" onPress={onSubtract} />
-        <TextButton label="+15" onPress={onAdd} />
-        <TextButton label="Skip" onPress={onSkip} tone="accent" />
-      </View>
-    </View>
   );
 };
 
@@ -697,37 +674,6 @@ const styles = StyleSheet.create({
   recordText: {
     color: colors.accentInk,
     fontSize: 15,
-    fontWeight: '800',
-  },
-  rest: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceRaised,
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    position: 'absolute',
-    right: 0,
-  },
-  restActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  restLabel: {
-    color: colors.faint,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  restTime: {
-    color: colors.text,
-    fontSize: 28,
-    fontVariant: ['tabular-nums'],
     fontWeight: '800',
   },
   title: {

@@ -26,6 +26,8 @@ The notes box belongs to the exercise. Weight, reps, and RPE belong to the set. 
 
 While you type, the screen keeps the text in a draft (`src/domain/drafts.ts`). About 300 milliseconds after you pause, `updateSetNumbers` writes kilograms, reps, and RPE. Finishing the workout also flushes anything still waiting, so the last keystrokes are not lost.
 
+The elapsed time and the rest countdown live in `src/components/elapsed-clock.tsx` and `src/components/rest-bar.tsx`. Each one ticks once a second on its own, so the set inputs do not redraw on that tick.
+
 Weight is converted with `weightTextToKg` in `src/domain/units.ts`. If the display unit is lb, this divides by about 2.205 before saving. The screen converts it back when it draws.
 
 ## 5. Checking the set

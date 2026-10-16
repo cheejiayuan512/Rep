@@ -37,6 +37,8 @@ export interface NewSetInput {
   rpe: number | null;
 }
 
+// Settings: kg/lb and the default rest length.
+
 export async function getSettings(): Promise<AppSettings> {
   const db = await readDatabase();
   return {
@@ -56,6 +58,8 @@ export async function saveRestSeconds(seconds: number): Promise<void> {
     db.settings.restSeconds = clampRest(seconds);
   });
 }
+
+// The exercise library: built-in moves plus ones you create.
 
 export async function listExercises(query: string, muscleGroup: MuscleGroup | null): Promise<Exercise[]> {
   const db = await readDatabase();
@@ -95,6 +99,8 @@ export async function deleteCustomExercise(exerciseId: string): Promise<'deleted
   });
   return 'deleted';
 }
+
+// Routines: a named list of exercises you can start again later.
 
 export async function listRoutines(): Promise<RoutineSummary[]> {
   const db = await readDatabase();
@@ -177,6 +183,8 @@ export async function saveRoutinePositions(rows: Array<{ id: string; position: n
     }
   });
 }
+
+// Workouts: start one, edit its sets, then finish or discard it.
 
 export async function getInProgressWorkoutId(): Promise<string | null> {
   const db = await readDatabase();
@@ -399,6 +407,8 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
     db.workouts = db.workouts.filter((workout) => workout.id !== workoutId);
   });
 }
+
+// History and progress: finished workouts and the sets that count.
 
 export async function listTrainedExercises(): Promise<TrainedExercise[]> {
   const db = await readDatabase();

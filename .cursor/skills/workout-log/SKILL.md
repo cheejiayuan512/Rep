@@ -39,4 +39,4 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Active logging UI | `src/features/workout/active-workout-screen.tsx` |
 | Finished session UI | `src/features/history/workout-detail-screen.tsx` |
 
-After a domain change, run `npx tsx src/domain/metrics.test.ts` and `npx tsc --noEmit`.
+After a domain change, run `npm test` and `npx tsc --noEmit`.

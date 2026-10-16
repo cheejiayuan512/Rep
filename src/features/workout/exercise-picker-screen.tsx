@@ -137,7 +137,7 @@ export const ExercisePickerScreen: React.FC = () => {
     <Screen bottomInset>
       <Header right={<TextButton label="Done" onPress={handleDone} tone="accent" />} title="Exercises" />
       <View style={styles.searchWrap}>
-        <TextInput autoCorrect={false} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
+        <TextInput accessibilityLabel="Search exercises" autoCorrect={false} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
       </View>
       <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
         {filters.map((filter) => (

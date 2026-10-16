@@ -38,7 +38,7 @@ If the app looks stuck on an old version, stop the server and start it again wit
 | --- | --- |
 | `App.tsx` | The root of the UI. Start reading here. |
 | `src/features/` | One folder per tab: workout, routines, history, progress. Each file ending in `-screen.tsx` is a page. |
-| `src/components/` | Pieces of UI reused by those pages, such as a button or one exercise card. |
+| `src/components/` | Pieces of UI reused by those pages, such as a button, one exercise card, the elapsed clock, and the rest bar. |
 | `src/navigation/` | Which page opens when you tap a tab or a button. |
 | `src/state/` | A few shared values: are we ready, kg or lb, which workout is open. |
 | `src/domain/` | The rules: units, personal records, how dates are written. No buttons here. |
@@ -47,6 +47,8 @@ If the app looks stuck on an old version, stop the server and start it again wit
 | `docs/tour.md` | Follow one logged set from the button you tap to the saved file. |
 
 Each source file starts with a comment that says what that file is for.
+
+If you are new and want something to work on, start at `docs/todo.md`. History and Progress are already in the app. The list walks through a small text change, then sign-in, then a cloud backup of the log.
 
 ## Words you will see
 
@@ -95,13 +97,24 @@ Check types before you push:
 npx tsc --noEmit
 ```
 
-The personal-record math also has a small test:
+The workout rules have tests that run without a phone or a browser:
 
 ```bash
-npx tsx src/domain/metrics.test.ts
+npm test
 ```
 
-It should print `metrics ok`.
+They should end with a count of passing tests. The files live next to the code they check, in `src/domain/*.test.ts`.
+
+A second kind of test opens the real app in a browser and logs one set, the way you would:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+Install the browser once. After that, `npm run test:e2e` is enough. It starts the web app if it is not already running on port 8081, or reuses the one from `npx expo start`. The script is `e2e/log-a-set.spec.ts`. Playwright finds buttons by the names on the screen, such as "Start empty workout" and "Finish".
+
+The elapsed clock and the rest timer update themselves. They do not redraw the set inputs every second. Those two pieces are `src/components/elapsed-clock.tsx` and `src/components/rest-bar.tsx`. `src/data/repository.ts` is long on purpose: it is the only place that reads and writes the log, and comments split it into settings, exercises, routines, workouts, and history.
 
 ## For coding agents
 
