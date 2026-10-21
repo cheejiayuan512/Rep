@@ -1,5 +1,5 @@
 /**
- * The four pictures on the bottom tabs, drawn as SVG so they stay sharp.
+ * The pictures on the bottom tabs, drawn as SVG so they stay sharp.
  */
 import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -35,6 +35,15 @@ export const HistoryIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
     <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
       <Circle cx="12" cy="12" r="8" stroke={color} strokeWidth="1.8" />
       <Path d="M12 8v4.5l3 2" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
+
+export const ProfileIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Circle cx="12" cy="8" r="3.2" stroke={color} strokeWidth="1.8" />
+      <Path d="M5.5 19.2c1.4-3 3.6-4.4 6.5-4.4s5.1 1.4 6.5 4.4" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
     </Svg>
   );
 };

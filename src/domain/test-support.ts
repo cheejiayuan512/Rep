@@ -44,6 +44,19 @@ export function assertTrue(condition: unknown, message: string): asserts conditi
   }
 }
 
+export function assertThrows(run: () => void, messagePart: string): void {
+  try {
+    run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes(messagePart)) {
+      throw new Error(`expected error containing ${JSON.stringify(messagePart)} but got ${JSON.stringify(message)}`);
+    }
+    return;
+  }
+  throw new Error(`expected an error containing ${JSON.stringify(messagePart)}`);
+}
+
 export function runAll(): void {
   const failures: string[] = [];
   for (const item of cases) {

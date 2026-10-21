@@ -1,11 +1,15 @@
 /**
  * Finished workouts, grouped by month. Only workouts with a finish time appear here.
+ * Import past sessions from a Hevy CSV export.
  */
-import React, { useCallback, useMemo } from 'react';
-import { Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
 
+import { importHevyCsv } from '../../data/repository';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
+import { dataChanged, useAppDispatch } from '../../state/store';
 import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
 import { formatDuration, formatMonth, formatWorkoutWhen, summarizeNames } from '../../domain/format';
@@ -25,9 +29,11 @@ function workoutKey(workout: WorkoutSummary): string {
 
 export const HistoryScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'History'>>();
+  const dispatch = useAppDispatch();
   const workouts = useWorkoutSummaries();
   const { unit } = useWeightUnit();
   const sections = useMemo(() => groupByMonth(workouts), [workouts]);
+  const [importing, setImporting] = useState(false);
 
   const handleOpen = useCallback(
     (workoutId: string) => {
@@ -35,6 +41,47 @@ export const HistoryScreen: React.FC = () => {
     },
     [navigation],
   );
+
+  const handleImportHevy = useCallback(async () => {
+    if (importing) {
+      return;
+    }
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+        type: ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/vnd.ms-excel', '*/*'],
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) {
+        return;
+      }
+
+      setImporting(true);
+      const response = await fetch(picked.assets[0].uri);
+      const csvText = await response.text();
+      const summary = await importHevyCsv(csvText);
+      dispatch(dataChanged());
+
+      const parts = [
+        summary.importedWorkouts === 1 ? '1 workout imported' : `${summary.importedWorkouts} workouts imported`,
+      ];
+      if (summary.skippedDuplicates > 0) {
+        parts.push(`${summary.skippedDuplicates} already in History`);
+      }
+      if (summary.createdExercises > 0) {
+        parts.push(`${summary.createdExercises} new exercises added`);
+      }
+      if (summary.skippedCardioRows > 0) {
+        parts.push(`${summary.skippedCardioRows} cardio rows skipped`);
+      }
+      Alert.alert('Hevy import', parts.join('. ') + '.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not import that file.';
+      Alert.alert('Hevy import failed', message);
+    } finally {
+      setImporting(false);
+    }
+  }, [dispatch, importing]);
 
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<WorkoutSummary, HistorySection>) => <HistoryCard onOpen={handleOpen} unit={unit} workout={item} />,
@@ -46,14 +93,19 @@ export const HistoryScreen: React.FC = () => {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>History</Text>
-        <Text style={styles.subtitle}>Finished sessions stay on this device.</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>History</Text>
+          <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportHevy()} style={styles.importButton}>
+            <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import Hevy'}</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.subtitle}>Finished sessions stay on this device. Export a CSV from Hevy, then import it here.</Text>
       </View>
       <SectionList
         style={styles.fill}
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
-        ListEmptyComponent={<EmptyState message="Finish a workout and the session will land here." title="No workouts yet" />}
+        ListEmptyComponent={<EmptyState message="Finish a workout or import a Hevy CSV and the sessions will land here." title="No workouts yet" />}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
         sections={sections}
@@ -128,6 +180,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  importButton: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  importLabel: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   list: {
     padding: 20,
   },
@@ -159,5 +224,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 34,
     fontWeight: '800',
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });

@@ -5,13 +5,14 @@
  * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useRestSeconds, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
+import { ExerciseOrderList } from '../../components/exercise-order-list';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
@@ -23,7 +24,7 @@ import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { detectRecord, scoreLoggedSet, toLoggedSet } from '../../domain/metrics';
 import type { LoggedSet, WorkoutDetail } from '../../domain/types';
-import { findSet, moveById, updateSetInWorkout } from '../../domain/workout-edits';
+import { findSet, orderByIds, updateSetInWorkout } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   deleteSet,
@@ -67,6 +68,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [orderIds, setOrderIds] = useState<string[] | null>(null);
+  const [orderDragging, setOrderDragging] = useState(false);
   const workoutRef = useRef(workout);
   const draftsRef = useRef(drafts);
   const unitRef = useRef(unit);
@@ -476,18 +479,34 @@ export const ActiveWorkoutScreen: React.FC = () => {
     void removeWorkoutExercise(workoutExerciseId);
   }, [clearPending]);
 
-  const handleMove = useCallback((workoutExerciseId: string, direction: -1 | 1) => {
+  const beginReorder = useCallback(() => {
     const current = workoutRef.current;
-    if (!current) {
+    if (!current || current.exercises.length === 0) {
       return;
     }
-    const moved = moveById(current.exercises, workoutExerciseId, direction);
-    if (!moved) {
-      return;
-    }
-    setWorkout({ ...current, exercises: moved });
-    void saveWorkoutExercisePositions(moved.map((exercise) => ({ id: exercise.id, position: exercise.position })));
+    Keyboard.dismiss();
+    void hapticLight();
+    setOrderIds(current.exercises.map((exercise) => exercise.id));
   }, []);
+
+  const cancelReorder = useCallback(() => {
+    setOrderDragging(false);
+    setOrderIds(null);
+  }, []);
+
+  const commitReorder = useCallback(() => {
+    const current = workoutRef.current;
+    if (current && orderIds) {
+      const ordered = orderByIds(current.exercises, orderIds);
+      const changed = ordered.some((exercise, index) => exercise.id !== current.exercises[index]?.id);
+      if (changed) {
+        setWorkout({ ...current, exercises: ordered });
+        void saveWorkoutExercisePositions(ordered.map((exercise) => ({ id: exercise.id, position: exercise.position })));
+      }
+    }
+    setOrderDragging(false);
+    setOrderIds(null);
+  }, [orderIds]);
 
   const handleAddExercise = useCallback(() => {
     navigation.navigate('ExercisePicker', { mode: 'workout', workoutId });
@@ -567,49 +586,69 @@ export const ActiveWorkoutScreen: React.FC = () => {
   return (
     <Screen bottomInset={false}>
       <Header
-        left={<TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
-        right={<TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />}
+        left={orderIds ? <TextButton label="Cancel" onPress={cancelReorder} /> : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
+        right={orderIds ? <TextButton label="Done" onPress={commitReorder} tone="accent" /> : <TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />}
+        title={orderIds ? 'Reorder' : undefined}
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
         {missing ? (
           <EmptyState actionLabel="Go back" message="This workout is no longer on the device." onAction={leave} title="Workout missing" />
         ) : (
-          <ScrollView contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner ? 168 : 48) + insets.bottom }} keyboardShouldPersistTaps="handled" style={styles.fill}>
-            <View style={styles.intro}>
-              <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
-              <View style={styles.metaRow}>
-                {workout ? <ElapsedClock startedAt={workout.startedAt} /> : <Text style={styles.elapsed}>0:00</Text>}
-                <UnitToggle onChange={setUnit} unit={unit} />
+          <ScrollView contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner ? 168 : 48) + insets.bottom }} keyboardShouldPersistTaps="handled" scrollEnabled={!orderDragging} style={styles.fill}>
+            {orderIds ? null : (
+              <View style={styles.intro}>
+                <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
+                <View style={styles.metaRow}>
+                  {workout ? <ElapsedClock startedAt={workout.startedAt} /> : <Text style={styles.elapsed}>0:00</Text>}
+                  <UnitToggle onChange={setUnit} unit={unit} />
+                </View>
+                {banner ? <Text style={styles.banner}>{banner}</Text> : null}
               </View>
-              {banner ? <Text style={styles.banner}>{banner}</Text> : null}
-            </View>
+            )}
             <View style={styles.list}>
-              {workout && workout.exercises.length === 0 ? (
-                <EmptyState actionLabel="Add exercise" message="Search the library, then log weight and reps. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
-              ) : null}
-              {workout?.exercises.map((exercise, index) => (
-                <ExerciseBlock
-                  canMoveDown={index < workout.exercises.length - 1}
-                  canMoveUp={index > 0}
-                  drafts={drafts}
-                  exercise={exercise}
-                  key={exercise.id}
-                  onAddSet={pressAddSet}
-                  onChangeNotes={handleChangeNotes}
-                  onChangeReps={handleChangeReps}
-                  onChangeRpe={handleChangeRpe}
-                  onChangeWeight={handleChangeWeight}
-                  onDeleteSet={handleDeleteSet}
-                  onMove={handleMove}
-                  onRemove={handleRemove}
-                  onToggleComplete={handleToggleComplete}
-                  onToggleWarmup={handleToggleWarmup}
-                  unit={unit}
-                />
-              ))}
-              {workout && workout.exercises.length > 0 ? (
-                <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" />
-              ) : null}
+              {orderIds && workout ? (
+                <View>
+                  <Text style={styles.reorderHint}>Drag an exercise into place.</Text>
+                  <ExerciseOrderList
+                    items={orderIds.flatMap((id) => {
+                      const exercise = workout.exercises.find((item) => item.id === id);
+                      return exercise ? [{ detail: `${exercise.muscleGroup} · ${exercise.equipment}`, id: exercise.id, name: exercise.name }] : [];
+                    })}
+                    onChange={setOrderIds}
+                    onDraggingChange={setOrderDragging}
+                  />
+                </View>
+              ) : (
+                <View>
+                  {workout && workout.exercises.length === 0 ? (
+                    <EmptyState actionLabel="Add exercise" message="Search the library, then log weight and reps. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
+                  ) : null}
+                  {workout?.exercises.map((exercise) => (
+                    <ExerciseBlock
+                      drafts={drafts}
+                      exercise={exercise}
+                      key={exercise.id}
+                      onAddSet={pressAddSet}
+                      onChangeNotes={handleChangeNotes}
+                      onChangeReps={handleChangeReps}
+                      onChangeRpe={handleChangeRpe}
+                      onChangeWeight={handleChangeWeight}
+                      onDeleteSet={handleDeleteSet}
+                      onHold={beginReorder}
+                      onRemove={handleRemove}
+                      onToggleComplete={handleToggleComplete}
+                      onToggleWarmup={handleToggleWarmup}
+                      unit={unit}
+                    />
+                  ))}
+                  {workout && workout.exercises.length > 0 ? (
+                    <Text style={styles.holdHint}>Hold an exercise to reorder.</Text>
+                  ) : null}
+                  {workout && workout.exercises.length > 0 ? (
+                    <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" />
+                  ) : null}
+                </View>
+              )}
             </View>
           </ScrollView>
         )}
@@ -652,9 +691,19 @@ const styles = StyleSheet.create({
   intro: {
     paddingHorizontal: 20,
   },
+  holdHint: {
+    color: colors.faint,
+    fontSize: 13,
+    marginBottom: 8,
+  },
   list: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  reorderHint: {
+    color: colors.muted,
+    fontSize: 15,
+    marginBottom: 14,
   },
   metaRow: {
     alignItems: 'center',

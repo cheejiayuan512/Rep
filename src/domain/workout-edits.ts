@@ -32,6 +32,25 @@ export function replaceExercise(workout: WorkoutDetail, exerciseId: string, next
   };
 }
 
+export function orderByIds<T extends { id: string; position: number }>(items: T[], ids: string[]): T[] {
+  const remaining = new Map(items.map((item) => [item.id, item]));
+  const ordered: T[] = [];
+  for (const id of ids) {
+    const item = remaining.get(id);
+    if (!item || ordered.includes(item)) {
+      continue;
+    }
+    ordered.push(item);
+    remaining.delete(id);
+  }
+  for (const item of items) {
+    if (remaining.has(item.id)) {
+      ordered.push(item);
+    }
+  }
+  return ordered.map((item, position) => ({ ...item, position }));
+}
+
 export function moveById<T extends { id: string; position: number }>(items: T[], id: string, direction: -1 | 1): T[] | null {
   const index = items.findIndex((item) => item.id === id);
   const target = index + direction;

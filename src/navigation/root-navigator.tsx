@@ -1,6 +1,6 @@
 /**
  * Chooses which page is on screen.
- * Tabs are the four buttons at the bottom. The stack is everything that
+ * Tabs are the buttons at the bottom. The stack is everything that
  * slides in on top of them, such as the workout you are logging.
  * On startup this opens the saved log, then shows the tabs.
  */
@@ -11,12 +11,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { bootFailed, bootstrapped, useAppDispatch, useAppSelector } from '../state/store';
-import { HistoryIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
+import { HistoryIcon, ProfileIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
 import { getInProgressWorkoutId, getSettings } from '../data/repository';
 import { initDatabase } from '../data/database';
 import { HistoryScreen } from '../features/history/history-screen';
 import { WorkoutDetailScreen } from '../features/history/workout-detail-screen';
 import { ExerciseProgressScreen } from '../features/progress/exercise-progress-screen';
+import { ProfileScreen } from '../features/profile/profile-screen';
 import { ProgressScreen } from '../features/progress/progress-screen';
 import { RoutineEditorScreen } from '../features/routines/routine-editor-screen';
 import { RoutinesScreen } from '../features/routines/routines-screen';
@@ -45,6 +46,10 @@ function renderProgressIcon({ color, size }: { color: string; size: number }) {
   return <ProgressIcon color={color} size={size} />;
 }
 
+function renderProfileIcon({ color, size }: { color: string; size: number }) {
+  return <ProfileIcon color={color} size={size} />;
+}
+
 const Tabs: React.FC = () => {
   return (
     <Tab.Navigator
@@ -52,6 +57,7 @@ const Tabs: React.FC = () => {
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontSize: 11 },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -62,6 +68,7 @@ const Tabs: React.FC = () => {
       <Tab.Screen component={RoutinesScreen} name="Routines" options={{ tabBarIcon: renderRoutinesIcon }} />
       <Tab.Screen component={HistoryScreen} name="History" options={{ tabBarIcon: renderHistoryIcon }} />
       <Tab.Screen component={ProgressScreen} name="Progress" options={{ tabBarIcon: renderProgressIcon }} />
+      <Tab.Screen component={ProfileScreen} name="Profile" options={{ tabBarIcon: renderProfileIcon }} />
     </Tab.Navigator>
   );
 };

@@ -15,6 +15,7 @@ export type TabParamList = {
   Routines: undefined;
   History: undefined;
   Progress: undefined;
+  Profile: undefined;
 };
 
 export type ExercisePickerParams = { mode: 'workout'; workoutId: string } | { mode: 'routine'; routineId: string };

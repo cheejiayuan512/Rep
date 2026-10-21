@@ -3,6 +3,8 @@
  * library, routines, and workouts. This file turns the raw saved document
  * into the shapes declared in src/domain/types.ts.
  */
+import { parseHevyCsv } from '../domain/hevy-import';
+import { buildProfile, type ProfileSnapshot, type ProfileWorkout } from '../domain/profile';
 import { latestSessionSets } from '../domain/metrics';
 import { createId } from '../domain/ids';
 import type {
@@ -24,6 +26,13 @@ import type {
 } from '../domain/types';
 import { isEquipment, isMuscleGroup } from '../domain/types';
 import { readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkoutExercise } from './database';
+
+export interface HevyImportSummary {
+  importedWorkouts: number;
+  skippedDuplicates: number;
+  createdExercises: number;
+  skippedCardioRows: number;
+}
 
 export interface AppSettings {
   weightUnit: WeightUnit;
@@ -408,7 +417,136 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
   });
 }
 
+export async function importHevyCsv(csvText: string): Promise<HevyImportSummary> {
+  const db = await readDatabase();
+  const parsed = parseHevyCsv(
+    csvText,
+    db.exercises.map((exercise) => ({
+      equipment: isEquipment(exercise.equipment) ? exercise.equipment : 'Other',
+      id: exercise.id,
+      isCustom: exercise.isCustom,
+      muscleGroup: isMuscleGroup(exercise.muscleGroup) ? exercise.muscleGroup : 'Full body',
+      name: exercise.name,
+    })),
+  );
+
+  let importedWorkouts = 0;
+  let skippedDuplicates = 0;
+  let createdExercises = 0;
+
+  await writeDatabase((draft) => {
+    const existingKeys = new Set(draft.workouts.map((workout) => `${workout.name}\0${workout.startedAt}`));
+    const exerciseIdsByName = new Map(draft.exercises.map((exercise) => [exercise.name.toLowerCase(), exercise.id]));
+
+    for (const workout of parsed.workouts) {
+      const key = `${workout.name}\0${workout.startedAt}`;
+      if (existingKeys.has(key)) {
+        skippedDuplicates += 1;
+        continue;
+      }
+
+      const workoutId = createId();
+      draft.workouts.push({
+        finishedAt: workout.finishedAt,
+        id: workoutId,
+        name: workout.name,
+        routineId: null,
+        startedAt: workout.startedAt,
+      });
+      existingKeys.add(key);
+      importedWorkouts += 1;
+
+      for (const exercise of workout.exercises) {
+        let exerciseId = exercise.matchedExerciseId;
+        if (!exerciseId && exercise.createCustom) {
+          const existingCustom = exerciseIdsByName.get(exercise.createCustom.name.toLowerCase());
+          if (existingCustom) {
+            exerciseId = existingCustom;
+          } else {
+            exerciseId = createId();
+            draft.exercises.push({
+              equipment: exercise.createCustom.equipment,
+              id: exerciseId,
+              isCustom: true,
+              muscleGroup: exercise.createCustom.muscleGroup,
+              name: exercise.createCustom.name,
+            });
+            exerciseIdsByName.set(exercise.createCustom.name.toLowerCase(), exerciseId);
+            createdExercises += 1;
+          }
+        }
+        if (!exerciseId) {
+          continue;
+        }
+
+        const workoutExerciseId = createId();
+        const notes =
+          exercise.position === 0 && workout.description
+            ? [workout.description, exercise.notes].filter((part) => part.trim().length > 0).join('\n').slice(0, 500)
+            : exercise.notes.slice(0, 500);
+        draft.workoutExercises.push({
+          exerciseId,
+          id: workoutExerciseId,
+          notes,
+          position: exercise.position,
+          workoutId,
+        });
+
+        for (const set of exercise.sets) {
+          draft.sets.push({
+            completed: set.completed,
+            id: createId(),
+            position: set.position,
+            reps: set.reps,
+            rpe: set.rpe,
+            setType: set.setType,
+            weightKg: set.weightKg,
+            workoutExerciseId,
+          });
+        }
+      }
+    }
+  });
+
+  return {
+    createdExercises,
+    importedWorkouts,
+    skippedCardioRows: parsed.skippedCardioRows,
+    skippedDuplicates,
+  };
+}
+
 // History and progress: finished workouts and the sets that count.
+
+export async function getProfile(now = Date.now()): Promise<ProfileSnapshot> {
+  const db = await readDatabase();
+  const workouts: ProfileWorkout[] = db.workouts
+    .filter((workout) => workout.finishedAt != null)
+    .map((workout) => {
+      const exercises = db.workoutExercises.filter((exercise) => exercise.workoutId === workout.id);
+      const exerciseIds = exercises.map((exercise) => exercise.id);
+      const sets = db.sets.filter((set) => exerciseIds.includes(set.workoutExerciseId));
+      const working = sets.filter((set) => set.completed && set.setType !== 'warmup' && (set.reps ?? 0) > 0);
+      return {
+        exerciseIds: [...new Set(exercises.filter((exercise) => working.some((set) => set.workoutExerciseId === exercise.id)).map((exercise) => exercise.exerciseId))],
+        finishedAt: workout.finishedAt ?? workout.startedAt,
+        id: workout.id,
+        name: workout.name,
+        notedExercises: exercises.filter((exercise) => exercise.notes.trim().length > 0).length,
+        reps: working.reduce((total, set) => total + (set.reps ?? 0), 0),
+        startedAt: workout.startedAt,
+        volumeKg: working.reduce((total, set) => total + (set.weightKg ?? 0) * (set.reps ?? 0), 0),
+        warmupSets: sets.filter((set) => set.completed && set.setType === 'warmup').length,
+        workingSets: working.length,
+      };
+    });
+
+  return buildProfile({
+    customExerciseCount: db.exercises.filter((exercise) => exercise.isCustom).length,
+    now,
+    workouts,
+  });
+}
 
 export async function listTrainedExercises(): Promise<TrainedExercise[]> {
   const db = await readDatabase();

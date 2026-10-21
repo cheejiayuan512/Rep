@@ -15,8 +15,6 @@ interface ExerciseBlockProps {
   exercise: WorkoutExercise;
   unit: WeightUnit;
   drafts: DraftMap;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
@@ -26,15 +24,13 @@ interface ExerciseBlockProps {
   onDeleteSet: (setId: string) => void;
   onAddSet: (workoutExerciseId: string) => void;
   onRemove: (workoutExerciseId: string) => void;
-  onMove: (workoutExerciseId: string, direction: -1 | 1) => void;
+  onHold: (workoutExerciseId: string) => void;
 }
 
 export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function ExerciseBlock({
   exercise,
   unit,
   drafts,
-  canMoveUp,
-  canMoveDown,
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
@@ -44,7 +40,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onDeleteSet,
   onAddSet,
   onRemove,
-  onMove,
+  onHold,
 }) {
   const handleAdd = useCallback(() => {
     onAddSet(exercise.id);
@@ -52,12 +48,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const handleRemove = useCallback(() => {
     onRemove(exercise.id);
   }, [exercise.id, onRemove]);
-  const handleMoveUp = useCallback(() => {
-    onMove(exercise.id, -1);
-  }, [exercise.id, onMove]);
-  const handleMoveDown = useCallback(() => {
-    onMove(exercise.id, 1);
-  }, [exercise.id, onMove]);
+  const handleHold = useCallback(() => {
+    onHold(exercise.id);
+  }, [exercise.id, onHold]);
   const handleNotes = useCallback(
     (value: string) => {
       onChangeNotes(exercise.id, value);
@@ -68,17 +61,15 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.titleWrap}>
+        <Pressable accessibilityHint="Hold to reorder exercises" accessibilityRole="button" delayLongPress={400} onLongPress={handleHold} style={styles.titleWrap}>
           <Text style={styles.name}>{exercise.name}</Text>
           <Text style={styles.meta}>
             {exercise.muscleGroup} · {exercise.equipment}
           </Text>
-        </View>
-        <View style={styles.actions}>
-          <MoveButton disabled={!canMoveUp} label="Up" onPress={handleMoveUp} />
-          <MoveButton disabled={!canMoveDown} label="Down" onPress={handleMoveDown} />
-          <MoveButton label="Remove" onPress={handleRemove} />
-        </View>
+        </Pressable>
+        <Pressable accessibilityRole="button" hitSlop={4} onPress={handleRemove} style={styles.remove}>
+          <Text style={styles.removeText}>Remove</Text>
+        </Pressable>
       </View>
       <Text style={styles.section}>Notes</Text>
       <TextInput
@@ -124,25 +115,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   );
 });
 
-interface MoveButtonProps {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-}
-
-const MoveButton: React.FC<MoveButtonProps> = ({ label, onPress, disabled = false }) => {
-  return (
-    <Pressable accessibilityRole="button" disabled={disabled} hitSlop={4} onPress={onPress} style={styles.move}>
-      <Text style={[styles.moveText, disabled && styles.moveDisabled]}>{label}</Text>
-    </Pressable>
-  );
-};
-
 const styles = StyleSheet.create({
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   add: {
     alignSelf: 'flex-start',
     marginTop: 12,
@@ -190,13 +163,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  move: {
+  remove: {
     paddingVertical: 2,
   },
-  moveDisabled: {
-    opacity: 0.35,
-  },
-  moveText: {
+  removeText: {
     color: colors.muted,
     fontSize: 13,
     fontWeight: '600',

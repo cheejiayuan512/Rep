@@ -19,6 +19,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Tap the set number to toggle warmup.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
 - Remove exercise deletes that exercise and its sets with no dialog.
+- Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
 
 ## Numbers
 
@@ -38,5 +39,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Record or chart math | `src/domain/metrics.ts` and `src/domain/metrics.test.ts` |
 | Active logging UI | `src/features/workout/active-workout-screen.tsx` |
 | Finished session UI | `src/features/history/workout-detail-screen.tsx` |
+| Hevy CSV import | `src/domain/hevy-import.ts`, then `importHevyCsv` in the repository |
+| Profile level, badges, weekly chart | `src/domain/profile.ts` and `src/features/profile/profile-screen.tsx` |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

@@ -3,7 +3,7 @@
  */
 import { assertEqual, assertTrue, test } from './test-support';
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
-import { findSet, moveById, updateSetInWorkout } from './workout-edits';
+import { findSet, moveById, orderByIds, updateSetInWorkout } from './workout-edits';
 
 function set(id: string, position: number): SetRecord {
   return { completed: false, id, position, reps: 5, rpe: null, setType: 'normal', weightKg: 80 };
@@ -52,6 +52,18 @@ test('moving an exercise rewrites positions', () => {
   assertEqual(
     moved.map((item) => item.position),
     [0, 1],
+  );
+});
+
+test('a dragged order rewrites positions and keeps unknown rows', () => {
+  const ordered = orderByIds([exercise('a', 0, []), exercise('b', 1, []), exercise('c', 2, [])], ['c', 'a']);
+  assertEqual(
+    ordered.map((item) => item.id),
+    ['c', 'a', 'b'],
+  );
+  assertEqual(
+    ordered.map((item) => item.position),
+    [0, 1, 2],
   );
 });
 

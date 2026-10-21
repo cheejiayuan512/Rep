@@ -5,7 +5,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { getActiveWorkoutSummary, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';
+import { getActiveWorkoutSummary, getProfile, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';
+import type { ProfileSnapshot } from '../domain/profile';
 import type { ActiveWorkoutSummary, RoutineSummary, TrainedExercise, WeightUnit, WorkoutSummary } from '../domain/types';
 import { restSecondsChanged, useAppDispatch, useAppSelector, weightUnitChanged } from './store';
 
@@ -76,6 +77,25 @@ export function useWorkoutSummaries(): WorkoutSummary[] {
   }, [revision]);
 
   return workouts;
+}
+
+export function useProfile(): ProfileSnapshot | null {
+  const revision = useRevision();
+  const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    void getProfile().then((next) => {
+      if (!cancel) {
+        setProfile(next);
+      }
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [revision]);
+
+  return profile;
 }
 
 export function useTrainedExercises(): TrainedExercise[] {
