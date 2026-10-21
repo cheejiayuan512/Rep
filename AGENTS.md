@@ -4,7 +4,7 @@ This is Rep, a local Expo workout log. One exercise is one card. Sets, reps, wei
 
 Read `.cursor/skills/workout-log/SKILL.md` before changing workouts, sets, records, units, or storage.
 
-Read `.cursor/skills/store-release/SKILL.md` before publishing. Read `.cursor/skills/release-automation/SKILL.md` before automating uploads. Read `.cursor/skills/expo-mcp/SKILL.md` before using the Expo MCP server.
+Read `.cursor/skills/store-release/SKILL.md` before publishing. The Apple key for this computer is in the gitignored `local.md` beside that skill. Read `.cursor/skills/release-automation/SKILL.md` before automating uploads. Read `.cursor/skills/expo-mcp/SKILL.md` before using the Expo MCP server.
 
 ## Layout
 

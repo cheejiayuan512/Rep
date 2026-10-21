@@ -1,6 +1,6 @@
 # Start here
 
-This list is for someone new to the project. Do the steps in order. Check one box, run the app, then move on. History and Progress already work on the phone. Do not rebuild those screens. The new work is an account, a cloud copy of the log, and a few smaller improvements.
+This list is for someone new to the project. Do the steps in order. Check one box, run the app, then move on. History and Progress already work on the phone. Do not rebuild those screens. The new work is an account, a cloud copy of the log, smaller improvements, and a workout generator inside the app.
 
 Read `README.md` and `docs/tour.md` once before step 1.
 
@@ -69,7 +69,24 @@ The list, the record cards, and the chart already exist (`src/features/progress/
 - [ ] Warmups and incomplete sets stay off the chart and off the records. There is a test for that. Run `npm test` after you filter.
 - [ ] The kg/lb switch on Progress still only changes the labels. The saved weight stays kilograms.
 
-## 8. Pick one extra
+## 8. Generate a workout in the app
+
+Put a **Generate** button on the Workout home screen. The first version uses workouts they already finished. It does not call a model, and it works when nobody is signed in.
+
+- [ ] Ask for a duration or a muscle area.
+- [ ] Build the plan from exercises already in the library. Copy the last completed weight and reps for each one. Leave RPE empty. Save weight in kilograms.
+- [ ] Ignore warmups and incomplete sets when you look up that last weight.
+- [ ] Save the plan as a routine, or start an in-progress workout with those sets unchecked.
+- [ ] Do not mark the generated sets completed. History and Progress must not count them.
+- [ ] Add a test in `src/domain/` that copies the last real set and skips warmups. Run `npm test`.
+
+A model comes only after step 5. The button can then take a sentence such as "40 minutes, knees are sore."
+
+- [ ] Send that sentence to a Firebase function. Do not put the model key in the app.
+- [ ] The function may only return exercise ids that already exist. The same save path as the offline button writes the plan.
+- [ ] Do not add a second generator that only runs in Cursor. A later MCP, if you want one, calls this same save path.
+
+## 9. Pick one extra
 
 Do these only after step 5 works. One is enough for a first pull request.
 

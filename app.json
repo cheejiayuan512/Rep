@@ -8,9 +8,14 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0C0F14",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cheejiayuan.rep",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.cheejiayuan.rep",
       "adaptiveIcon": {
         "backgroundColor": "#0C0F14",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,6 +26,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "59e0c5e1-67ce-4904-9e10-d1eaf43b4592"
+      }
     }
   }
 }
