@@ -28,11 +28,11 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/without-push-entitlement.js",
       [
         "expo-notifications",
         {
-          "color": "#D6FF4A",
-          "mode": "production"
+          "color": "#D6FF4A"
         }
       ]
     ],
