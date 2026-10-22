@@ -1,0 +1,12 @@
+---
+description: Commit and push finished work without waiting to be asked
+alwaysApply: true
+---
+
+# Commit and push
+
+When a task changes tracked files, commit and push that work on the current branch before the task is done. Do not wait to be asked.
+
+- Leave out secrets: `*.p8`, `*.p12`, Play service-account JSON, `local.md`, and `mcp-shell.log`.
+- Do not commit an empty tree. Do not update git config. Do not force-push.
+- Use a short message that says why the change exists.
