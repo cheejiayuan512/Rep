@@ -22,6 +22,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
 - The Rest chip sets `WorkoutExercise.restSeconds` (null uses the default). A new workout copies the last rest picked for that exercise.
 - When the rest timer starts, a local notification is scheduled for its end (`src/components/rest-notification.ts`). Skip, finish, and discard cancel it.
+- On iOS the same timer is a Live Activity on the Lock Screen and in the Dynamic Island (`src/components/rest-activity.tsx`, started through `rest-live-activity.ts`). The layout function runs in the widget extension: only `@expo/ui/swift-ui` views, no hooks, nothing from outside the function.
 - A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
 

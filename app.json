@@ -10,8 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cheejiayuan.rep",
+      "appleTeamId": "ZC96W3Y7JU",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true
       }
     },
     "android": {
@@ -33,6 +35,13 @@
         "expo-notifications",
         {
           "color": "#D6FF4A"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.cheejiayuan.rep.ExpoWidgetsTarget",
+          "groupIdentifier": "group.com.cheejiayuan.rep"
         }
       ]
     ],

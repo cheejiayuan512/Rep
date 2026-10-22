@@ -56,6 +56,7 @@ These are already chosen. Do not change the bundle id or package after the first
 - Bundle id and Android package: `com.cheejiayuan.rep`
 - Expo project: `@cheejiayuan512/Rep`. The project id is `extra.eas.projectId` in `app.json`.
 - Apple team: `ZC96W3Y7JU`, type `INDIVIDUAL`
+- Live Activity extension: `com.cheejiayuan.rep.ExpoWidgetsTarget`, App Group `group.com.cheejiayuan.rep`. Both the app and the extension need a profile with that App Group. The iOS push entitlement is stripped by `plugins/without-push-entitlement.js` because Rep sends no remote push.
 - App Store name: Rep Workout Log. SKU `rep-ios`
 - `eas.json` production profile uses `autoIncrement`. Android submit track is `internal`.
 

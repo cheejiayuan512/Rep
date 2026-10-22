@@ -20,7 +20,10 @@ import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
 import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { RestBar } from '../../components/rest-bar';
+import type { RestActivityProps } from '../../components/rest-activity';
+import { endRestActivity, showRestActivity } from '../../components/rest-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
+import { formatLoggedLoad } from '../../domain/format';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
@@ -104,6 +107,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const [undo, setUndo] = useState<UndoToast | null>(null);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
   const restExerciseRef = useRef<string | null>(null);
+  const restActivityRef = useRef<Omit<RestActivityProps, 'endsAt'> | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [orderIds, setOrderIds] = useState<string[] | null>(null);
@@ -226,6 +230,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
     }
     const id = setTimeout(() => {
       setRestEndsAt(null);
+      endRestActivity();
       void hapticSuccess();
     }, Math.max(0, restEndsAt - Date.now()));
     return () => clearTimeout(id);
@@ -428,10 +433,18 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       void hapticLight();
-      const endsAt = Date.now() + (located.exercise.restSeconds ?? restSeconds) * 1000;
+      const startedAt = Date.now();
+      const endsAt = startedAt + (located.exercise.restSeconds ?? restSeconds) * 1000;
+      const nextSet = located.exercise.sets.find((set) => set.id !== setId && !set.completed);
       restExerciseRef.current = located.exercise.id;
+      restActivityRef.current = {
+        exerciseName: located.exercise.name,
+        nextSet: nextSet ? formatLoggedLoad(nextSet.weightKg, nextSet.reps, unitRef.current, nextSet.setType === 'warmup') : '',
+        startedAt,
+      };
       setRestEndsAt(endsAt);
       void scheduleRestEnd(endsAt, located.exercise.name);
+      showRestActivity({ ...restActivityRef.current, endsAt });
       const scored = scoreWorkoutSet(current, located.exercise, { ...located.set, ...numbers, completed: true }, current.startedAt + located.set.position + 1);
       if (!scored) {
         return;
@@ -646,6 +659,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
       await finishWorkout(current.id);
       setRestEndsAt(null);
       void cancelRestEnd();
+      endRestActivity();
       dispatch(activeWorkoutChanged(null));
       dispatch(dataChanged());
       leave();
@@ -667,6 +681,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
           await discardWorkout(workoutId);
           setRestEndsAt(null);
           void cancelRestEnd();
+          endRestActivity();
           dispatch(activeWorkoutChanged(null));
           dispatch(dataChanged());
           leave();
@@ -697,6 +712,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
         setRestSeconds(seconds);
       }
       void scheduleRestEnd(next, exercise?.name ?? 'your exercise');
+      if (restActivityRef.current) {
+        showRestActivity({ ...restActivityRef.current, endsAt: next });
+      }
     },
     [handleChangeRest, setRestSeconds],
   );
@@ -705,6 +723,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const skipRest = useCallback(() => {
     setRestEndsAt(null);
     void cancelRestEnd();
+    endRestActivity();
   }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
