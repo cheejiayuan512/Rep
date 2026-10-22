@@ -50,6 +50,8 @@ export interface StoredWorkoutExercise {
   exerciseId: string;
   position: number;
   notes: string;
+  /** Rest after a set of this exercise. Null uses the default in settings. */
+  restSeconds: number | null;
 }
 
 export interface StoredSet {
@@ -158,6 +160,11 @@ function normalizeStored(db: DatabaseShape): boolean {
   for (const exercise of db.workoutExercises) {
     if (typeof exercise.notes !== 'string') {
       exercise.notes = '';
+      changed = true;
+    }
+    const rest = typeof exercise.restSeconds === 'number' && Number.isFinite(exercise.restSeconds) ? exercise.restSeconds : null;
+    if (exercise.restSeconds !== rest) {
+      exercise.restSeconds = rest;
       changed = true;
     }
   }

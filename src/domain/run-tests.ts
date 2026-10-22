@@ -2,6 +2,7 @@
  * Loads every domain test, then runs them. `npm test` starts here.
  */
 import './drafts.test';
+import './exercise-families.test';
 import './format.test';
 import './hevy-import.test';
 import './metrics.test';

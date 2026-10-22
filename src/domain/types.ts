@@ -72,6 +72,8 @@ export interface WorkoutExercise {
   position: number;
   /** Free text for this exercise in this workout, not for each set. */
   notes: string;
+  /** Rest after each set of this exercise. Null uses the default rest. */
+  restSeconds: number | null;
   sets: SetRecord[];
   previousSets: PreviousSet[];
 }

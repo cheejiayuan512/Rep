@@ -105,37 +105,63 @@ export function bestsFromScored(sets: ScoredSet[]): Bests {
  * The first logged set still shows on Progress, but it does not raise a banner.
  */
 export function detectRecord(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit | null {
+  return detectRecords(current, prior, unit)[0] ?? null;
+}
+
+/** Every record this set beats, in priority order: 1RM, heaviest, volume, reps. */
+export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit[] {
   const best = bestsFromScored(prior);
+  const hits: RecordHit[] = [];
   if (current.oneRepMaxKg != null && best.oneRepMax?.oneRepMaxKg != null && current.oneRepMaxKg > best.oneRepMax.oneRepMaxKg + WEIGHT_EPSILON_KG) {
-    return {
+    hits.push({
       detail: formatLoggedLoad(current.weightKg, current.reps, unit),
       kind: 'oneRepMax',
       title: `Estimated 1RM PR · ${formatWeight(kgToDisplay(current.oneRepMaxKg, unit))} ${unit}`,
-    };
+    });
   }
   if (current.weightKg > 0 && best.heaviest != null && current.weightKg > best.heaviest.weightKg + WEIGHT_EPSILON_KG) {
-    return {
+    hits.push({
       detail: `${current.reps} reps`,
       kind: 'heaviest',
       title: `Heaviest set PR · ${formatWeight(kgToDisplay(current.weightKg, unit))} ${unit}`,
-    };
+    });
   }
   if (current.volumeKg > 0 && best.volume != null && current.volumeKg > best.volume.volumeKg + VOLUME_EPSILON_KG) {
-    return {
+    hits.push({
       detail: formatLoggedLoad(current.weightKg, current.reps, unit),
       kind: 'volume',
       title: `Volume PR · ${formatVolume(kgToDisplay(current.volumeKg, unit))} ${unit}`,
-    };
+    });
   }
   if (best.reps != null && current.reps > best.reps.reps) {
-    return {
+    hits.push({
       detail: current.weightKg > 0 ? `at ${formatWeight(kgToDisplay(current.weightKg, unit))} ${unit}` : 'bodyweight',
       kind: 'reps',
       title: `Rep PR · ${current.reps}`,
-    };
+    });
   }
 
-  return null;
+  return hits;
+}
+
+/**
+ * Walks one exercise's sets in order and returns the ids that beat everything
+ * before them: the earlier history plus the earlier sets in this workout.
+ */
+export function recordSetIds(sets: Array<{ id: string; scored: ScoredSet | null }>, history: ScoredSet[]): Set<string> {
+  const ids = new Set<string>();
+  const prior = [...history];
+  for (const set of sets) {
+    if (!set.scored) {
+      continue;
+    }
+    if (detectRecords(set.scored, prior, 'kg').length > 0) {
+      ids.add(set.id);
+    }
+    prior.push(set.scored);
+  }
+
+  return ids;
 }
 
 export function latestSessionSets(sets: LoggedSet[]): LoggedSet[] {

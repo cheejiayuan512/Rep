@@ -4,8 +4,8 @@
  * are separate components so this page does not redraw every second.
  * See docs/tour.md for the full path.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,12 +18,14 @@ import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
+import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { RestBar } from '../../components/rest-bar';
+import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
-import { detectRecord, scoreLoggedSet, toLoggedSet } from '../../domain/metrics';
-import type { LoggedSet, WorkoutDetail } from '../../domain/types';
+import { detectRecords, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
+import type { LoggedSet, SetRecord, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { findSet, orderByIds, updateSetInWorkout } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
@@ -35,11 +37,14 @@ import {
   insertSet,
   removeWorkoutExercise,
   renameWorkout,
+  restoreSet,
+  restoreWorkoutExercise,
   saveWorkoutExercisePositions,
   updateSetCompleted,
   updateSetNumbers,
   updateSetType,
   updateWorkoutExerciseNotes,
+  updateWorkoutExerciseRest,
 } from '../../data/repository';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -48,6 +53,37 @@ interface PendingSet {
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
+}
+
+interface RecordToast {
+  exerciseName: string;
+  lines: string[];
+}
+
+interface UndoToast {
+  message: string;
+  restore: () => void;
+}
+
+const noRecords: ReadonlySet<string> = new Set();
+
+function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set: SetRecord, performedAt: number): ScoredSet | null {
+  return scoreLoggedSet(
+    toLoggedSet({
+      completed: set.completed,
+      exerciseId: exercise.exerciseId,
+      performedAt,
+      position: set.position,
+      reps: set.reps,
+      setType: set.setType,
+      weightKg: set.weightKg,
+      workoutId: workout.id,
+    }),
+  );
+}
+
+function clampRestSeconds(seconds: number): number {
+  return Math.min(300, Math.max(15, Math.round(seconds)));
 }
 
 export const ActiveWorkoutScreen: React.FC = () => {
@@ -64,8 +100,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const [missing, setMissing] = useState(false);
   const [title, setTitle] = useState('Workout');
   const [banner, setBanner] = useState<string | null>(null);
-  const [recordBanner, setRecordBanner] = useState<string | null>(null);
+  const [recordBanner, setRecordBanner] = useState<RecordToast | null>(null);
+  const [undo, setUndo] = useState<UndoToast | null>(null);
   const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
+  const restExerciseRef = useRef<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [orderIds, setOrderIds] = useState<string[] | null>(null);
@@ -152,9 +190,35 @@ export const ActiveWorkoutScreen: React.FC = () => {
     if (!recordBanner) {
       return;
     }
-    const id = setTimeout(() => setRecordBanner(null), 2800);
+    const id = setTimeout(() => setRecordBanner(null), 4000);
     return () => clearTimeout(id);
   }, [recordBanner]);
+
+  useEffect(() => {
+    if (!undo) {
+      return;
+    }
+    const id = setTimeout(() => setUndo(null), 5000);
+    return () => clearTimeout(id);
+  }, [undo]);
+
+  const recordIdsByExercise = useMemo(() => {
+    const map = new Map<string, ReadonlySet<string>>();
+    if (!workout) {
+      return map;
+    }
+    for (const exercise of workout.exercises) {
+      const history = (historyByExercise[exercise.exerciseId] ?? []).map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
+      const ids = recordSetIds(
+        exercise.sets.map((set) => ({ id: set.id, scored: scoreWorkoutSet(workout, exercise, set, workout.startedAt + set.position + 1) })),
+        history,
+      );
+      if (ids.size > 0) {
+        map.set(exercise.id, ids);
+      }
+    }
+    return map;
+  }, [historyByExercise, workout]);
 
   useEffect(() => {
     if (restEndsAt == null) {
@@ -364,68 +428,87 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       void hapticLight();
-      setRestEndsAt(Date.now() + restSeconds * 1000);
-      const scored = scoreLoggedSet(
-        toLoggedSet({
-          completed: true,
-          exerciseId: located.exercise.exerciseId,
-          performedAt: current.startedAt + located.set.position + 1,
-          position: located.set.position,
-          reps: numbers.reps,
-          setType: located.set.setType,
-          weightKg: numbers.weightKg,
-          workoutId: current.id,
-        }),
-      );
+      const endsAt = Date.now() + (located.exercise.restSeconds ?? restSeconds) * 1000;
+      restExerciseRef.current = located.exercise.id;
+      setRestEndsAt(endsAt);
+      void scheduleRestEnd(endsAt, located.exercise.name);
+      const scored = scoreWorkoutSet(current, located.exercise, { ...located.set, ...numbers, completed: true }, current.startedAt + located.set.position + 1);
       if (!scored) {
         return;
       }
       const prior = [
-        ...(historyRef.current[located.exercise.exerciseId] ?? []),
+        ...(historyRef.current[located.exercise.exerciseId] ?? []).map(scoreLoggedSet),
         ...located.exercise.sets
           .filter((set) => set.id !== setId && set.completed)
-          .map((set) =>
-            toLoggedSet({
-              completed: true,
-              exerciseId: located.exercise.exerciseId,
-              performedAt: current.startedAt + set.position,
-              position: set.position,
-              reps: set.reps,
-              setType: set.setType,
-              weightKg: set.weightKg,
-              workoutId: current.id,
-            }),
-          ),
-      ]
-        .map(scoreLoggedSet)
-        .filter((set): set is NonNullable<typeof set> => set != null);
-      const hit = detectRecord(scored, prior, unitRef.current);
-      if (hit) {
-        setRecordBanner(hit.title);
+          .map((set) => scoreWorkoutSet(current, located.exercise, set, current.startedAt + set.position)),
+      ].filter((set): set is ScoredSet => set != null);
+      const hits = detectRecords(scored, prior, unitRef.current);
+      if (hits.length > 0) {
+        setRecordBanner({ exerciseName: located.exercise.name, lines: hits.map((hit) => hit.title) });
         void hapticSuccess();
       }
     },
     [clearPending, readSetNumbers, restSeconds],
   );
 
+  const handleChangeRest = useCallback((workoutExerciseId: string, seconds: number | null) => {
+    const next = seconds == null ? null : clampRestSeconds(seconds);
+    setWorkout((current) =>
+      current
+        ? { ...current, exercises: current.exercises.map((exercise) => (exercise.id === workoutExerciseId ? { ...exercise, restSeconds: next } : exercise)) }
+        : current,
+    );
+    void updateWorkoutExerciseRest(workoutExerciseId, next);
+  }, []);
+
   const handleDeleteSet = useCallback(
     (setId: string) => {
+      const current = workoutRef.current;
+      const located = current ? findSet(current, setId) : null;
       clearPending(setId);
-      setWorkout((current) => {
-        if (!current) {
-          return current;
+      setWorkout((workout) => {
+        if (!workout) {
+          return workout;
         }
         return {
-          ...current,
-          exercises: current.exercises.map((exercise) => ({
+          ...workout,
+          exercises: workout.exercises.map((exercise) => ({
             ...exercise,
             sets: exercise.sets.filter((set) => set.id !== setId).map((set, position) => ({ ...set, position })),
           })),
         };
       });
       void deleteSet(setId);
+      if (!located) {
+        return;
+      }
+      const workoutExerciseId = located.exercise.id;
+      const index = located.exercise.sets.findIndex((set) => set.id === setId);
+      const removed = { ...located.set, ...readSetNumbers(setId, located.set) };
+      setUndo({
+        message: `Deleted set ${index + 1} of ${located.exercise.name}`,
+        restore: () => {
+          setWorkout((workout) => {
+            if (!workout) {
+              return workout;
+            }
+            return {
+              ...workout,
+              exercises: workout.exercises.map((exercise) => {
+                if (exercise.id !== workoutExerciseId || exercise.sets.some((set) => set.id === setId)) {
+                  return exercise;
+                }
+                const sets = [...exercise.sets];
+                sets.splice(Math.min(index, sets.length), 0, removed);
+                return { ...exercise, sets: sets.map((set, position) => ({ ...set, position })) };
+              }),
+            };
+          });
+          void restoreSet(workoutExerciseId, removed, index);
+        },
+      });
     },
-    [clearPending],
+    [clearPending, readSetNumbers],
   );
 
   const handleAddSet = useCallback(async (workoutExerciseId: string) => {
@@ -467,7 +550,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
 
   const handleRemove = useCallback((workoutExerciseId: string) => {
     const current = workoutRef.current;
-    const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+    const index = current?.exercises.findIndex((item) => item.id === workoutExerciseId) ?? -1;
+    const exercise = current?.exercises[index];
+    const snapshot = exercise ? { ...exercise, sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })) } : null;
     exercise?.sets.forEach((set) => clearPending(set.id));
     delete notePendingRef.current[workoutExerciseId];
     const noteTimer = noteTimersRef.current[workoutExerciseId];
@@ -477,7 +562,33 @@ export const ActiveWorkoutScreen: React.FC = () => {
     }
     setWorkout((workout) => (workout ? { ...workout, exercises: workout.exercises.filter((item) => item.id !== workoutExerciseId) } : workout));
     void removeWorkoutExercise(workoutExerciseId);
-  }, [clearPending]);
+    if (!current || !snapshot) {
+      return;
+    }
+    setUndo({
+      message: `Removed ${snapshot.name}`,
+      restore: () => {
+        setWorkout((workout) => {
+          if (!workout || workout.exercises.some((item) => item.id === snapshot.id)) {
+            return workout;
+          }
+          const exercises = [...workout.exercises];
+          exercises.splice(Math.min(index, exercises.length), 0, snapshot);
+          return { ...workout, exercises: exercises.map((item, position) => ({ ...item, position })) };
+        });
+        void restoreWorkoutExercise(current.id, snapshot, index);
+      },
+    });
+  }, [clearPending, readSetNumbers]);
+
+  const handleUndo = useCallback(() => {
+    const pending = undo;
+    setUndo(null);
+    pending?.restore();
+    void hapticLight();
+  }, [undo]);
+
+  const dismissRecord = useCallback(() => setRecordBanner(null), []);
 
   const beginReorder = useCallback(() => {
     const current = workoutRef.current;
@@ -533,6 +644,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
       await flushPending();
       await renameWorkout(current.id, titleRef.current);
       await finishWorkout(current.id);
+      setRestEndsAt(null);
+      void cancelRestEnd();
       dispatch(activeWorkoutChanged(null));
       dispatch(dataChanged());
       leave();
@@ -552,6 +665,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
         setConfirm(null);
         void (async () => {
           await discardWorkout(workoutId);
+          setRestEndsAt(null);
+          void cancelRestEnd();
           dispatch(activeWorkoutChanged(null));
           dispatch(dataChanged());
           leave();
@@ -574,13 +689,23 @@ export const ActiveWorkoutScreen: React.FC = () => {
       const next = Math.max(Date.now() + 1000, current + delta * 1000);
       restEndsAtRef.current = next;
       setRestEndsAt(next);
-      setRestSeconds(Math.round((next - Date.now()) / 1000));
+      const seconds = Math.round((next - Date.now()) / 1000);
+      const exercise = workoutRef.current?.exercises.find((item) => item.id === restExerciseRef.current);
+      if (exercise?.restSeconds != null) {
+        handleChangeRest(exercise.id, seconds);
+      } else {
+        setRestSeconds(seconds);
+      }
+      void scheduleRestEnd(next, exercise?.name ?? 'your exercise');
     },
-    [setRestSeconds],
+    [handleChangeRest, setRestSeconds],
   );
   const subtractRest = useCallback(() => adjustRest(-15), [adjustRest]);
   const addRest = useCallback(() => adjustRest(15), [adjustRest]);
-  const skipRest = useCallback(() => setRestEndsAt(null), []);
+  const skipRest = useCallback(() => {
+    setRestEndsAt(null);
+    void cancelRestEnd();
+  }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   return (
@@ -594,7 +719,13 @@ export const ActiveWorkoutScreen: React.FC = () => {
         {missing ? (
           <EmptyState actionLabel="Go back" message="This workout is no longer on the device." onAction={leave} title="Workout missing" />
         ) : (
-          <ScrollView contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner ? 168 : 48) + insets.bottom }} keyboardShouldPersistTaps="handled" scrollEnabled={!orderDragging} style={styles.fill}>
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner || undo ? 168 : 48) + insets.bottom }}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            keyboardShouldPersistTaps="handled"
+            scrollEnabled={!orderDragging}
+            style={styles.fill}
+          >
             {orderIds ? null : (
               <View style={styles.intro}>
                 <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
@@ -625,11 +756,13 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   ) : null}
                   {workout?.exercises.map((exercise) => (
                     <ExerciseBlock
+                      defaultRestSeconds={restSeconds}
                       drafts={drafts}
                       exercise={exercise}
                       key={exercise.id}
                       onAddSet={pressAddSet}
                       onChangeNotes={handleChangeNotes}
+                      onChangeRest={handleChangeRest}
                       onChangeReps={handleChangeReps}
                       onChangeRpe={handleChangeRpe}
                       onChangeWeight={handleChangeWeight}
@@ -638,6 +771,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onRemove={handleRemove}
                       onToggleComplete={handleToggleComplete}
                       onToggleWarmup={handleToggleWarmup}
+                      recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
                       unit={unit}
                     />
                   ))}
@@ -653,12 +787,30 @@ export const ActiveWorkoutScreen: React.FC = () => {
           </ScrollView>
         )}
       </KeyboardAvoidingView>
-      {recordBanner ? (
-        <View style={[styles.record, { bottom: (restEndsAt ? 92 : 16) + insets.bottom }]}>
-          <Text style={styles.recordText}>{recordBanner}</Text>
+      {recordBanner || undo ? (
+        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + insets.bottom }]}>
+          {recordBanner ? (
+            <Pressable accessibilityLiveRegion="polite" accessibilityRole="alert" onPress={dismissRecord} style={styles.record}>
+              <Text style={styles.recordTitle}>★ New PR · {recordBanner.exerciseName}</Text>
+              {recordBanner.lines.map((line) => (
+                <Text key={line} style={styles.recordText}>
+                  {line}
+                </Text>
+              ))}
+            </Pressable>
+          ) : null}
+          {undo ? (
+            <View style={styles.undo}>
+              <Text numberOfLines={1} style={styles.undoText}>
+                {undo.message}
+              </Text>
+              <TextButton label="Undo" onPress={handleUndo} tone="accent" />
+            </View>
+          ) : null}
         </View>
       ) : null}
       {restEndsAt ? <RestBar endsAt={restEndsAt} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
+      <KeyboardDoneBar />
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
         destructive={confirm?.destructive}
@@ -714,16 +866,43 @@ const styles = StyleSheet.create({
   record: {
     backgroundColor: colors.accent,
     borderRadius: 14,
-    left: 20,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    position: 'absolute',
-    right: 20,
   },
   recordText: {
     color: colors.accentInk,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  recordTitle: {
+    color: colors.accentInk,
     fontSize: 15,
     fontWeight: '800',
+  },
+  toasts: {
+    gap: 8,
+    left: 20,
+    position: 'absolute',
+    right: 20,
+  },
+  undo: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  undoText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
   },
   title: {
     color: colors.text,

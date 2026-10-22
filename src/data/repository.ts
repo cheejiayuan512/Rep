@@ -238,7 +238,7 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
     db.workouts.push({ finishedAt: null, id: workoutId, name: routine.name, routineId: routine.id, startedAt: Date.now() });
     exercises.forEach((exercise, index) => {
       const workoutExerciseId = createId();
-      db.workoutExercises.push({ exerciseId: exercise.exerciseId, id: workoutExerciseId, notes: '', position: index, workoutId });
+      db.workoutExercises.push({ exerciseId: exercise.exerciseId, id: workoutExerciseId, notes: '', position: index, restSeconds: lastRestFor(db, exercise.exerciseId), workoutId });
       addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? []));
     });
   });
@@ -298,7 +298,7 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
     }
     const position = nextPosition(db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId));
     const workoutExerciseId = createId();
-    db.workoutExercises.push({ exerciseId, id: workoutExerciseId, notes: '', position, workoutId });
+    db.workoutExercises.push({ exerciseId, id: workoutExerciseId, notes: '', position, restSeconds: lastRestFor(db, exerciseId), workoutId });
     addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? []));
   });
 }
@@ -368,10 +368,61 @@ export async function deleteSet(setId: string): Promise<void> {
   });
 }
 
+/** Puts a deleted set back at `index` among its exercise's sets. */
+export async function restoreSet(workoutExerciseId: string, set: SetRecord, index: number): Promise<void> {
+  await writeDatabase((db) => {
+    if (!db.workoutExercises.some((exercise) => exercise.id === workoutExerciseId) || db.sets.some((item) => item.id === set.id)) {
+      return;
+    }
+    const siblings = db.sets.filter((item) => item.workoutExerciseId === workoutExerciseId).sort((left, right) => left.position - right.position);
+    const restored: StoredSet = { ...set, workoutExerciseId };
+    siblings.splice(Math.min(index, siblings.length), 0, restored);
+    siblings.forEach((item, position) => {
+      item.position = position;
+    });
+    db.sets.push(restored);
+  });
+}
+
+export async function updateWorkoutExerciseRest(workoutExerciseId: string, restSeconds: number | null): Promise<void> {
+  await writeDatabase((db) => {
+    const exercise = db.workoutExercises.find((item) => item.id === workoutExerciseId);
+    if (exercise) {
+      exercise.restSeconds = restSeconds == null ? null : clampRest(restSeconds);
+    }
+  });
+}
+
 export async function removeWorkoutExercise(workoutExerciseId: string): Promise<void> {
   await writeDatabase((db) => {
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== workoutExerciseId);
     db.workoutExercises = db.workoutExercises.filter((exercise) => exercise.id !== workoutExerciseId);
+  });
+}
+
+/** Puts a removed exercise and its sets back at `index` in the workout. */
+export async function restoreWorkoutExercise(workoutId: string, exercise: WorkoutExercise, index: number): Promise<void> {
+  await writeDatabase((db) => {
+    if (!db.workouts.some((workout) => workout.id === workoutId) || db.workoutExercises.some((item) => item.id === exercise.id)) {
+      return;
+    }
+    const rows = workoutExerciseRows(db, workoutId);
+    const restored: StoredWorkoutExercise = {
+      exerciseId: exercise.exerciseId,
+      id: exercise.id,
+      notes: exercise.notes,
+      position: 0,
+      restSeconds: exercise.restSeconds,
+      workoutId,
+    };
+    rows.splice(Math.min(index, rows.length), 0, restored);
+    rows.forEach((row, position) => {
+      row.position = position;
+    });
+    db.workoutExercises.push(restored);
+    exercise.sets.forEach((set, position) => {
+      db.sets.push({ ...set, position, workoutExerciseId: exercise.id });
+    });
   });
 }
 
@@ -489,6 +540,7 @@ export async function importHevyCsv(csvText: string): Promise<HevyImportSummary>
           id: workoutExerciseId,
           notes,
           position: exercise.position,
+          restSeconds: null,
           workoutId,
         });
 
@@ -650,8 +702,25 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
     notes: row.notes ?? '',
     position: row.position,
     previousSets: previous,
+    restSeconds: row.restSeconds ?? null,
     sets,
   };
+}
+
+/** The rest picked for this exercise in the latest workout that set one. */
+function lastRestFor(db: DatabaseShape, exerciseId: string): number | null {
+  const startedAt = new Map(db.workouts.map((workout) => [workout.id, workout.startedAt]));
+  let latest: { at: number; rest: number } | null = null;
+  for (const row of db.workoutExercises) {
+    const at = startedAt.get(row.workoutId);
+    if (row.exerciseId !== exerciseId || row.restSeconds == null || at == null) {
+      continue;
+    }
+    if (!latest || at > latest.at) {
+      latest = { at, rest: row.restSeconds };
+    }
+  }
+  return latest?.rest ?? null;
 }
 
 function workingSets(db: DatabaseShape, workoutId: string): StoredSet[] {

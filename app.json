@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rep",
     "slug": "Rep",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -27,6 +27,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#D6FF4A",
+          "mode": "production"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "59e0c5e1-67ce-4904-9e10-d1eaf43b4592"

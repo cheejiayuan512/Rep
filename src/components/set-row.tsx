@@ -9,10 +9,11 @@ import { formatLoggedLoad } from '../domain/format';
 import type { SetDraft } from '../domain/drafts';
 import type { PreviousSet, SetRecord, WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
+import { keyboardDoneId } from './keyboard-done-bar';
 
 export const setColumn = {
   check: 32,
-  delete: 18,
+  delete: 26,
   gap: 4,
   reps: 48,
   rpe: 44,
@@ -26,6 +27,8 @@ interface SetRowProps {
   draft: SetDraft;
   previous: PreviousSet | null;
   unit: WeightUnit;
+  /** True when this completed set beat a previous best. */
+  isRecord: boolean;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
@@ -40,6 +43,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   draft,
   previous,
   unit,
+  isRecord,
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
@@ -79,12 +83,18 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
     <View style={[styles.row, set.setType === 'warmup' && styles.warmup]}>
       <Pressable accessibilityLabel={set.setType === 'warmup' ? 'Mark as a working set' : 'Mark as a warmup set'} onPress={handleWarmup} style={styles.setNumber}>
         <Text style={styles.setNumberText}>{set.setType === 'warmup' ? 'W' : String(index + 1)}</Text>
+        {isRecord ? (
+          <Text accessibilityLabel="Personal record" style={styles.star}>
+            ★
+          </Text>
+        ) : null}
       </Pressable>
       <Text numberOfLines={1} style={styles.previous}>
         {previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup') : '—'}
       </Text>
       <TextInput
         accessibilityLabel="Weight"
+        inputAccessoryViewID={keyboardDoneId}
         keyboardType="decimal-pad"
         onChangeText={handleWeight}
         placeholder="—"
@@ -95,6 +105,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
       />
       <TextInput
         accessibilityLabel="Reps"
+        inputAccessoryViewID={keyboardDoneId}
         keyboardType="number-pad"
         onChangeText={handleReps}
         placeholder="—"
@@ -105,6 +116,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
       />
       <TextInput
         accessibilityLabel="RPE"
+        inputAccessoryViewID={keyboardDoneId}
         keyboardType="decimal-pad"
         onChangeText={handleRpe}
         placeholder="—"
@@ -146,7 +158,7 @@ const styles = StyleSheet.create({
     color: colors.accentInk,
   },
   delete: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     height: 36,
     justifyContent: 'center',
     width: setColumn.delete,
@@ -195,6 +207,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     fontWeight: '700',
+  },
+  star: {
+    color: colors.accent,
+    fontSize: 11,
+    position: 'absolute',
+    right: -2,
+    top: 0,
   },
   warmup: {
     opacity: 0.72,

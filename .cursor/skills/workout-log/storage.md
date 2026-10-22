@@ -9,11 +9,11 @@ Reads and writes are serialized on a promise queue. `writeDatabase` clones, muta
 - `exercises`: library, including the seeded slugs in `src/data/seed-exercises.ts`
 - `routines` and `routineExercises`
 - `workouts`: `finishedAt: null` means in progress
-- `workoutExercises`: `notes` is a string, `''` when empty
+- `workoutExercises`: `notes` is a string, `''` when empty. `restSeconds` is a number or `null` for the default rest
 - `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `setType` (`normal` or `warmup`), `completed`
 - `settings`: `weightUnit`, `restSeconds` (default 90)
 
-Old documents may omit `notes` or `rpe`. `normalizeStored` fills those on load. Keep that path when adding a field.
+Old documents may omit `notes`, `rpe`, or `restSeconds`. `normalizeStored` fills those on load. Keep that path when adding a field.
 
 ## Adding a field
 

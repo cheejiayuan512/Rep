@@ -12,6 +12,7 @@ import { Header, TextButton } from '../../components/header';
 import { hapticLight } from '../../components/haptics';
 import { Screen } from '../../components/screen';
 import { addExerciseToRoutine, addExerciseToWorkout, createExercise, deleteCustomExercise, listExercises } from '../../data/repository';
+import { groupExercises, type ExerciseListItem } from '../../domain/exercise-families';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
 import { equipmentTypes, muscleGroups } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
@@ -20,11 +21,11 @@ import { colors } from '../../theme/colors';
 const filters = ['All', ...muscleGroups] as const;
 const ROW_HEIGHT = 68;
 
-function exerciseKey(exercise: Exercise): string {
-  return exercise.id;
+function itemKey(item: ExerciseListItem): string {
+  return item.key;
 }
 
-function getExerciseItemLayout(_data: ArrayLike<Exercise> | null | undefined, index: number) {
+function getExerciseItemLayout(_data: ArrayLike<ExerciseListItem> | null | undefined, index: number) {
   return { index, length: ROW_HEIGHT, offset: ROW_HEIGHT * index };
 }
 
@@ -42,6 +43,8 @@ export const ExercisePickerScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<ReadonlySet<string>>(new Set());
+  const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
+  const items = useMemo(() => groupExercises(exercises, expandedFamilies, query.trim().length > 0), [exercises, expandedFamilies, query]);
 
   const load = useCallback(async (nextQuery: string, nextMuscle: MuscleGroup | null) => {
     const rows = await listExercises(nextQuery, nextMuscle);
@@ -120,11 +123,33 @@ export const ExercisePickerScreen: React.FC = () => {
     [load, muscle, query],
   );
 
+  const toggleFamily = useCallback((family: string) => {
+    setExpandedFamilies((current) => {
+      const next = new Set(current);
+      if (next.has(family)) {
+        next.delete(family);
+      } else {
+        next.add(family);
+      }
+      return next;
+    });
+  }, []);
+
   const renderExercise = useCallback(
-    ({ item }: ListRenderItemInfo<Exercise>) => (
-      <ExerciseChoice added={addedIds.has(item.id)} exercise={item} onDelete={handleDeleteCustom} onPress={handleSelect} pending={pendingId === item.id} />
-    ),
-    [addedIds, handleDeleteCustom, handleSelect, pendingId],
+    ({ item }: ListRenderItemInfo<ExerciseListItem>) =>
+      item.kind === 'family' ? (
+        <FamilyRow count={item.count} expanded={item.expanded} family={item.family} onToggle={toggleFamily} />
+      ) : (
+        <ExerciseChoice
+          added={addedIds.has(item.exercise.id)}
+          exercise={item.exercise}
+          nested={item.nested}
+          onDelete={handleDeleteCustom}
+          onPress={handleSelect}
+          pending={pendingId === item.exercise.id}
+        />
+      ),
+    [addedIds, handleDeleteCustom, handleSelect, pendingId, toggleFamily],
   );
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
@@ -166,11 +191,11 @@ export const ExercisePickerScreen: React.FC = () => {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <FlatList
         style={styles.list}
-        data={exercises}
+        data={items}
         extraData={`${pendingId ?? ''}:${addedIds.size}`}
         getItemLayout={getExerciseItemLayout}
         initialNumToRender={12}
-        keyExtractor={exerciseKey}
+        keyExtractor={itemKey}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={listEmpty}
         maxToRenderPerBatch={16}
@@ -217,15 +242,47 @@ function ChoiceChip<T extends string>({ label, selected, onPress }: ChoiceChipPr
   );
 }
 
+interface FamilyRowProps {
+  family: string;
+  count: number;
+  expanded: boolean;
+  onToggle: (family: string) => void;
+}
+
+const FamilyRow: React.FC<FamilyRowProps> = React.memo(function FamilyRow({ family, count, expanded, onToggle }) {
+  const handlePress = useCallback(() => {
+    onToggle(family);
+  }, [family, onToggle]);
+
+  return (
+    <Pressable
+      accessibilityLabel={`${family}, ${count} variations`}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      onPress={handlePress}
+      style={styles.row}
+    >
+      <View style={styles.rowCopy}>
+        <Text numberOfLines={1} style={styles.name}>
+          {family}
+        </Text>
+        <Text style={styles.meta}>{count} variations</Text>
+      </View>
+      <Text style={styles.chevron}>{expanded ? '▾' : '▸'}</Text>
+    </Pressable>
+  );
+});
+
 interface ExerciseChoiceProps {
   exercise: Exercise;
   added: boolean;
   pending: boolean;
+  nested: boolean;
   onPress: (exerciseId: string) => void;
   onDelete: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, onPress, onDelete }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, onPress, onDelete }) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);
@@ -234,7 +291,7 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
   }, [exercise.id, onDelete]);
 
   return (
-    <Pressable accessibilityLabel={exercise.name} accessibilityRole="button" onPress={handlePress} style={styles.row}>
+    <Pressable accessibilityLabel={exercise.name} accessibilityRole="button" onPress={handlePress} style={[styles.row, nested && styles.nested]}>
       <View style={styles.rowCopy}>
         <Text numberOfLines={1} style={styles.name}>
           {exercise.name}
@@ -259,6 +316,12 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
+    width: 48,
+  },
+  chevron: {
+    color: colors.muted,
+    fontSize: 18,
+    textAlign: 'center',
     width: 48,
   },
   chip: {
@@ -327,6 +390,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
+  },
+  nested: {
+    backgroundColor: colors.surface,
+    paddingLeft: 36,
   },
   row: {
     alignItems: 'center',

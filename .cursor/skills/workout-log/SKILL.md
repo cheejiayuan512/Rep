@@ -18,8 +18,12 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Each set row: previous load, weight, reps, RPE, complete, delete.
 - Tap the set number to toggle warmup.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
-- Remove exercise deletes that exercise and its sets with no dialog.
+- Remove exercise deletes that exercise and its sets with no dialog. Deleting a set or an exercise shows an Undo toast for 5 seconds instead.
 - Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
+- The Rest chip sets `WorkoutExercise.restSeconds` (null uses the default). A new workout copies the last rest picked for that exercise.
+- When the rest timer starts, a local notification is scheduled for its end (`src/components/rest-notification.ts`). Skip, finish, and discard cancel it.
+- A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
+- The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
 
 ## Numbers
 

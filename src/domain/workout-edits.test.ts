@@ -19,6 +19,7 @@ function exercise(id: string, position: number, sets: SetRecord[]): WorkoutExerc
     notes: '',
     position,
     previousSets: [],
+    restSeconds: null,
     sets,
   };
 }

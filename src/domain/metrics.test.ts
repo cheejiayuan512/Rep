@@ -1,7 +1,7 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, detectRecord, estimateOneRepMax, latestSessionSets, recordCardsFromSets, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, detectRecord, detectRecords, estimateOneRepMax, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import type { LoggedSet } from './types';
 
@@ -74,6 +74,28 @@ test('a rep record is announced only after weight and volume do not win', () => 
   const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
   const current = scored({ performedAt: 2, reps: 6, weightKg: 40 });
   assertEqual(detectRecord(current, [prior], 'kg')?.kind, 'reps');
+});
+
+test('one set can beat weight, volume, and reps at once', () => {
+  const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 6, weightKg: 105 });
+  assertEqual(
+    detectRecords(current, [prior], 'kg').map((hit) => hit.kind),
+    ['oneRepMax', 'heaviest', 'volume', 'reps'],
+  );
+});
+
+test('record stars skip the first ever set and warmups', () => {
+  const ids = recordSetIds(
+    [
+      { id: 'first', scored: scored({ performedAt: 1, reps: 5, weightKg: 100 }) },
+      { id: 'warmup', scored: scoreLoggedSet(logged({ setType: 'warmup', weightKg: 200 })) },
+      { id: 'heavier', scored: scored({ performedAt: 2, reps: 5, weightKg: 110 }) },
+      { id: 'lighter', scored: scored({ performedAt: 3, reps: 5, weightKg: 90 }) },
+    ],
+    [],
+  );
+  assertEqual([...ids], ['heavier']);
 });
 
 test('heaviest weight and best volume are tracked separately', () => {

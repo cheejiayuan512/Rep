@@ -25,7 +25,47 @@ test('a logged set shows up in history', async ({ page }) => {
   await page.getByRole('button', { name: 'Finish' }).click();
 
   await page.getByRole('tab', { name: 'History' }).click();
-  await page.getByText('Back Squat').click();
+  await page.getByText('Back Squat').last().click();
   await expect(page.getByText('Felt steady.')).toBeVisible();
   await expect(page.getByText('RPE 8')).toBeVisible();
+});
+
+test('variants fold, a heavier set is starred, and deletes can be undone', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Start empty workout' }).click();
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await expect(page.getByRole('button', { name: 'Incline Barbell Bench Press' })).toHaveCount(0);
+  await page.getByRole('button', { name: /^Bench Press, \d+ variations$/ }).click();
+  await page.getByRole('button', { name: 'Barbell Bench Press', exact: true }).click();
+  await expect(page.getByText('Added')).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
+
+  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
+  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByText('New PR', { exact: false })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Add set' }).click();
+  await page.getByRole('textbox', { name: 'Weight' }).nth(1).fill('110');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await expect(page.getByText('★ New PR · Barbell Bench Press')).toBeVisible();
+  await expect(page.getByLabel('Personal record')).toHaveCount(1);
+
+  await page.getByLabel('Delete set').nth(1).click();
+  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'Remove' }).click();
+  await expect(page.getByText('Removed Barbell Bench Press')).toBeVisible();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(2);
+
+  await page.getByRole('button', { name: /^Rest timer/ }).click();
+  await page.getByRole('button', { name: '2:00' }).click();
+  await expect(page.getByRole('button', { name: 'Rest timer 2:00' })).toBeVisible();
 });
