@@ -50,6 +50,28 @@ test('parseHevyCsv groups one session, keeps warmups, and skips cardio', () => {
   assertEqual(night?.exercises[0].matchedExerciseId, 'back-squat');
 });
 
+test('parseHevyCsv keeps columns when Hevy already quoted the dates', () => {
+  const csv = [
+    '"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"',
+    '"Morning workout 🏋️","20 Oct 2026, 18:42","20 Oct 2026, 20:41","","Chin Up (Weighted)",,"go 11.25 next, rpe8.5",0,"normal",10,6,,,',
+    '"Morning workout 🏋️","20 Oct 2026, 18:42","20 Oct 2026, 20:41","","Chin Up (Weighted)",,"go 11.25 next, rpe8.5",1,"warmup",,3,,,',
+    '"Morning workout 🏋️","20 Oct 2026, 18:42","20 Oct 2026, 20:41","","Incline Bench Press (Barbell)",,"try 80*10\\nbetter 90",0,"normal",85,6,,,',
+    '"Morning workout 🏋️","20 Oct 2026, 18:42","20 Oct 2026, 20:41","","Running",,"",0,"normal",,,5,1800,',
+  ].join('\n');
+
+  const result = parseHevyCsv(csv, library);
+  assertEqual(result.workouts.length, 1);
+  assertEqual(result.skippedCardioRows, 1);
+  const morning = result.workouts[0];
+  assertEqual(morning?.name, 'Morning workout');
+  assertEqual(morning?.exercises.length, 2);
+  assertEqual(morning?.exercises[0].sets.length, 2);
+  assertEqual(morning?.exercises[0].sets[1].setType, 'warmup');
+  assertEqual(morning?.exercises[0].notes, 'go 11.25 next, rpe8.5');
+  assertEqual(morning?.exercises[1].notes, 'try 80*10\nbetter 90');
+  assertEqual(morning?.exercises[1].sets[0].weightKg, 85);
+});
+
 test('parseHevyCsv rejects a file that is not a Hevy export', () => {
   assertThrows(() => parseHevyCsv('a,b\n1,2', library), 'Hevy');
 });
