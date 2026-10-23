@@ -1,17 +1,19 @@
 /**
  * One finished workout: its exercises, notes, and each set's weight, reps, and RPE.
+ * Edit reopens it in the workout screen; Duplicate starts a new workout from it.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 
-import { dataChanged, useAppDispatch } from '../../state/store';
+import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } from '../../state/store';
 import { useWeightUnit } from '../../state/hooks';
+import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { EmptyState } from '../../components/empty-state';
 import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
-import { deleteWorkout, getWorkout } from '../../data/repository';
+import { deleteWorkout, duplicateWorkout, getWorkout } from '../../data/repository';
 import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
 import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WorkoutDetail } from '../../domain/types';
@@ -25,18 +27,45 @@ export const WorkoutDetailScreen: React.FC = () => {
   const { unit } = useWeightUnit();
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
+  const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
 
-  useEffect(() => {
-    let cancel = false;
-    void getWorkout(route.params.workoutId).then((loaded) => {
-      if (!cancel) {
-        setWorkout(loaded);
-      }
+  useFocusEffect(
+    useCallback(() => {
+      let cancel = false;
+      void getWorkout(route.params.workoutId).then((loaded) => {
+        if (!cancel) {
+          setWorkout(loaded);
+        }
+      });
+      return () => {
+        cancel = true;
+      };
+    }, [route.params.workoutId]),
+  );
+
+  const handleEdit = useCallback(() => {
+    navigation.navigate('ActiveWorkout', { workoutId: route.params.workoutId });
+  }, [navigation, route.params.workoutId]);
+
+  const handleDuplicate = useCallback(() => {
+    if (activeWorkoutId) {
+      setConfirm({
+        confirmLabel: 'Resume',
+        message: 'Finish or discard the current workout before starting another.',
+        onConfirm: () => {
+          setConfirm(null);
+          navigation.navigate('ActiveWorkout', { workoutId: activeWorkoutId });
+        },
+        title: 'Workout in progress',
+      });
+      return;
+    }
+    void duplicateWorkout(route.params.workoutId).then((workoutId) => {
+      dispatch(activeWorkoutChanged(workoutId));
+      dispatch(dataChanged());
+      navigation.navigate('ActiveWorkout', { workoutId });
     });
-    return () => {
-      cancel = true;
-    };
-  }, [route.params.workoutId]);
+  }, [activeWorkoutId, dispatch, navigation, route.params.workoutId]);
 
   const handleDelete = useCallback(() => {
     setConfirm({
@@ -77,6 +106,10 @@ export const WorkoutDetailScreen: React.FC = () => {
           <Text style={styles.volume}>
             {formatVolume(kgToDisplay(volumeKg, unit))} {unit} volume
           </Text>
+          <View style={styles.actions}>
+            <Button label="Edit" onPress={handleEdit} style={styles.action} variant="secondary" />
+            <Button label="Duplicate" onPress={handleDuplicate} style={styles.action} />
+          </View>
           {workout.exercises.map((exercise) => (
             <View key={exercise.id} style={styles.card}>
               <Text style={styles.exercise}>{exercise.name}</Text>
@@ -109,6 +142,14 @@ export const WorkoutDetailScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  action: {
+    flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
   fill: {
     flex: 1,
   },

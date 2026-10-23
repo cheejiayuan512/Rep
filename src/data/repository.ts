@@ -171,7 +171,11 @@ export async function deleteRoutine(routineId: string): Promise<void> {
 
 export async function addExerciseToRoutine(routineId: string, exerciseId: string): Promise<void> {
   await writeDatabase((db) => {
-    const position = nextPosition(db.routineExercises.filter((exercise) => exercise.routineId === routineId));
+    const rows = db.routineExercises.filter((exercise) => exercise.routineId === routineId);
+    if (rows.some((exercise) => exercise.exerciseId === exerciseId)) {
+      return;
+    }
+    const position = nextPosition(rows);
     db.routineExercises.push({ exerciseId, id: createId(), position, routineId });
   });
 }
@@ -296,11 +300,75 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
     if (!db.exercises.some((exercise) => exercise.id === exerciseId)) {
       throw new Error('Exercise not found.');
     }
-    const position = nextPosition(db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId));
+    const rows = db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId);
+    if (rows.some((exercise) => exercise.exerciseId === exerciseId)) {
+      return;
+    }
+    const position = nextPosition(rows);
     const workoutExerciseId = createId();
     db.workoutExercises.push({ exerciseId, id: workoutExerciseId, notes: '', position, restSeconds: lastRestFor(db, exerciseId), workoutId });
     addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? []));
   });
+}
+
+/** Library exercise ids already in a workout or routine, for the picker's add/remove toggle. */
+export async function listTargetExerciseIds(target: { workoutId: string } | { routineId: string }): Promise<string[]> {
+  const db = await readDatabase();
+  const rows = 'workoutId' in target ? workoutExerciseRows(db, target.workoutId) : routineExerciseRows(db, target.routineId);
+  return rows.map((row) => row.exerciseId);
+}
+
+/**
+ * Takes an exercise back out of a workout from the picker. An exercise with a
+ * completed set stays, so a stray tap cannot throw away logged work.
+ */
+export async function removeExerciseFromWorkout(workoutId: string, exerciseId: string): Promise<'removed' | 'has-sets'> {
+  let result: 'removed' | 'has-sets' = 'removed';
+  await writeDatabase((db) => {
+    const rows = db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId && exercise.exerciseId === exerciseId);
+    const rowIds = new Set(rows.map((row) => row.id));
+    if (db.sets.some((set) => rowIds.has(set.workoutExerciseId) && set.completed)) {
+      result = 'has-sets';
+      return;
+    }
+    db.sets = db.sets.filter((set) => !rowIds.has(set.workoutExerciseId));
+    db.workoutExercises = db.workoutExercises.filter((exercise) => !rowIds.has(exercise.id));
+  });
+  return result;
+}
+
+export async function removeExerciseFromRoutine(routineId: string, exerciseId: string): Promise<void> {
+  await writeDatabase((db) => {
+    db.routineExercises = db.routineExercises.filter((exercise) => exercise.routineId !== routineId || exercise.exerciseId !== exerciseId);
+  });
+}
+
+/** Starts a new workout with the same exercises, notes, rest, and set numbers. Nothing is checked off. */
+export async function duplicateWorkout(workoutId: string): Promise<string> {
+  const id = createId();
+  let found = false;
+  await writeDatabase((db) => {
+    const source = db.workouts.find((workout) => workout.id === workoutId);
+    if (!source) {
+      return;
+    }
+    found = true;
+    db.workouts.push({ finishedAt: null, id, name: source.name, routineId: source.routineId, startedAt: Date.now() });
+    workoutExerciseRows(db, source.id).forEach((row, index) => {
+      const workoutExerciseId = createId();
+      db.workoutExercises.push({ exerciseId: row.exerciseId, id: workoutExerciseId, notes: row.notes, position: index, restSeconds: row.restSeconds, workoutId: id });
+      db.sets
+        .filter((set) => set.workoutExerciseId === row.id)
+        .sort((left, right) => left.position - right.position)
+        .forEach((set, position) => {
+          db.sets.push({ completed: false, id: createId(), position, reps: set.reps, rpe: null, setType: set.setType, weightKg: set.weightKg, workoutExerciseId });
+        });
+    });
+  });
+  if (!found) {
+    throw new Error('Workout not found.');
+  }
+  return id;
 }
 
 export async function insertSet(workoutExerciseId: string, input: NewSetInput): Promise<SetRecord> {
@@ -629,9 +697,15 @@ export async function getExerciseLog(exerciseId: string): Promise<LoggedSet[]> {
   return historyFor(db, [exerciseId], '')[exerciseId] ?? [];
 }
 
-export async function getHistorySets(exerciseIds: string[], excludeWorkoutId: string): Promise<Record<string, LoggedSet[]>> {
+/** Finished sets from other workouts. With `before`, only workouts started earlier count, so an edited past session compares against its own past. */
+export async function getHistorySets(exerciseIds: string[], excludeWorkoutId: string, before?: number): Promise<Record<string, LoggedSet[]>> {
   const db = await readDatabase();
-  return historyFor(db, exerciseIds, excludeWorkoutId);
+  const history = historyFor(db, exerciseIds, excludeWorkoutId);
+  if (before == null) {
+    return history;
+  }
+  const earlier = new Set(db.workouts.filter((workout) => workout.startedAt < before).map((workout) => workout.id));
+  return Object.fromEntries(Object.entries(history).map(([exerciseId, sets]) => [exerciseId, sets.filter((set) => earlier.has(set.workoutId))]));
 }
 
 function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: string): Record<string, LoggedSet[]> {

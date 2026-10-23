@@ -1,5 +1,6 @@
 /**
  * Search the exercise library and add one to the open workout or to a routine.
+ * Tapping an added exercise takes it back out, so each exercise appears once.
  * The same screen serves both, which is why the route params include a mode.
  */
 import React, { useCallback, useMemo, useState } from 'react';
@@ -11,7 +12,16 @@ import { Button } from '../../components/button';
 import { Header, TextButton } from '../../components/header';
 import { hapticLight } from '../../components/haptics';
 import { Screen } from '../../components/screen';
-import { addExerciseToRoutine, addExerciseToWorkout, createExercise, deleteCustomExercise, listExercises } from '../../data/repository';
+import {
+  addExerciseToRoutine,
+  addExerciseToWorkout,
+  createExercise,
+  deleteCustomExercise,
+  listExercises,
+  listTargetExerciseIds,
+  removeExerciseFromRoutine,
+  removeExerciseFromWorkout,
+} from '../../data/repository';
 import { groupExercises, type ExerciseListItem } from '../../domain/exercise-families';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
 import { equipmentTypes, muscleGroups } from '../../domain/types';
@@ -55,6 +65,19 @@ export const ExercisePickerScreen: React.FC = () => {
     void load(query, muscle);
   }, [load, muscle, query]);
 
+  React.useEffect(() => {
+    let cancel = false;
+    const target = route.params.mode === 'workout' ? { workoutId: route.params.workoutId } : { routineId: route.params.routineId };
+    void listTargetExerciseIds(target).then((ids) => {
+      if (!cancel) {
+        setAddedIds(new Set(ids));
+      }
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [route.params]);
+
   const handleDone = useCallback(() => {
     dispatch(dataChanged());
     navigation.goBack();
@@ -71,6 +94,18 @@ export const ExercisePickerScreen: React.FC = () => {
     [route.params],
   );
 
+  const removeFromTarget = useCallback(
+    async (exerciseId: string): Promise<boolean> => {
+      if (route.params.mode === 'workout') {
+        return (await removeExerciseFromWorkout(route.params.workoutId, exerciseId)) === 'removed';
+      }
+      await removeExerciseFromRoutine(route.params.routineId, exerciseId);
+      return true;
+    },
+    [route.params],
+  );
+
+  // Tapping toggles: an exercise is in the target once at most.
   const handleSelect = useCallback(
     async (exerciseId: string) => {
       if (pendingId) {
@@ -79,16 +114,28 @@ export const ExercisePickerScreen: React.FC = () => {
       setPendingId(exerciseId);
       setError(null);
       try {
-        await addToTarget(exerciseId);
-        setAddedIds((current) => new Set(current).add(exerciseId));
+        if (addedIds.has(exerciseId)) {
+          if (await removeFromTarget(exerciseId)) {
+            setAddedIds((current) => {
+              const next = new Set(current);
+              next.delete(exerciseId);
+              return next;
+            });
+          } else {
+            setError('That exercise has completed sets. Remove it from its card in the workout.');
+          }
+        } else {
+          await addToTarget(exerciseId);
+          setAddedIds((current) => new Set(current).add(exerciseId));
+        }
         void hapticLight();
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : 'Could not add the exercise.');
+        setError(caught instanceof Error ? caught.message : 'Could not change the exercise.');
       } finally {
         setPendingId(null);
       }
     },
-    [addToTarget, pendingId],
+    [addToTarget, addedIds, pendingId, removeFromTarget],
   );
 
   const handleCreate = useCallback(async () => {
@@ -291,7 +338,14 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
   }, [exercise.id, onDelete]);
 
   return (
-    <Pressable accessibilityLabel={exercise.name} accessibilityRole="button" onPress={handlePress} style={[styles.row, nested && styles.nested]}>
+    <Pressable
+      accessibilityHint={added ? 'Removes it from the list' : 'Adds it to the list'}
+      accessibilityLabel={exercise.name}
+      accessibilityRole="button"
+      accessibilityState={{ selected: added }}
+      onPress={handlePress}
+      style={[styles.row, nested && styles.nested]}
+    >
       <View style={styles.rowCopy}>
         <Text numberOfLines={1} style={styles.name}>
           {exercise.name}
@@ -306,7 +360,7 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
           <Text style={styles.delete}>Delete</Text>
         </Pressable>
       ) : null}
-      <Text style={styles.added}>{pending ? '…' : added ? 'Added' : ''}</Text>
+      <Text style={[styles.added, !added && styles.addHint]}>{pending ? '…' : added ? '✓ Added' : '+'}</Text>
     </Pressable>
   );
 });
@@ -316,7 +370,12 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
-    width: 48,
+    textAlign: 'right',
+    width: 64,
+  },
+  addHint: {
+    color: colors.faint,
+    fontSize: 20,
   },
   chevron: {
     color: colors.muted,

@@ -69,3 +69,42 @@ test('variants fold, a heavier set is starred, and deletes can be undone', async
   await page.getByRole('button', { name: '2:00' }).click();
   await expect(page.getByRole('button', { name: 'Rest timer 2:00' })).toBeVisible();
 });
+
+test('the picker toggles, and a past workout can be edited and duplicated', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Start empty workout' }).click();
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Back Squat');
+  const squat = page.getByRole('button', { name: 'Back Squat', exact: true });
+  await squat.click();
+  await expect(page.getByText('Added')).toBeVisible();
+  await squat.click();
+  await expect(page.getByText('Added')).toHaveCount(0);
+  await squat.click();
+  await expect(page.getByText('Added')).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Remove' })).toHaveCount(1);
+
+  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
+  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await page.getByRole('button', { name: 'Finish' }).click();
+
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.getByText('Back Squat').last().click();
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await expect(page.getByText('Edit workout')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Reps' }).fill('6');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('100 × 6')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Duplicate' }).click();
+  await expect(page.getByRole('button', { name: 'Finish' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveValue('100');
+  await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('6');
+  await expect(page.getByRole('button', { name: 'Complete set' })).toBeVisible();
+});

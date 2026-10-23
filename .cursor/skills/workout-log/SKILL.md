@@ -26,6 +26,8 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - On Android the same timer is an ongoing countdown notification from the local module `modules/rest-live-update` (Kotlin). Android 16 promotes it to a Live Update chip in the status bar; older versions show a pinned countdown. It is silent; the expo-notifications alert still makes the sound when rest ends.
 - A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
+- An exercise appears in a workout or routine at most once. In the picker, tapping an added exercise removes it again, unless it already has a completed set (then it stays and the card's Remove is the way out).
+- History detail has Edit and Duplicate. Edit opens the finished workout in the same workout screen with Done instead of Finish/Discard, no rest timer, and no PR toast; stars compare only against earlier workouts. Duplicate starts a new workout with the same exercises, notes, rest, and set weight/reps, nothing checked off, RPE empty.
 
 ## Numbers
 

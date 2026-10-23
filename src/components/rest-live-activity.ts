@@ -34,7 +34,8 @@ function restActivity(): LiveActivityFactory<RestActivityProps> | null {
 export function showRestActivity(props: RestActivityProps): void {
   if (Platform.OS === 'android') {
     try {
-      RestLiveUpdate?.show(`Rest · ${props.exerciseName}`, props.nextSet ? `Next: ${props.nextSet}` : 'Next set coming up', props.endsAt);
+      // A one-word title leaves room for the countdown beside it and in Samsung's Now Bar pill.
+      RestLiveUpdate?.show('Rest', props.nextSet ? `${props.exerciseName} · Next ${props.nextSet}` : props.exerciseName, props.endsAt);
     } catch {
       // Notifications are blocked for Rep.
     }

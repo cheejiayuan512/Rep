@@ -23,7 +23,7 @@ import { RestBar } from '../../components/rest-bar';
 import type { RestActivityProps } from '../../components/rest-activity';
 import { endRestActivity, showRestActivity } from '../../components/rest-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
-import { formatLoggedLoad } from '../../domain/format';
+import { formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
@@ -124,6 +124,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const restEndsAtRef = useRef(restEndsAt);
 
+  // A finished workout opened from History: same cards, but no rest timer, PR toast, or finish step.
+  const editing = workout?.finishedAt != null;
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
   workoutRef.current = workout;
   restEndsAtRef.current = restEndsAt;
   draftsRef.current = drafts;
@@ -253,6 +257,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
         const history = await getHistorySets(
           loaded.exercises.map((exercise) => exercise.exerciseId),
           loaded.id,
+          loaded.finishedAt != null ? loaded.startedAt : undefined,
         );
         if (cancel) {
           return;
@@ -433,6 +438,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       void hapticLight();
+      if (editingRef.current) {
+        return;
+      }
       const startedAt = Date.now();
       const endsAt = startedAt + (located.exercise.restSeconds ?? restSeconds) * 1000;
       const nextSet = located.exercise.sets.find((set) => set.id !== setId && !set.completed);
@@ -695,6 +703,20 @@ export const ActiveWorkoutScreen: React.FC = () => {
     void handleFinish();
   }, [handleFinish]);
 
+  const handleDoneEditing = useCallback(async () => {
+    await flushPending();
+    const current = workoutRef.current;
+    if (current) {
+      await renameWorkout(current.id, titleRef.current);
+    }
+    dispatch(dataChanged());
+    leave();
+  }, [dispatch, flushPending, leave]);
+
+  const pressDoneEditing = useCallback(() => {
+    void handleDoneEditing();
+  }, [handleDoneEditing]);
+
   const adjustRest = useCallback(
     (delta: number) => {
       const current = restEndsAtRef.current;
@@ -730,9 +752,17 @@ export const ActiveWorkoutScreen: React.FC = () => {
   return (
     <Screen bottomInset={false}>
       <Header
-        left={orderIds ? <TextButton label="Cancel" onPress={cancelReorder} /> : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
-        right={orderIds ? <TextButton label="Done" onPress={commitReorder} tone="accent" /> : <TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />}
-        title={orderIds ? 'Reorder' : undefined}
+        left={orderIds ? <TextButton label="Cancel" onPress={cancelReorder} /> : editing ? undefined : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
+        right={
+          orderIds ? (
+            <TextButton label="Done" onPress={commitReorder} tone="accent" />
+          ) : editing ? (
+            <TextButton label="Done" onPress={pressDoneEditing} tone="accent" />
+          ) : (
+            <TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />
+          )
+        }
+        title={orderIds ? 'Reorder' : editing ? 'Edit workout' : undefined}
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
         {missing ? (
@@ -749,7 +779,13 @@ export const ActiveWorkoutScreen: React.FC = () => {
               <View style={styles.intro}>
                 <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
                 <View style={styles.metaRow}>
-                  {workout ? <ElapsedClock startedAt={workout.startedAt} /> : <Text style={styles.elapsed}>0:00</Text>}
+                  {workout?.finishedAt != null ? (
+                    <Text style={styles.elapsed}>{formatWorkoutWhen(workout.finishedAt)}</Text>
+                  ) : workout ? (
+                    <ElapsedClock startedAt={workout.startedAt} />
+                  ) : (
+                    <Text style={styles.elapsed}>0:00</Text>
+                  )}
                   <UnitToggle onChange={setUnit} unit={unit} />
                 </View>
                 {banner ? <Text style={styles.banner}>{banner}</Text> : null}
