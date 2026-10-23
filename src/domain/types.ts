@@ -87,14 +87,25 @@ export interface WorkoutDetail {
   exercises: WorkoutExercise[];
 }
 
+export interface WorkoutSummaryExercise {
+  name: string;
+  /** Working sets: completed, not warmups. */
+  sets: number;
+  /** The set with the highest estimated 1RM, or the most reps when everything was bodyweight. */
+  best: { weightKg: number; reps: number } | null;
+}
+
 export interface WorkoutSummary {
   id: string;
   name: string;
   startedAt: number;
   finishedAt: number;
   exerciseNames: string[];
+  exercises: WorkoutSummaryExercise[];
   setCount: number;
   volumeKg: number;
+  /** Sets in this workout that beat an earlier estimated 1RM. */
+  recordCount: number;
 }
 
 export interface ActiveWorkoutSummary {

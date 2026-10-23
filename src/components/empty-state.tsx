@@ -44,7 +44,8 @@ const styles = StyleSheet.create({
   },
   wrap: {
     alignItems: 'center',
-    paddingHorizontal: 28,
+    // The same gutter as the screens, so the button lines up with full-width buttons above it.
+    paddingHorizontal: 20,
     paddingVertical: 28,
   },
 });

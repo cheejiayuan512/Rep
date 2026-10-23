@@ -10,12 +10,12 @@ import { useHomeData, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } from '../../state/store';
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
-import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
-import { formatClock, formatDuration, formatWorkoutWhen, summarizeNames } from '../../domain/format';
+import { formatClock, formatWorkoutWhen, summarizeNames } from '../../domain/format';
+import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
-import type { RoutineSummary } from '../../domain/types';
+import type { RoutineSummary, WeightUnit } from '../../domain/types';
 import { createRoutine, startEmptyWorkout, startWorkoutFromRoutine } from '../../data/repository';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -60,8 +60,8 @@ export const WorkoutHomeScreen: React.FC = () => {
         return;
       }
       const workoutId = await create();
-      dispatch(dataChanged());
       openWorkout(workoutId);
+      dispatch(dataChanged());
     },
     [activeWorkoutId, dispatch, openWorkout],
   );
@@ -79,8 +79,8 @@ export const WorkoutHomeScreen: React.FC = () => {
 
   const handleCreateRoutine = useCallback(async () => {
     const routineId = await createRoutine('New routine');
-    dispatch(dataChanged());
     navigation.navigate('RoutineEditor', { routineId });
+    dispatch(dataChanged());
   }, [dispatch, navigation]);
 
   const handleOpenRoutines = useCallback(() => {
@@ -104,7 +104,7 @@ export const WorkoutHomeScreen: React.FC = () => {
         <Text style={styles.wordmark}>Rep</Text>
         <Text style={styles.tagline}>Log the sets. Keep the numbers that move.</Text>
         {home?.active ? <ResumeCard elapsed={formatClock((now - home.active.startedAt) / 1000)} exerciseCount={home.active.exerciseCount} name={home.active.name} onPress={openWorkout} workoutId={home.active.id} /> : null}
-        <Button label="Start empty workout" onPress={handleStartEmpty} />
+        <Button label="Start workout" onPress={handleStartEmpty} />
         <View style={styles.sectionHead}>
           <Text style={styles.section}>Routines</Text>
           <TextButtonLike label="See all" onPress={handleOpenRoutines} />
@@ -116,25 +116,20 @@ export const WorkoutHomeScreen: React.FC = () => {
             ))}
           </ScrollView>
         ) : (
-          <EmptyState actionLabel="Create a routine" message="Save a list of exercises, then start it in one tap." onAction={pressCreateRoutine} title="No routines yet" />
+          <View style={styles.noRoutines}>
+            <Text style={styles.body}>Save a list of exercises, then start it in one tap.</Text>
+            <Button label="Create a routine" onPress={pressCreateRoutine} style={styles.createRoutine} variant="secondary" />
+          </View>
         )}
+        <View style={styles.sectionHead}>
+          <Text style={styles.section}>This week</Text>
+          {home?.lastWorkout ? <TextButtonLike label={`Last: ${formatWorkoutWhen(home.lastWorkout.finishedAt)}`} onPress={handleOpenLast} /> : null}
+        </View>
+        {home ? <WeekStats stats={home.stats} unit={unit} /> : null}
         <View style={styles.unitRow}>
           <Text style={styles.section}>Weight unit</Text>
           <UnitToggle onChange={setUnit} unit={unit} />
         </View>
-        <Text style={[styles.section, styles.laterSection]}>Last workout</Text>
-        {home?.lastWorkout ? (
-          <Pressable onPress={handleOpenLast} style={styles.last}>
-            <Text style={styles.resumeTitle}>{home.lastWorkout.name}</Text>
-            <Text style={styles.resumeMeta}>{formatWorkoutWhen(home.lastWorkout.finishedAt)}</Text>
-            <Text style={styles.body}>{summarizeNames(home.lastWorkout.exerciseNames)}</Text>
-            <Text style={styles.resumeMeta}>
-              {formatVolume(kgToDisplay(home.lastWorkout.volumeKg, unit))} {unit} · {home.lastWorkout.setCount} sets · {formatDuration(home.lastWorkout.startedAt, home.lastWorkout.finishedAt)}
-            </Text>
-          </Pressable>
-        ) : (
-          <Text style={styles.body}>Finish a workout and it will show up here.</Text>
-        )}
       </ScrollView>
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
@@ -147,6 +142,56 @@ export const WorkoutHomeScreen: React.FC = () => {
     </Screen>
   );
 };
+
+interface WeekStatsProps {
+  stats: HomeStats;
+  unit: WeightUnit;
+}
+
+const WeekStats: React.FC<WeekStatsProps> = React.memo(function WeekStats({ stats, unit }) {
+  const { lastWeek, streakWeeks, thisWeek } = stats;
+  return (
+    <View style={styles.statGrid}>
+      <StatTile label="Workouts" trend={compare(thisWeek.workouts, lastWeek.workouts, String)} value={String(thisWeek.workouts)} />
+      <StatTile
+        label={`Volume (${unit})`}
+        trend={compare(thisWeek.volumeKg, lastWeek.volumeKg, (value) => formatVolume(kgToDisplay(value, unit)))}
+        value={formatVolume(kgToDisplay(thisWeek.volumeKg, unit))}
+      />
+      <StatTile label="Time" trend={compare(thisWeek.minutes, lastWeek.minutes, formatMinutes)} value={formatMinutes(thisWeek.minutes)} />
+      <StatTile label="Sets" trend={compare(thisWeek.sets, lastWeek.sets, String)} value={String(thisWeek.sets)} />
+      <StatTile label="Week streak" trend={streakWeeks > 0 ? 'Keep it going' : 'Train this week to start one'} value={String(streakWeeks)} wide />
+    </View>
+  );
+});
+
+const StatTile: React.FC<{ label: string; value: string; trend: string; wide?: boolean }> = ({ label, trend, value, wide = false }) => {
+  return (
+    <View accessibilityLabel={`${label} ${value}, ${trend}`} style={[styles.statTile, wide && styles.statTileWide]}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text numberOfLines={1} style={styles.statTrend}>
+        {trend}
+      </Text>
+    </View>
+  );
+};
+
+function compare(current: number, previous: number, format: (value: number) => string): string {
+  if (previous === 0) {
+    return current === 0 ? 'Nothing yet' : 'Up from 0 last week';
+  }
+  return `${format(previous)} last week`;
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
 
 interface RoutineStartCardProps {
   routine: RoutineSummary;
@@ -229,21 +274,51 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  laterSection: {
-    marginTop: 22,
-  },
-  last: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginTop: 10,
-    padding: 16,
+  createRoutine: {
+    marginTop: 12,
   },
   link: {
     color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
+  },
+  noRoutines: {
+    paddingTop: 4,
+  },
+  statGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 10,
+  },
+  statLabel: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  statTile: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
+    padding: 14,
+  },
+  statTileWide: {
+    flexBasis: '100%',
+  },
+  statTrend: {
+    color: colors.faint,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  statValue: {
+    color: colors.text,
+    fontSize: 24,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
   },
   resume: {
     backgroundColor: colors.accent,

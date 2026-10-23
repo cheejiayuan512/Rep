@@ -12,7 +12,7 @@ import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
-import { formatDuration, formatMonth, formatWorkoutWhen, summarizeNames } from '../../domain/format';
+import { formatDuration, formatLoggedLoad, formatMonth, formatWorkoutWhen } from '../../domain/format';
 import { formatVolume, kgToDisplay } from '../../domain/units';
 import type { WorkoutSummary } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
@@ -106,10 +106,14 @@ export const HistoryScreen: React.FC = () => {
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
         ListEmptyComponent={<EmptyState message="Finish a workout or import a Hevy CSV and the sessions will land here." title="No workouts yet" />}
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        removeClippedSubviews
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
         sections={sections}
         stickySectionHeadersEnabled={false}
+        windowSize={7}
       />
     </Screen>
   );
@@ -141,19 +145,54 @@ const HistoryCard: React.FC<HistoryCardProps> = React.memo(function HistoryCard(
     onOpen(workout.id);
   }, [onOpen, workout.id]);
 
+  const shown = workout.exercises.slice(0, MAX_LINES);
+  const hidden = workout.exercises.length - shown.length;
+
   return (
-    <Pressable onPress={handlePress} style={styles.card}>
-      <Text style={styles.name}>{workout.name}</Text>
-      <Text style={styles.meta}>{formatWorkoutWhen(workout.finishedAt)}</Text>
-      <Text numberOfLines={2} style={styles.exercises}>
-        {summarizeNames(workout.exerciseNames)}
-      </Text>
-      <Text style={styles.meta}>
-        {formatVolume(kgToDisplay(workout.volumeKg, unit))} {unit} · {workout.setCount} sets · {formatDuration(workout.startedAt, workout.finishedAt)}
-      </Text>
+    <Pressable accessibilityLabel={`${workout.name}, ${formatWorkoutWhen(workout.finishedAt)}`} accessibilityRole="button" onPress={handlePress} style={styles.card}>
+      <View style={styles.cardHead}>
+        <View style={styles.cardTitle}>
+          <Text numberOfLines={1} style={styles.name}>
+            {workout.name}
+          </Text>
+          <Text style={styles.meta}>{formatWorkoutWhen(workout.finishedAt)}</Text>
+        </View>
+        {workout.recordCount > 0 ? (
+          <Text style={styles.prBadge}>
+            ★ {workout.recordCount} {workout.recordCount === 1 ? 'PR' : 'PRs'}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.statRow}>
+        <StatPill label={formatDuration(workout.startedAt, workout.finishedAt)} />
+        <StatPill label={`${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit}`} />
+        <StatPill label={`${workout.setCount} ${workout.setCount === 1 ? 'set' : 'sets'}`} />
+      </View>
+      <View style={styles.lines}>
+        {shown.map((exercise, index) => (
+          <View key={`${exercise.name}-${index}`} style={styles.line}>
+            <Text numberOfLines={1} style={styles.lineName}>
+              <Text style={styles.lineCount}>{exercise.sets} × </Text>
+              {exercise.name}
+            </Text>
+            <Text style={styles.lineBest}>{exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—'}</Text>
+          </View>
+        ))}
+        {hidden > 0 ? <Text style={styles.more}>+{hidden} more</Text> : null}
+      </View>
     </Pressable>
   );
 });
+
+const MAX_LINES = 4;
+
+const StatPill: React.FC<{ label: string }> = ({ label }) => {
+  return (
+    <View style={styles.pill}>
+      <Text style={styles.pillText}>{label}</Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -164,6 +203,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 16,
   },
+  cardHead: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cardTitle: {
+    flex: 1,
+  },
   emptyList: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -171,10 +218,64 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  exercises: {
-    color: colors.text,
+  line: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  lineBest: {
+    color: colors.muted,
     fontSize: 14,
-    marginTop: 8,
+    fontVariant: ['tabular-nums'],
+  },
+  lineCount: {
+    color: colors.faint,
+  },
+  lineName: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  lines: {
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 12,
+    paddingTop: 8,
+  },
+  more: {
+    color: colors.faint,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  pill: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  pillText: {
+    color: colors.text,
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  prBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    color: colors.accentInk,
+    fontSize: 12,
+    fontWeight: '800',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
   },
   header: {
     paddingHorizontal: 20,

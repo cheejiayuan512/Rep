@@ -15,6 +15,7 @@ export type TabParamList = {
   Routines: undefined;
   History: undefined;
   Progress: undefined;
+  Exercises: undefined;
   Profile: undefined;
 };
 
@@ -27,6 +28,10 @@ export type RootStackParamList = {
   RoutineEditor: { routineId: string };
   WorkoutDetail: { workoutId: string };
   ExerciseProgress: { exerciseId: string };
+  /** `null` creates a new custom exercise. */
+  ExerciseEditor: { exerciseId: string | null };
+  Analysis: undefined;
+  OneRepMax: undefined;
 };
 
 export type AppNavigation<T extends keyof TabParamList> = CompositeNavigationProp<

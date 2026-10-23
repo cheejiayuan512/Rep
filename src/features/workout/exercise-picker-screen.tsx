@@ -16,7 +16,6 @@ import {
   addExerciseToRoutine,
   addExerciseToWorkout,
   createExercise,
-  deleteCustomExercise,
   listExercises,
   listTargetExerciseIds,
   removeExerciseFromRoutine,
@@ -79,8 +78,8 @@ export const ExercisePickerScreen: React.FC = () => {
   }, [route.params]);
 
   const handleDone = useCallback(() => {
-    dispatch(dataChanged());
     navigation.goBack();
+    dispatch(dataChanged());
   }, [dispatch, navigation]);
 
   const addToTarget = useCallback(
@@ -158,18 +157,6 @@ export const ExercisePickerScreen: React.FC = () => {
     }
   }, [addToTarget, customEquipment, customMuscle, load, muscle, name, query]);
 
-  const handleDeleteCustom = useCallback(
-    async (exerciseId: string) => {
-      const result = await deleteCustomExercise(exerciseId);
-      if (result === 'in-use') {
-        setError('That exercise is already used in a workout or routine.');
-        return;
-      }
-      await load(query, muscle);
-    },
-    [load, muscle, query],
-  );
-
   const toggleFamily = useCallback((family: string) => {
     setExpandedFamilies((current) => {
       const next = new Set(current);
@@ -191,12 +178,11 @@ export const ExercisePickerScreen: React.FC = () => {
           added={addedIds.has(item.exercise.id)}
           exercise={item.exercise}
           nested={item.nested}
-          onDelete={handleDeleteCustom}
           onPress={handleSelect}
           pending={pendingId === item.exercise.id}
         />
       ),
-    [addedIds, handleDeleteCustom, handleSelect, pendingId, toggleFamily],
+    [addedIds, handleSelect, pendingId, toggleFamily],
   );
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
@@ -326,16 +312,12 @@ interface ExerciseChoiceProps {
   pending: boolean;
   nested: boolean;
   onPress: (exerciseId: string) => void;
-  onDelete: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, onPress, onDelete }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, onPress }) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);
-  const handleDelete = useCallback(() => {
-    void onDelete(exercise.id);
-  }, [exercise.id, onDelete]);
 
   return (
     <Pressable
@@ -355,11 +337,6 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
           {exercise.isCustom ? ' · Custom' : ''}
         </Text>
       </View>
-      {exercise.isCustom ? (
-        <Pressable hitSlop={8} onPress={handleDelete}>
-          <Text style={styles.delete}>Delete</Text>
-        </Pressable>
-      ) : null}
       <Text style={[styles.added, !added && styles.addHint]}>{pending ? '…' : added ? '✓ Added' : '+'}</Text>
     </Pressable>
   );
@@ -406,12 +383,6 @@ const styles = StyleSheet.create({
   },
   createRow: {
     paddingHorizontal: 20,
-  },
-  delete: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '700',
-    marginRight: 8,
   },
   empty: {
     color: colors.muted,

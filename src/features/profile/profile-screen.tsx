@@ -6,10 +6,11 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { BadgeGlyph } from '../../components/badge-icons';
 import { Screen } from '../../components/screen';
 import { formatDay, formatDuration, formatWorkoutWhen } from '../../domain/format';
-import { weekValue, type ProfileBadge, type ProfileChartMetric, type ProfileSnapshot, type ProfileWeek } from '../../domain/profile';
-import { formatVolume, kgToDisplay } from '../../domain/units';
+import { BADGE_UNITS, weekValue, type BadgeId, type ProfileBadge, type ProfileChartMetric, type ProfileSnapshot, type ProfileWeek } from '../../domain/profile';
+import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { AppNavigation } from '../../navigation/types';
 import { useProfile, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
@@ -29,22 +30,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { unit } = useWeightUnit();
   const [metric, setMetric] = useState<ProfileChartMetric>('duration');
 
-  const openHistory = useCallback(() => {
-    navigation.navigate('History');
-  }, [navigation]);
-
-  const openProgress = useCallback(() => {
-    navigation.navigate('Progress');
-  }, [navigation]);
-
-  const openRoutines = useCallback(() => {
-    navigation.navigate('Routines');
-  }, [navigation]);
-
-  const openWorkout = useCallback(() => {
-    navigation.navigate('Workout');
-  }, [navigation]);
-
   const openRecent = useCallback(
     (workoutId: string) => {
       navigation.navigate('WorkoutDetail', { workoutId });
@@ -57,17 +42,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.header}>Profile</Text>
         {profile ? (
-          <ProfileBody
-            metric={metric}
-            onMetric={setMetric}
-            onOpenHistory={openHistory}
-            onOpenProgress={openProgress}
-            onOpenRecent={openRecent}
-            onOpenRoutines={openRoutines}
-            onOpenWorkout={openWorkout}
-            profile={profile}
-            unit={unit}
-          />
+          <ProfileBody metric={metric} onMetric={setMetric} onOpenRecent={openRecent} profile={profile} unit={unit} />
         ) : (
           <Text style={styles.muted}>Opening your log.</Text>
         )}
@@ -81,38 +56,19 @@ interface ProfileBodyProps {
   unit: 'kg' | 'lb';
   metric: ProfileChartMetric;
   onMetric: (metric: ProfileChartMetric) => void;
-  onOpenHistory: () => void;
-  onOpenProgress: () => void;
-  onOpenRoutines: () => void;
-  onOpenWorkout: () => void;
   onOpenRecent: (workoutId: string) => void;
 }
 
-const ProfileBody: React.FC<ProfileBodyProps> = ({
-  metric,
-  onMetric,
-  onOpenHistory,
-  onOpenProgress,
-  onOpenRecent,
-  onOpenRoutines,
-  onOpenWorkout,
-  profile,
-  unit,
-}) => {
+const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecent, profile, unit }) => {
   const weekLabel = profile.thisWeekMinutes < 60 ? `${profile.thisWeekMinutes} min` : formatHours(profile.thisWeekMinutes);
+  const earned = profile.badges.filter((badge) => badge.tier !== 'locked').length;
 
   return (
     <View>
-      <View style={styles.identity}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarLetter}>R</Text>
-        </View>
-        <Text style={styles.name}>You</Text>
-        <View style={styles.stats}>
-          <Stat label="Workouts" value={String(profile.workouts)} />
-          <Stat label="This week" value={weekLabel} />
-          <Stat label="Exercises" value={String(profile.trainedExercises)} />
-        </View>
+      <View style={styles.stats}>
+        <Stat label="Workouts" value={String(profile.workouts)} />
+        <Stat label="This week" value={weekLabel} />
+        <Stat label="Exercises" value={String(profile.trainedExercises)} />
       </View>
 
       <View style={styles.levelBlock}>
@@ -140,19 +96,16 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({
         ))}
       </View>
 
-      <Text style={styles.section}>Badges</Text>
+      <View style={styles.sectionHead}>
+        <Text style={[styles.section, styles.sectionInline]}>Badges</Text>
+        <Text style={styles.range}>
+          {earned} of {profile.badges.length} earned
+        </Text>
+      </View>
       <View style={styles.badges}>
         {profile.badges.map((badge) => (
-          <BadgeView badge={badge} key={badge.id} />
+          <BadgeView badge={badge} key={badge.id} unit={unit} />
         ))}
-      </View>
-
-      <Text style={styles.section}>Dashboard</Text>
-      <View style={styles.grid}>
-        <DashCard icon="history" label="History" onPress={onOpenHistory} />
-        <DashCard icon="progress" label="Progress" onPress={onOpenProgress} />
-        <DashCard icon="routines" label="Routines" onPress={onOpenRoutines} />
-        <DashCard icon="workout" label="Workout" onPress={onOpenWorkout} />
       </View>
 
       <Text style={styles.section}>Number of contributions</Text>
@@ -247,43 +200,57 @@ const MetricPill: React.FC<{
   );
 };
 
-const BadgeView: React.FC<{ badge: ProfileBadge }> = ({ badge }) => {
+const BadgeView: React.FC<{ badge: ProfileBadge; unit: 'kg' | 'lb' }> = React.memo(function BadgeView({ badge, unit }) {
   const locked = badge.tier === 'locked';
   const color = locked ? colors.faint : badgeColor(badge.id);
   const size = 64;
   const radius = 26;
   const circumference = 2 * Math.PI * radius;
   const dash = circumference * Math.min(1, Math.max(0.08, badge.ring));
+  const goal = badge.next == null ? null : formatBadgeGoal(badge, unit);
   return (
-    <View style={styles.badge}>
-      <Svg height={size} viewBox="0 0 64 64" width={size}>
-        <Circle cx="32" cy="32" r={radius} stroke={colors.border} strokeWidth="4" />
-        <Circle
-          cx="32"
-          cy="32"
-          r={radius}
-          stroke={color}
-          strokeDasharray={`${dash} ${circumference}`}
-          strokeLinecap="round"
-          strokeWidth="4"
-          transform="rotate(-90 32 32)"
-        />
-        <Circle cx="32" cy="32" fill={colors.surfaceRaised} r="18" />
-      </Svg>
-      <Text style={styles.badgeTitle}>{locked ? 'Unlock' : badge.detail}</Text>
-      <Text style={styles.badgeName}>{badge.title}</Text>
+    <View accessibilityLabel={`${badge.title}, ${badge.detail}${goal ? `, next at ${goal}` : ''}`} style={styles.badge}>
+      <View style={styles.badgeArt}>
+        <Svg height={size} viewBox="0 0 64 64" width={size}>
+          <Circle cx="32" cy="32" r={radius} stroke={colors.border} strokeWidth="4" />
+          <Circle
+            cx="32"
+            cy="32"
+            r={radius}
+            stroke={color}
+            strokeDasharray={`${dash} ${circumference}`}
+            strokeLinecap="round"
+            strokeWidth="4"
+            transform="rotate(-90 32 32)"
+          />
+          <Circle cx="32" cy="32" fill={locked ? colors.surface : colors.surfaceRaised} r="20" />
+        </Svg>
+        <View style={styles.badgeGlyph}>
+          <BadgeGlyph color={color} id={badge.id} size={24} />
+        </View>
+      </View>
+      <Text numberOfLines={1} style={[styles.badgeName, locked && styles.badgeNameLocked]}>
+        {badge.title}
+      </Text>
+      <Text numberOfLines={2} style={styles.badgeTitle}>
+        {locked ? goal : badge.detail}
+      </Text>
     </View>
   );
-};
+});
 
-const DashCard: React.FC<{ label: string; icon: string; onPress: () => void }> = ({ icon, label, onPress }) => {
-  return (
-    <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={styles.card}>
-      <Text style={styles.cardIcon}>{icon === 'history' ? '◷' : icon === 'progress' ? '↗' : icon === 'routines' ? '≡' : '+'}</Text>
-      <Text style={styles.cardLabel}>{label}</Text>
-    </Pressable>
-  );
-};
+function formatBadgeGoal(badge: ProfileBadge, unit: 'kg' | 'lb'): string {
+  const next = badge.next ?? 0;
+  const label = BADGE_UNITS[badge.id];
+  if (badge.id === 'heavy' || badge.id === 'lifter') {
+    return `${formatStep(Math.round(kgToDisplay(next, unit)))} ${label.replace('kg', unit)}`;
+  }
+  return `${formatStep(next)} ${label}`;
+}
+
+function formatStep(value: number): string {
+  return value >= 1000 ? `${formatWeight(value / 1000)}k` : String(value);
+}
 
 const RecentRow: React.FC<{
   workout: ProfileSnapshot['recent'][number];
@@ -310,17 +277,23 @@ const RecentRow: React.FC<{
   );
 };
 
-function badgeColor(id: string): string {
-  if (id === 'lifter') {
-    return '#7EB6FF';
-  }
-  if (id === 'scribe') {
-    return '#F0C14A';
-  }
-  if (id === 'explorer') {
-    return '#C084FC';
-  }
-  return colors.accent;
+const BADGE_COLORS: Record<BadgeId, string> = {
+  early: '#FFB86B',
+  explorer: '#C084FC',
+  heavy: '#FF8A8A',
+  lifter: '#7EB6FF',
+  logger: colors.accent,
+  marathon: '#5EEAD4',
+  night: '#A5B4FC',
+  records: '#F0C14A',
+  reps: '#3DDC97',
+  scribe: '#F0C14A',
+  streak: '#FF9F43',
+  warmup: '#FB7185',
+};
+
+function badgeColor(id: BadgeId): string {
+  return BADGE_COLORS[id];
 }
 
 function formatThisWeek(minutes: number): string {
@@ -338,39 +311,42 @@ function formatHours(minutes: number): string {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 36,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
-  },
-  avatarLetter: {
-    color: colors.accentInk,
-    fontSize: 32,
-    fontWeight: '800',
-  },
   badge: {
     alignItems: 'center',
-    width: 84,
+    marginBottom: 18,
+    width: '25%',
+  },
+  badgeArt: {
+    alignItems: 'center',
+    height: 64,
+    justifyContent: 'center',
+    width: 64,
+  },
+  badgeGlyph: {
+    position: 'absolute',
   },
   badgeName: {
     color: colors.text,
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 6,
+    paddingHorizontal: 2,
     textAlign: 'center',
+  },
+  badgeNameLocked: {
+    color: colors.muted,
   },
   badgeTitle: {
     color: colors.muted,
     fontSize: 11,
-    marginTop: 6,
+    marginTop: 2,
+    paddingHorizontal: 2,
     textAlign: 'center',
   },
   badges: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginTop: 12,
   },
   bar: {
     backgroundColor: colors.accent,
@@ -381,25 +357,6 @@ const styles = StyleSheet.create({
   barEmpty: {
     backgroundColor: colors.surfaceRaised,
     height: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    width: '48%',
-  },
-  cardIcon: {
-    color: colors.accent,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  cardLabel: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 12,
   },
   chart: {
     alignItems: 'flex-end',
@@ -447,19 +404,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 8,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
   header: {
     color: colors.text,
     fontSize: 34,
     fontWeight: '700',
     marginBottom: 16,
-  },
-  identity: {
-    alignItems: 'center',
   },
   levelBlock: {
     alignItems: 'center',
@@ -477,12 +426,6 @@ const styles = StyleSheet.create({
   muted: {
     color: colors.muted,
     fontSize: 15,
-  },
-  name: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 12,
   },
   pill: {
     backgroundColor: colors.surface,
@@ -560,6 +503,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 24,
   },
+  sectionInline: {
+    marginBottom: 0,
+    marginTop: 0,
+  },
   sectionHead: {
     alignItems: 'flex-end',
     flexDirection: 'row',
@@ -581,8 +528,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stats: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
     flexDirection: 'row',
-    marginTop: 16,
+    paddingVertical: 14,
     width: '100%',
   },
   track: {

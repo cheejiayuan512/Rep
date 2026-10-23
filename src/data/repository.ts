@@ -5,7 +5,8 @@
  */
 import { parseHevyCsv } from '../domain/hevy-import';
 import { buildProfile, type ProfileSnapshot, type ProfileWorkout } from '../domain/profile';
-import { latestSessionSets } from '../domain/metrics';
+import { estimateOneRepMax, latestSessionSets, oneRepMaxRecordFlags, scoreLoggedSet } from '../domain/metrics';
+import type { AnalysisInput, AnalysisSet } from '../domain/stats';
 import { createId } from '../domain/ids';
 import type {
   ActiveWorkoutSummary,
@@ -25,7 +26,7 @@ import type {
   WorkoutSummary,
 } from '../domain/types';
 import { isEquipment, isMuscleGroup } from '../domain/types';
-import { readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkoutExercise } from './database';
+import { isCommitted, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 export interface HevyImportSummary {
   importedWorkouts: number;
@@ -91,6 +92,35 @@ export async function createExercise(input: { name: string; muscleGroup: MuscleG
     db.exercises.push(exercise);
   });
   return exercise;
+}
+
+export async function updateExercise(exerciseId: string, input: { name: string; muscleGroup: MuscleGroup; equipment: Equipment }): Promise<void> {
+  const name = input.name.trim();
+  if (name.length < 2) {
+    throw new Error('Give the exercise a name.');
+  }
+  await writeDatabase((db) => {
+    if (db.exercises.some((item) => item.id !== exerciseId && item.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error('Another exercise already has that name.');
+    }
+    const exercise = db.exercises.find((item) => item.id === exerciseId);
+    if (!exercise) {
+      throw new Error('Exercise not found.');
+    }
+    exercise.name = name;
+    exercise.muscleGroup = input.muscleGroup;
+    exercise.equipment = input.equipment;
+  });
+}
+
+/** How often an exercise is used, so the editor can explain why it cannot be deleted. */
+export async function getExerciseUsage(exerciseId: string): Promise<{ workouts: number; routines: number }> {
+  const db = await readDatabase();
+  const rows = indexOf(db).rowsByExercise.get(exerciseId) ?? [];
+  return {
+    routines: new Set(db.routineExercises.filter((item) => item.exerciseId === exerciseId).map((item) => item.routineId)).size,
+    workouts: new Set(rows.map((row) => row.workoutId)).size,
+  };
 }
 
 export async function deleteCustomExercise(exerciseId: string): Promise<'deleted' | 'in-use' | 'missing'> {
@@ -277,22 +307,103 @@ export async function getExercise(exerciseId: string): Promise<Exercise | null> 
 
 export async function listWorkoutSummaries(): Promise<WorkoutSummary[]> {
   const db = await readDatabase();
+  const records = recordsByWorkout(db);
   return db.workouts
     .filter((workout) => workout.finishedAt != null)
     .sort((left, right) => (right.finishedAt ?? 0) - (left.finishedAt ?? 0))
     .map((workout) => {
-      const names = workoutExerciseRows(db, workout.id).map((exercise) => exerciseName(db, exercise.exerciseId));
-      const volumeKg = workingSets(db, workout.id).reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+      const rows = workoutExerciseRows(db, workout.id);
+      const working = workingSets(db, workout.id);
       return {
-        exerciseNames: names,
+        exerciseNames: rows.map((exercise) => exerciseName(db, exercise.exerciseId)),
+        exercises: rows.map((row) => {
+          const sets = setsOf(db, row.id).filter((set) => set.completed && set.setType !== 'warmup');
+          return { best: bestSet(sets), name: exerciseName(db, row.exerciseId), sets: sets.length };
+        }),
         finishedAt: workout.finishedAt ?? workout.startedAt,
         id: workout.id,
         name: workout.name,
-        setCount: workingSets(db, workout.id).length,
+        recordCount: records.get(workout.id) ?? 0,
+        setCount: working.length,
         startedAt: workout.startedAt,
-        volumeKg,
+        volumeKg: working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0),
       };
     });
+}
+
+/** Everything the Analysis screen needs: finished workouts and their working sets. */
+export async function getAnalysisInput(): Promise<AnalysisInput> {
+  const db = await readDatabase();
+  const summaries = await listWorkoutSummaries();
+  const sets: AnalysisSet[] = [];
+  for (const workout of db.workouts) {
+    if (workout.finishedAt == null) {
+      continue;
+    }
+    for (const row of workoutExerciseRows(db, workout.id)) {
+      const exercise = requireExercise(db, row.exerciseId);
+      for (const set of setsOf(db, row.id)) {
+        if (!isWorkingSet(set)) {
+          continue;
+        }
+        sets.push({
+          exerciseId: row.exerciseId,
+          exerciseName: exercise.name,
+          muscleGroup: exercise.muscleGroup,
+          performedAt: workout.finishedAt,
+          reps: set.reps ?? 0,
+          rpe: typeof set.rpe === 'number' ? set.rpe : null,
+          weightKg: set.weightKg ?? 0,
+          workoutId: workout.id,
+        });
+      }
+    }
+  }
+  return { sets, workouts: summaries };
+}
+
+function bestSet(sets: StoredSet[]): { weightKg: number; reps: number } | null {
+  let best: { weightKg: number; reps: number; score: number } | null = null;
+  for (const set of sets) {
+    const reps = set.reps ?? 0;
+    if (reps <= 0) {
+      continue;
+    }
+    const weightKg = set.weightKg ?? 0;
+    // Weighted sets rank by estimated 1RM; bodyweight sets (score by reps) only win when nothing was weighted.
+    const score = weightKg > 0 ? 1000 + estimateOneRepMax(weightKg, reps) : reps;
+    if (!best || score > best.score) {
+      best = { reps, score, weightKg };
+    }
+  }
+  return best ? { reps: best.reps, weightKg: best.weightKg } : null;
+}
+
+const recordCache = new WeakMap<DatabaseShape, Map<string, number>>();
+
+/** Per finished workout, how many of its sets beat an earlier estimated 1RM for the same exercise. */
+function recordsByWorkout(db: DatabaseShape): Map<string, number> {
+  const cached = recordCache.get(db);
+  if (cached) {
+    return cached;
+  }
+  const counts = new Map<string, number>();
+  for (const exerciseId of indexOf(db).rowsByExercise.keys()) {
+    const history = (historyFor(db, [exerciseId], '')[exerciseId] ?? []).flatMap((set) => {
+      const scored = scoreLoggedSet(set);
+      return scored ? [{ scored, workoutId: set.workoutId }] : [];
+    });
+    oneRepMaxRecordFlags(history.map((item) => item.scored)).forEach((beat, position) => {
+      const workoutId = history[position]?.workoutId;
+      if (beat && workoutId) {
+        counts.set(workoutId, (counts.get(workoutId) ?? 0) + 1);
+      }
+    });
+  }
+  if (isCommitted(db)) {
+    recordCache.set(db, counts);
+  }
+  return counts;
 }
 
 export async function addExerciseToWorkout(workoutId: string, exerciseId: string): Promise<void> {
@@ -643,13 +754,14 @@ export async function getProfile(now = Date.now()): Promise<ProfileSnapshot> {
   const workouts: ProfileWorkout[] = db.workouts
     .filter((workout) => workout.finishedAt != null)
     .map((workout) => {
-      const exercises = db.workoutExercises.filter((exercise) => exercise.workoutId === workout.id);
-      const exerciseIds = exercises.map((exercise) => exercise.id);
-      const sets = db.sets.filter((set) => exerciseIds.includes(set.workoutExerciseId));
-      const working = sets.filter((set) => set.completed && set.setType !== 'warmup' && (set.reps ?? 0) > 0);
+      const exercises = workoutExerciseRows(db, workout.id);
+      const sets = exercises.flatMap((exercise) => setsOf(db, exercise.id));
+      const working = sets.filter(isWorkingSet);
+      const heaviestKg = working.reduce((max, set) => Math.max(max, set.weightKg ?? 0), 0);
       return {
         exerciseIds: [...new Set(exercises.filter((exercise) => working.some((set) => set.workoutExerciseId === exercise.id)).map((exercise) => exercise.exerciseId))],
         finishedAt: workout.finishedAt ?? workout.startedAt,
+        heaviestKg,
         id: workout.id,
         name: workout.name,
         notedExercises: exercises.filter((exercise) => exercise.notes.trim().length > 0).length,
@@ -661,9 +773,14 @@ export async function getProfile(now = Date.now()): Promise<ProfileSnapshot> {
       };
     });
 
+  let recordCount = 0;
+  for (const count of recordsByWorkout(db).values()) {
+    recordCount += count;
+  }
   return buildProfile({
     customExerciseCount: db.exercises.filter((exercise) => exercise.isCustom).length,
     now,
+    recordCount,
     workouts,
   });
 }
@@ -675,8 +792,8 @@ export async function listTrainedExercises(): Promise<TrainedExercise[]> {
     if (workout.finishedAt == null) {
       continue;
     }
-    for (const exercise of db.workoutExercises.filter((item) => item.workoutId === workout.id)) {
-      const trained = db.sets.some((set) => set.workoutExerciseId === exercise.id && set.completed && set.setType !== 'warmup' && (set.reps ?? 0) > 0);
+    for (const exercise of workoutExerciseRows(db, workout.id)) {
+      const trained = setsOf(db, exercise.id).some(isWorkingSet);
       if (!trained) {
         continue;
       }
@@ -713,18 +830,18 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
   for (const exerciseId of exerciseIds) {
     grouped[exerciseId] = [];
   }
-  const wanted = new Set(exerciseIds);
-  const workouts = new Map(db.workouts.map((workout) => [workout.id, workout]));
-  for (const exercise of db.workoutExercises) {
-    if (!wanted.has(exercise.exerciseId) || exercise.workoutId === excludeWorkoutId) {
+  const index = indexOf(db);
+  const rows = [...new Set(exerciseIds)].flatMap((exerciseId) => index.rowsByExercise.get(exerciseId) ?? []);
+  for (const exercise of rows) {
+    if (exercise.workoutId === excludeWorkoutId) {
       continue;
     }
-    const workout = workouts.get(exercise.workoutId);
+    const workout = index.workoutsById.get(exercise.workoutId);
     if (!workout || workout.finishedAt == null) {
       continue;
     }
     const bucket = grouped[exercise.exerciseId] ?? [];
-    for (const set of db.sets.filter((item) => item.workoutExerciseId === exercise.id)) {
+    for (const set of setsOf(db, exercise.id)) {
       bucket.push({
         completed: set.completed,
         exerciseId: exercise.exerciseId,
@@ -763,10 +880,7 @@ function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous:
 function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workoutId: string): WorkoutExercise {
   const exercise = requireExercise(db, row.exerciseId);
   const previous = latestSessionSets(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? []).map(toPrevious);
-  const sets = db.sets
-    .filter((set) => set.workoutExerciseId === row.id)
-    .sort((left, right) => left.position - right.position)
-    .map(mapSet);
+  const sets = setsOf(db, row.id).map(mapSet);
   return {
     equipment: exercise.equipment,
     exerciseId: row.exerciseId,
@@ -783,11 +897,11 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
 
 /** The rest picked for this exercise in the latest workout that set one. */
 function lastRestFor(db: DatabaseShape, exerciseId: string): number | null {
-  const startedAt = new Map(db.workouts.map((workout) => [workout.id, workout.startedAt]));
+  const index = indexOf(db);
   let latest: { at: number; rest: number } | null = null;
-  for (const row of db.workoutExercises) {
-    const at = startedAt.get(row.workoutId);
-    if (row.exerciseId !== exerciseId || row.restSeconds == null || at == null) {
+  for (const row of index.rowsByExercise.get(exerciseId) ?? []) {
+    const at = index.workoutsById.get(row.workoutId)?.startedAt;
+    if (row.restSeconds == null || at == null) {
       continue;
     }
     if (!latest || at > latest.at) {
@@ -797,25 +911,84 @@ function lastRestFor(db: DatabaseShape, exerciseId: string): number | null {
   return latest?.rest ?? null;
 }
 
+interface DbIndex {
+  exercisesById: Map<string, StoredExercise>;
+  workoutsById: Map<string, StoredWorkout>;
+  rowsByWorkout: Map<string, StoredWorkoutExercise[]>;
+  rowsByExercise: Map<string, StoredWorkoutExercise[]>;
+  setsByRow: Map<string, StoredSet[]>;
+}
+
+const indexCache = new WeakMap<DatabaseShape, DbIndex>();
+
+/**
+ * Lookup maps so a log with hundreds of workouts is not scanned once per row.
+ * Cached only for committed documents; a draft inside a write is still changing.
+ */
+function indexOf(db: DatabaseShape): DbIndex {
+  const cached = indexCache.get(db);
+  if (cached) {
+    return cached;
+  }
+  const index: DbIndex = {
+    exercisesById: new Map(db.exercises.map((exercise) => [exercise.id, exercise])),
+    rowsByExercise: groupBy(db.workoutExercises, (row) => row.exerciseId),
+    rowsByWorkout: groupBy(db.workoutExercises, (row) => row.workoutId),
+    setsByRow: groupBy(db.sets, (set) => set.workoutExerciseId),
+    workoutsById: new Map(db.workouts.map((workout) => [workout.id, workout])),
+  };
+  for (const rows of index.rowsByWorkout.values()) {
+    rows.sort((left, right) => left.position - right.position);
+  }
+  for (const sets of index.setsByRow.values()) {
+    sets.sort((left, right) => left.position - right.position);
+  }
+  if (isCommitted(db)) {
+    indexCache.set(db, index);
+  }
+  return index;
+}
+
+function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const id = key(item);
+    const group = groups.get(id);
+    if (group) {
+      group.push(item);
+    } else {
+      groups.set(id, [item]);
+    }
+  }
+  return groups;
+}
+
+function setsOf(db: DatabaseShape, workoutExerciseId: string): StoredSet[] {
+  return indexOf(db).setsByRow.get(workoutExerciseId) ?? [];
+}
+
+function isWorkingSet(set: StoredSet): boolean {
+  return set.completed && set.setType !== 'warmup' && (set.reps ?? 0) > 0;
+}
+
 function workingSets(db: DatabaseShape, workoutId: string): StoredSet[] {
-  const ids = new Set(db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId).map((exercise) => exercise.id));
-  return db.sets.filter((set) => ids.has(set.workoutExerciseId) && set.completed && set.setType !== 'warmup');
+  return workoutExerciseRows(db, workoutId).flatMap((row) => setsOf(db, row.id).filter((set) => set.completed && set.setType !== 'warmup'));
 }
 
 function routineExerciseRows(db: DatabaseShape, routineId: string) {
   return db.routineExercises.filter((exercise) => exercise.routineId === routineId).sort((left, right) => left.position - right.position);
 }
 
-function workoutExerciseRows(db: DatabaseShape, workoutId: string) {
-  return db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId).sort((left, right) => left.position - right.position);
+function workoutExerciseRows(db: DatabaseShape, workoutId: string): StoredWorkoutExercise[] {
+  return [...(indexOf(db).rowsByWorkout.get(workoutId) ?? [])];
 }
 
 function exerciseName(db: DatabaseShape, exerciseId: string): string {
-  return db.exercises.find((exercise) => exercise.id === exerciseId)?.name ?? 'Exercise';
+  return indexOf(db).exercisesById.get(exerciseId)?.name ?? 'Exercise';
 }
 
 function requireExercise(db: DatabaseShape, exerciseId: string): { name: string; muscleGroup: MuscleGroup; equipment: Equipment } {
-  const exercise = db.exercises.find((item) => item.id === exerciseId);
+  const exercise = indexOf(db).exercisesById.get(exerciseId);
   return {
     equipment: exercise && isEquipment(exercise.equipment) ? exercise.equipment : 'Other',
     muscleGroup: exercise && isMuscleGroup(exercise.muscleGroup) ? exercise.muscleGroup : 'Full body',

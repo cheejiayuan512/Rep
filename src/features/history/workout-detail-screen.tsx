@@ -16,7 +16,8 @@ import { Screen } from '../../components/screen';
 import { deleteWorkout, duplicateWorkout, getWorkout } from '../../data/repository';
 import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
 import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
-import type { WorkoutDetail } from '../../domain/types';
+import { estimateOneRepMax } from '../../domain/metrics';
+import type { SetRecord, WeightUnit, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -84,12 +85,9 @@ export const WorkoutDetailScreen: React.FC = () => {
   }, [dispatch, navigation, route.params.workoutId]);
 
   const closeConfirm = useCallback(() => setConfirm(null), []);
-  const volumeKg = workout
-    ? workout.exercises.reduce(
-        (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => (set.completed && set.setType !== 'warmup' ? setSum + (set.weightKg ?? 0) * (set.reps ?? 0) : setSum), 0),
-        0,
-      )
-    : 0;
+  const working = workout ? workout.exercises.flatMap((exercise) => exercise.sets.filter(isWorking)) : [];
+  const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+  const workingSetCount = working.length;
 
   return (
     <Screen bottomInset>
@@ -99,32 +97,19 @@ export const WorkoutDetailScreen: React.FC = () => {
       ) : (
         <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
           <Text style={styles.title}>{workout.name}</Text>
-          <Text style={styles.meta}>
-            {formatWorkoutWhen(workout.finishedAt ?? workout.startedAt)}
-            {workout.finishedAt ? ` · ${formatDuration(workout.startedAt, workout.finishedAt)}` : ''}
-          </Text>
-          <Text style={styles.volume}>
-            {formatVolume(kgToDisplay(volumeKg, unit))} {unit} volume
-          </Text>
+          <Text style={styles.meta}>{formatWorkoutWhen(workout.finishedAt ?? workout.startedAt)}</Text>
+          <View style={styles.summary}>
+            <Summary label="Duration" value={workout.finishedAt ? formatDuration(workout.startedAt, workout.finishedAt) : '—'} />
+            <Summary label={`Volume (${unit})`} value={formatVolume(kgToDisplay(volumeKg, unit))} />
+            <Summary label="Sets" value={String(workingSetCount)} />
+            <Summary label="Exercises" value={String(workout.exercises.length)} />
+          </View>
           <View style={styles.actions}>
             <Button label="Edit" onPress={handleEdit} style={styles.action} variant="secondary" />
             <Button label="Duplicate" onPress={handleDuplicate} style={styles.action} />
           </View>
           {workout.exercises.map((exercise) => (
-            <View key={exercise.id} style={styles.card}>
-              <Text style={styles.exercise}>{exercise.name}</Text>
-              <Text style={styles.meta}>
-                {exercise.muscleGroup} · {exercise.equipment}
-              </Text>
-              {exercise.notes.trim() ? <Text style={styles.notes}>{exercise.notes.trim()}</Text> : null}
-              {exercise.sets.map((set, index) => (
-                <Text key={set.id} style={[styles.set, !set.completed && styles.incomplete]}>
-                  {set.setType === 'warmup' ? 'W' : index + 1}  {formatLoggedLoad(set.weightKg, set.reps, unit)}
-                  {set.rpe != null ? `  ·  RPE ${formatWeight(set.rpe)}` : ''}
-                  {set.completed ? '' : '  · not completed'}
-                </Text>
-              ))}
-            </View>
+            <ExerciseSummaryCard exercise={exercise} key={exercise.id} unit={unit} />
           ))}
         </ScrollView>
       )}
@@ -140,6 +125,78 @@ export const WorkoutDetailScreen: React.FC = () => {
     </Screen>
   );
 };
+
+function isWorking(set: SetRecord): boolean {
+  return set.completed && set.setType !== 'warmup';
+}
+
+const Summary: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+  return (
+    <View style={styles.summaryItem}>
+      <Text style={styles.summaryValue}>{value}</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+    </View>
+  );
+};
+
+/** One exercise as a small table: warmups marked W, working sets numbered on their own. */
+const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit }> = React.memo(function ExerciseSummaryCard({ exercise, unit }) {
+  const working = exercise.sets.filter(isWorking);
+  const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+  const bestOneRepMax = working.reduce((best, set) => {
+    const weight = set.weightKg ?? 0;
+    const reps = set.reps ?? 0;
+    return weight > 0 && reps > 0 ? Math.max(best, estimateOneRepMax(weight, reps)) : best;
+  }, 0);
+  let workingNumber = 0;
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.exercise}>{exercise.name}</Text>
+      <Text style={styles.meta}>
+        {exercise.muscleGroup} · {exercise.equipment}
+      </Text>
+      {exercise.notes.trim() ? (
+        <View style={styles.notesWrap}>
+          <Text style={styles.notes}>{exercise.notes.trim()}</Text>
+        </View>
+      ) : null}
+      <View style={[styles.row, styles.headRow]}>
+        <Text style={[styles.colSet, styles.head]}>Set</Text>
+        <Text style={[styles.colLoad, styles.head]}>{unit} × reps</Text>
+        <Text style={[styles.colRpe, styles.head]}>RPE</Text>
+        <Text style={[styles.colMax, styles.head]}>e1RM</Text>
+      </View>
+      {exercise.sets.map((set) => {
+        const warmup = set.setType === 'warmup';
+        if (!warmup && set.completed) {
+          workingNumber += 1;
+        }
+        const weight = set.weightKg ?? 0;
+        const reps = set.reps ?? 0;
+        const max = !warmup && set.completed && weight > 0 && reps > 0 ? estimateOneRepMax(weight, reps) : null;
+        return (
+          <View key={set.id} style={[styles.row, !set.completed && styles.skipped]}>
+            <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup]}>{warmup ? 'W' : set.completed ? workingNumber : '–'}</Text>
+            <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>{formatLoggedLoad(set.weightKg, set.reps, unit)}</Text>
+            <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>
+            <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatWeight(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
+          </View>
+        );
+      })}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          {working.length} working {working.length === 1 ? 'set' : 'sets'} · {formatVolume(kgToDisplay(volumeKg, unit))} {unit}
+        </Text>
+        {bestOneRepMax > 0 ? (
+          <Text style={styles.footerStrong}>
+            Best e1RM {formatWeight(kgToDisplay(bestOneRepMax, unit))} {unit}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   action: {
@@ -170,8 +227,62 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
   },
-  incomplete: {
+  cell: {
+    color: colors.text,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+  },
+  cellMuted: {
+    color: colors.muted,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  colLoad: {
+    flex: 1,
+  },
+  colMax: {
+    textAlign: 'right',
+    width: 64,
+  },
+  colRpe: {
+    textAlign: 'center',
+    width: 44,
+  },
+  colSet: {
+    width: 36,
+  },
+  footer: {
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 10,
+  },
+  footerStrong: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  footerText: {
+    color: colors.muted,
+    fontSize: 13,
+  },
+  head: {
     color: colors.faint,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  headRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginTop: 12,
+    paddingBottom: 6,
   },
   meta: {
     color: colors.muted,
@@ -182,23 +293,62 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 10,
   },
-  set: {
+  notesWrap: {
+    backgroundColor: colors.surfaceRaised,
+    borderLeftColor: colors.accent,
+    borderLeftWidth: 3,
+    borderRadius: 8,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  row: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingVertical: 7,
+  },
+  setLabel: {
     color: colors.text,
     fontSize: 15,
+    fontWeight: '800',
+  },
+  skipped: {
+    opacity: 0.45,
+  },
+  summary: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingVertical: 12,
+  },
+  summaryItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  summaryValue: {
+    color: colors.text,
+    fontSize: 16,
     fontVariant: ['tabular-nums'],
-    marginTop: 8,
+    fontWeight: '800',
   },
   title: {
     color: colors.text,
     fontSize: 32,
     fontWeight: '800',
   },
-  volume: {
-    color: colors.accent,
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 10,
+  warmup: {
+    color: '#F0C14A',
+  },
+  warmupText: {
+    color: colors.muted,
   },
 });

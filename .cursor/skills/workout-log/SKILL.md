@@ -28,6 +28,14 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
 - An exercise appears in a workout or routine at most once. In the picker, tapping an added exercise removes it again, unless it already has a completed set (then it stays and the card's Remove is the way out).
 - History detail has Edit and Duplicate. Edit opens the finished workout in the same workout screen with Done instead of Finish/Discard, no rest timer, and no PR toast; stars compare only against earlier workouts. Duplicate starts a new workout with the same exercises, notes, rest, and set weight/reps, nothing checked off, RPE empty.
+- The picker only adds and removes. Renaming, recategorizing, and deleting exercises happen in the Exercises tab. Only unused custom exercises can be deleted; built-ins never.
+- History detail numbers working sets 1..n and marks warmups `W`, so warmups do not shift the count.
+
+## Storage speed
+
+- `readDatabase` returns the shared committed document. Treat it as read-only; mutate only inside `writeDatabase`.
+- `writeDatabase` commits in memory right away and persists to AsyncStorage after a 400 ms debounce. `flushDatabase` runs when the app leaves the foreground.
+- The repository caches lookup maps per committed document (`indexOf`). Navigate before dispatching `dataChanged` so the next screen does not wait on a reload.
 
 ## Numbers
 
@@ -48,6 +56,9 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Active logging UI | `src/features/workout/active-workout-screen.tsx` |
 | Finished session UI | `src/features/history/workout-detail-screen.tsx` |
 | Hevy CSV import | `src/domain/hevy-import.ts`, then `importHevyCsv` in the repository |
-| Profile level, badges, weekly chart | `src/domain/profile.ts` and `src/features/profile/profile-screen.tsx` |
+| Profile level, badges, weekly chart | `src/domain/profile.ts` and `src/features/profile/profile-screen.tsx`; badge art in `src/components/badge-icons.tsx` |
+| Home week stats, Analysis screen | `src/domain/stats.ts`, then `src/features/progress/analysis-screen.tsx` |
+| 1RM calculator formulas | `src/domain/one-rep-max.ts` (Epley, Brzycki, Lombardi; up to 20 reps) |
+| Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

@@ -48,6 +48,15 @@ export const ProfileIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   );
 };
 
+export const ExercisesIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M9 7.5a3 3 0 0 1 6 0" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
+      <Path d="M7.6 9.5h8.8l1.4 9a1.5 1.5 0 0 1-1.5 1.7H7.7a1.5 1.5 0 0 1-1.5-1.7l1.4-9z" stroke={color} strokeLinejoin="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
+
 export const ProgressIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   return (
     <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>

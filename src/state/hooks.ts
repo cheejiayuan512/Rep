@@ -3,10 +3,11 @@
  * These read the shared store and, when the revision counter changes, load
  * fresh lists from storage.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getActiveWorkoutSummary, getProfile, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';
+import { getActiveWorkoutSummary, getAnalysisInput, getProfile, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';
 import type { ProfileSnapshot } from '../domain/profile';
+import { buildAnalysis, buildHomeStats, type Analysis, type AnalysisInput, type HomeStats } from '../domain/stats';
 import type { ActiveWorkoutSummary, RoutineSummary, TrainedExercise, WeightUnit, WorkoutSummary } from '../domain/types';
 import { restSecondsChanged, useAppDispatch, useAppSelector, weightUnitChanged } from './store';
 
@@ -117,10 +118,31 @@ export function useTrainedExercises(): TrainedExercise[] {
   return exercises;
 }
 
+/** Training analysis over the last `days` days, compared with the `days` before. */
+export function useAnalysis(days: number): Analysis | null {
+  const revision = useRevision();
+  const [input, setInput] = useState<AnalysisInput | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    void getAnalysisInput().then((next) => {
+      if (!cancel) {
+        setInput(next);
+      }
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [revision]);
+
+  return useMemo(() => (input ? buildAnalysis(input, Date.now(), days) : null), [days, input]);
+}
+
 export interface HomeData {
   active: ActiveWorkoutSummary | null;
   routines: RoutineSummary[];
   lastWorkout: WorkoutSummary | null;
+  stats: HomeStats;
 }
 
 export function useHomeData(activeWorkoutId: string | null): HomeData | null {
@@ -140,6 +162,7 @@ export function useHomeData(activeWorkoutId: string | null): HomeData | null {
           active,
           lastWorkout: workouts[0] ?? null,
           routines,
+          stats: buildHomeStats(workouts, Date.now()),
         });
       }
     })();

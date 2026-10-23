@@ -18,11 +18,15 @@ export interface ProfileWorkout {
   warmupSets: number;
   volumeKg: number;
   reps: number;
+  /** Heaviest working set, 0 when everything was bodyweight. */
+  heaviestKg: number;
 }
 
 export interface ProfileInput {
   workouts: ProfileWorkout[];
   customExerciseCount: number;
+  /** Working sets that beat an earlier estimated 1RM for the same exercise. */
+  recordCount: number;
   now: number;
 }
 
@@ -34,12 +38,14 @@ export interface ProfileWeek {
 }
 
 export interface ProfileBadge {
-  id: string;
+  id: BadgeId;
   title: string;
   detail: string;
   tier: BadgeTier;
   /** 0 to 1, how full the ring is for the current tier. */
   ring: number;
+  /** The amount that reaches the next tier, in the badge's unit (kg for weight). Null at Expert. */
+  next: number | null;
 }
 
 export interface ProfileLevel {
@@ -80,7 +86,7 @@ export function buildProfile(input: ProfileInput): ProfileSnapshot {
   const currentWeek = weekStarts[weekStarts.length - 1] ?? startOfWeek(input.now);
 
   return {
-    badges: buildBadges(finished, trained.size),
+    badges: buildBadges(finished, trained.size, input.recordCount),
     contributions: [
       { id: 'workouts', label: 'Workouts', value: finished.length },
       { id: 'sets', label: 'Sets', value: sum(finished, (workout) => workout.workingSets) },
@@ -140,6 +146,25 @@ export function startOfWeek(timestamp: number): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset).getTime();
 }
 
+export function previousWeek(weekStart: number): number {
+  // Step back to the middle of the previous week so a daylight-saving shift cannot skip it.
+  return startOfWeek(weekStart - 3.5 * 86400000);
+}
+
+/** The longest run of consecutive weeks with at least one workout. */
+export function longestStreak(finishedAt: number[]): number {
+  const weeks = [...new Set(finishedAt.map(startOfWeek))].sort((left, right) => left - right);
+  let longest = 0;
+  let run = 0;
+  let last: number | null = null;
+  for (const week of weeks) {
+    run = last != null && previousWeek(week) === last ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    last = week;
+  }
+  return longest;
+}
+
 function scorePoints(workouts: ProfileWorkout[], customExerciseCount: number): number {
   const trained = new Set(workouts.flatMap((workout) => (workout.workingSets > 0 ? workout.exerciseIds : [])));
   return (
@@ -151,34 +176,66 @@ function scorePoints(workouts: ProfileWorkout[], customExerciseCount: number): n
   );
 }
 
-function buildBadges(workouts: ProfileWorkout[], trainedCount: number): ProfileBadge[] {
-  const workoutCount = workouts.length;
-  const volume = sum(workouts, (item) => item.volumeKg);
-  const notes = sum(workouts, (item) => item.notedExercises);
+export type BadgeId =
+  | 'logger'
+  | 'lifter'
+  | 'scribe'
+  | 'explorer'
+  | 'streak'
+  | 'reps'
+  | 'heavy'
+  | 'records'
+  | 'marathon'
+  | 'early'
+  | 'night'
+  | 'warmup';
+
+function buildBadges(workouts: ProfileWorkout[], trainedCount: number, recordCount: number): ProfileBadge[] {
+  const hourOf = (workout: ProfileWorkout) => new Date(workout.startedAt).getHours();
   return [
-    badge('logger', 'Logger', 'Finished workouts', workoutCount, [1, 10, 50]),
-    badge('lifter', 'Lifter', 'Kilograms lifted', volume, [1000, 10000, 100000]),
-    badge('scribe', 'Scribe', 'Exercise notes', notes, [1, 10, 40]),
-    badge('explorer', 'Explorer', 'Different exercises', trainedCount, [3, 10, 25]),
+    badge('logger', 'Logger', workouts.length, [1, 10, 50]),
+    badge('lifter', 'Lifter', sum(workouts, (item) => item.volumeKg), [1000, 10000, 100000]),
+    badge('scribe', 'Scribe', sum(workouts, (item) => item.notedExercises), [1, 10, 40]),
+    badge('explorer', 'Explorer', trainedCount, [3, 10, 25]),
+    badge('streak', 'On a roll', longestStreak(workouts.map((item) => item.finishedAt)), [2, 6, 12]),
+    badge('reps', 'Rep counter', sum(workouts, (item) => item.reps), [500, 5000, 25000]),
+    badge('heavy', 'Heavy hitter', Math.max(0, ...workouts.map((item) => item.heaviestKg)), [60, 100, 140]),
+    badge('records', 'Record breaker', recordCount, [1, 10, 50]),
+    badge('marathon', 'Long haul', workouts.filter((item) => durationMinutes(item) >= 90).length, [1, 10, 30]),
+    badge('early', 'Early bird', workouts.filter((item) => hourOf(item) < 8).length, [1, 10, 30]),
+    badge('night', 'Night owl', workouts.filter((item) => hourOf(item) >= 21).length, [1, 10, 30]),
+    badge('warmup', 'Warmed up', sum(workouts, (item) => item.warmupSets), [5, 50, 200]),
   ];
 }
 
-function badge(id: string, title: string, detail: string, value: number, steps: [number, number, number]): ProfileBadge {
+/** What a badge counts, after its number. `kg` badges are converted to the display unit on screen. */
+export const BADGE_UNITS: Record<BadgeId, string> = {
+  early: 'before 8 am',
+  explorer: 'exercises',
+  heavy: 'kg set',
+  lifter: 'kg lifted',
+  logger: 'workouts',
+  marathon: '90-min sessions',
+  night: 'after 9 pm',
+  records: 'PRs',
+  reps: 'reps',
+  scribe: 'notes',
+  streak: 'weeks in a row',
+  warmup: 'warmups',
+};
+
+function badge(id: BadgeId, title: string, value: number, steps: [number, number, number]): ProfileBadge {
   const [novice, regular, expert] = steps;
   if (value < novice) {
-    return { detail: `Unlock at ${formatStep(novice)}`, id, ring: value / novice, tier: 'locked', title };
+    return { detail: 'Locked', id, next: novice, ring: value / novice, tier: 'locked', title };
   }
   if (value < regular) {
-    return { detail: 'Novice', id, ring: value / regular, tier: 'novice', title };
+    return { detail: 'Novice', id, next: regular, ring: value / regular, tier: 'novice', title };
   }
   if (value < expert) {
-    return { detail: 'Regular', id, ring: value / expert, tier: 'regular', title };
+    return { detail: 'Regular', id, next: expert, ring: value / expert, tier: 'regular', title };
   }
-  return { detail: 'Expert', id, ring: 1, tier: 'expert', title };
-}
-
-function formatStep(value: number): string {
-  return value >= 1000 ? `${value / 1000}k` : String(value);
+  return { detail: 'Expert', id, next: null, ring: 1, tier: 'expert', title };
 }
 
 function recentWeekStarts(now: number, count: number): number[] {

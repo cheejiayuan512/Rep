@@ -5,16 +5,20 @@
  * On startup this opens the saved log, then shows the tabs.
  */
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { bootFailed, bootstrapped, useAppDispatch, useAppSelector } from '../state/store';
-import { HistoryIcon, ProfileIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
+import { ExercisesIcon, HistoryIcon, ProfileIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
 import { getInProgressWorkoutId, getSettings } from '../data/repository';
-import { initDatabase } from '../data/database';
+import { flushDatabase, initDatabase } from '../data/database';
+import { ExerciseEditorScreen } from '../features/exercises/exercise-editor-screen';
+import { ExercisesScreen } from '../features/exercises/exercises-screen';
 import { HistoryScreen } from '../features/history/history-screen';
+import { AnalysisScreen } from '../features/progress/analysis-screen';
+import { OneRepMaxScreen } from '../features/progress/one-rep-max-screen';
 import { WorkoutDetailScreen } from '../features/history/workout-detail-screen';
 import { ExerciseProgressScreen } from '../features/progress/exercise-progress-screen';
 import { ProfileScreen } from '../features/profile/profile-screen';
@@ -46,6 +50,10 @@ function renderProgressIcon({ color, size }: { color: string; size: number }) {
   return <ProgressIcon color={color} size={size} />;
 }
 
+function renderExercisesIcon({ color, size }: { color: string; size: number }) {
+  return <ExercisesIcon color={color} size={size} />;
+}
+
 function renderProfileIcon({ color, size }: { color: string; size: number }) {
   return <ProfileIcon color={color} size={size} />;
 }
@@ -68,6 +76,7 @@ const Tabs: React.FC = () => {
       <Tab.Screen component={RoutinesScreen} name="Routines" options={{ tabBarIcon: renderRoutinesIcon }} />
       <Tab.Screen component={HistoryScreen} name="History" options={{ tabBarIcon: renderHistoryIcon }} />
       <Tab.Screen component={ProgressScreen} name="Progress" options={{ tabBarIcon: renderProgressIcon }} />
+      <Tab.Screen component={ExercisesScreen} name="Exercises" options={{ tabBarIcon: renderExercisesIcon }} />
       <Tab.Screen component={ProfileScreen} name="Profile" options={{ tabBarIcon: renderProfileIcon }} />
     </Tab.Navigator>
   );
@@ -99,6 +108,15 @@ export const RootNavigator: React.FC = () => {
     };
   }, [dispatch]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') {
+        void flushDatabase();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   if (bootError) {
     return (
       <View style={styles.boot}>
@@ -126,6 +144,9 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen component={RoutineEditorScreen} name="RoutineEditor" />
         <Stack.Screen component={WorkoutDetailScreen} name="WorkoutDetail" />
         <Stack.Screen component={ExerciseProgressScreen} name="ExerciseProgress" />
+        <Stack.Screen component={ExerciseEditorScreen} name="ExerciseEditor" />
+        <Stack.Screen component={AnalysisScreen} name="Analysis" />
+        <Stack.Screen component={OneRepMaxScreen} name="OneRepMax" />
       </Stack.Navigator>
     </NavigationContainer>
   );

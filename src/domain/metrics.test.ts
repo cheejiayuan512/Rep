@@ -1,7 +1,7 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, detectRecord, detectRecords, estimateOneRepMax, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import type { LoggedSet } from './types';
 
@@ -134,4 +134,16 @@ test('record cards use the best estimated max', () => {
   const estimated = cards.find((card) => card.label === 'Est. 1RM');
   assertTrue(estimated != null, 'missing estimated max card');
   assertEqual(estimated.value, '107.7 kg');
+});
+
+test('record counting skips the first set and ties', () => {
+  const sets = [
+    scored({ reps: 5, weightKg: 100 }),
+    scored({ reps: 5, weightKg: 100 }),
+    scored({ reps: 5, weightKg: 105 }),
+    scored({ reps: 3, weightKg: 100 }),
+    scored({ reps: 1, weightKg: 130 }),
+  ];
+  assertEqual(countOneRepMaxRecords(sets), 2);
+  assertEqual(countOneRepMaxRecords([]), 0);
 });

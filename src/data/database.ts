@@ -80,6 +80,9 @@ export interface DatabaseShape {
 
 let state: DatabaseShape | null = null;
 let chain: Promise<unknown> = Promise.resolve();
+const committed = new WeakSet<DatabaseShape>();
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persisting: Promise<void> | null = null;
 
 export function initDatabase(): Promise<void> {
   return enqueue(async () => {
@@ -87,17 +90,67 @@ export function initDatabase(): Promise<void> {
   });
 }
 
+/**
+ * The current document, shared and not copied: a big log made every read slow.
+ * Treat it as read-only. Change data only through `writeDatabase`.
+ */
 export function readDatabase(): Promise<DatabaseShape> {
-  return enqueue(async () => clone(await ensureLoaded()));
+  return enqueue(async () => ensureLoaded());
 }
 
+/** True for a document that `writeDatabase` will never change again, so lookups built from it can be cached. */
+export function isCommitted(db: DatabaseShape): boolean {
+  return committed.has(db);
+}
+
+/**
+ * Applies `mutator` to a copy, swaps it in, and saves to the device shortly after.
+ * The save runs in the background so screens do not wait on a large JSON write.
+ */
 export function writeDatabase(mutator: (db: DatabaseShape) => void): Promise<void> {
   return enqueue(async () => {
-    const draft = clone(await ensureLoaded());
+    const draft = copy(await ensureLoaded());
     mutator(draft);
-    state = draft;
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    commit(draft);
+    schedulePersist();
   });
+}
+
+/** Writes the latest document now. Call before the app may be suspended. */
+export async function flushDatabase(): Promise<void> {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+    await persist();
+  }
+  await persisting;
+}
+
+function commit(db: DatabaseShape): void {
+  state = db;
+  committed.add(db);
+}
+
+function schedulePersist(): void {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    void persist();
+  }, 400);
+}
+
+async function persist(): Promise<void> {
+  await persisting;
+  const snapshot = state;
+  if (!snapshot) {
+    return;
+  }
+  persisting = AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)).catch((error: unknown) => {
+    console.warn('Rep could not save the log', error);
+  });
+  await persisting;
 }
 
 function enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -119,7 +172,7 @@ async function ensureLoaded(): Promise<DatabaseShape> {
   const next = parsed ?? emptyDatabase();
   const seeded = ensureSeed(next);
   const normalized = normalizeStored(next);
-  state = next;
+  commit(next);
   if (!parsed || seeded || normalized) {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
@@ -221,6 +274,15 @@ function ensureSeed(db: DatabaseShape): boolean {
   return changed;
 }
 
-function clone(db: DatabaseShape): DatabaseShape {
-  return JSON.parse(JSON.stringify(db)) as DatabaseShape;
+/** Copies every row one level deep. Mutators edit row fields, and readers still hold the old rows. */
+function copy(db: DatabaseShape): DatabaseShape {
+  return {
+    exercises: db.exercises.map((row) => ({ ...row })),
+    routineExercises: db.routineExercises.map((row) => ({ ...row })),
+    routines: db.routines.map((row) => ({ ...row })),
+    sets: db.sets.map((row) => ({ ...row })),
+    settings: { ...db.settings },
+    workoutExercises: db.workoutExercises.map((row) => ({ ...row })),
+    workouts: db.workouts.map((row) => ({ ...row })),
+  };
 }

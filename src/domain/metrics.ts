@@ -164,6 +164,27 @@ export function recordSetIds(sets: Array<{ id: string; scored: ScoredSet | null 
   return ids;
 }
 
+/**
+ * How many sets beat an earlier estimated 1RM for one exercise, in the order given.
+ * The first set sets the bar and does not count, the same as the PR banner.
+ */
+export function countOneRepMaxRecords(sets: ScoredSet[]): number {
+  return oneRepMaxRecordFlags(sets).filter(Boolean).length;
+}
+
+/** For each set, whether it beat every earlier estimated 1RM in the list. */
+export function oneRepMaxRecordFlags(sets: ScoredSet[]): boolean[] {
+  let best: number | null = null;
+  return sets.map((set) => {
+    if (set.oneRepMaxKg == null) {
+      return false;
+    }
+    const beat = best != null && set.oneRepMaxKg > best + WEIGHT_EPSILON_KG;
+    best = best == null ? set.oneRepMaxKg : Math.max(best, set.oneRepMaxKg);
+    return beat;
+  });
+}
+
 export function latestSessionSets(sets: LoggedSet[]): LoggedSet[] {
   const completed = sets.filter((set) => set.completed);
   const first = completed[0];

@@ -37,6 +37,8 @@ export const ProgressScreen: React.FC = () => {
     },
     [navigation],
   );
+  const openAnalysis = useCallback(() => navigation.navigate('Analysis'), [navigation]);
+  const openOneRepMax = useCallback(() => navigation.navigate('OneRepMax'), [navigation]);
   const renderExercise = useCallback(
     ({ item }: ListRenderItemInfo<TrainedExercise>) => <TrainedRow exercise={item} onPress={handleOpen} />,
     [handleOpen],
@@ -50,6 +52,10 @@ export const ProgressScreen: React.FC = () => {
           <UnitToggle onChange={setUnit} unit={unit} />
         </View>
         <Text style={styles.subtitle}>Personal records and charts for exercises you have logged.</Text>
+        <View style={styles.tools}>
+          <ToolCard detail="Volume, balance, effort, top lifts" label="Analysis" onPress={openAnalysis} />
+          <ToolCard detail="Estimate a max from any set" label="1RM calculator" onPress={openOneRepMax} />
+        </View>
         <TextInput autoCorrect={false} onChangeText={setQuery} placeholder="Search trained exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
       </View>
       <FlatList
@@ -62,6 +68,17 @@ export const ProgressScreen: React.FC = () => {
         renderItem={renderExercise}
       />
     </Screen>
+  );
+};
+
+const ToolCard: React.FC<{ label: string; detail: string; onPress: () => void }> = ({ detail, label, onPress }) => {
+  return (
+    <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={styles.tool}>
+      <Text style={styles.toolLabel}>{label}</Text>
+      <Text numberOfLines={2} style={styles.toolDetail}>
+        {detail}
+      </Text>
+    </Pressable>
   );
 };
 
@@ -155,5 +172,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  tool: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    padding: 14,
+  },
+  toolDetail: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  toolLabel: {
+    color: colors.accent,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  tools: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
   },
 });
