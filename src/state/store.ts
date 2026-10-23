@@ -1,19 +1,21 @@
 /**
  * Shared memory for the whole app: whether startup finished, kg or lb,
- * the rest timer length, and which workout is open.
+ * how long warmups rest, and which workout is open.
  * The sets themselves are not stored here. Screens load those from src/data.
  * `revision` is a counter. Screens reload their lists when it goes up.
  */
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { DEFAULT_WARMUP_MULTIPLIER } from '../domain/rest';
 import type { WeightUnit } from '../domain/types';
 
 interface AppState {
   ready: boolean;
   bootError: string | null;
   weightUnit: WeightUnit;
-  restSeconds: number;
+  /** Warmup rest as a fraction of the exercise's rest. */
+  warmupRestMultiplier: number;
   activeWorkoutId: string | null;
   revision: number;
 }
@@ -22,8 +24,8 @@ const initialState: AppState = {
   activeWorkoutId: null,
   bootError: null,
   ready: false,
-  restSeconds: 90,
   revision: 0,
+  warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER,
   weightUnit: 'kg',
 };
 
@@ -38,18 +40,18 @@ const appSlice = createSlice({
       state.bootError = action.payload;
       state.ready = false;
     },
-    bootstrapped(state, action: PayloadAction<{ weightUnit: WeightUnit; restSeconds: number; activeWorkoutId: string | null }>) {
+    bootstrapped(state, action: PayloadAction<{ weightUnit: WeightUnit; warmupRestMultiplier: number; activeWorkoutId: string | null }>) {
       state.activeWorkoutId = action.payload.activeWorkoutId;
       state.bootError = null;
       state.ready = true;
-      state.restSeconds = action.payload.restSeconds;
+      state.warmupRestMultiplier = action.payload.warmupRestMultiplier;
       state.weightUnit = action.payload.weightUnit;
     },
     dataChanged(state) {
       state.revision += 1;
     },
-    restSecondsChanged(state, action: PayloadAction<number>) {
-      state.restSeconds = action.payload;
+    warmupRestMultiplierChanged(state, action: PayloadAction<number>) {
+      state.warmupRestMultiplier = action.payload;
     },
     weightUnitChanged(state, action: PayloadAction<WeightUnit>) {
       state.weightUnit = action.payload;
@@ -57,7 +59,7 @@ const appSlice = createSlice({
   },
 });
 
-export const { activeWorkoutChanged, bootFailed, bootstrapped, dataChanged, restSecondsChanged, weightUnitChanged } = appSlice.actions;
+export const { activeWorkoutChanged, bootFailed, bootstrapped, dataChanged, warmupRestMultiplierChanged, weightUnitChanged } = appSlice.actions;
 
 export const store = configureStore({
   reducer: {

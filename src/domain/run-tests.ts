@@ -8,6 +8,7 @@ import './hevy-import.test';
 import './metrics.test';
 import './one-rep-max.test';
 import './profile.test';
+import './rest.test';
 import './stats.test';
 import './units.test';
 import './workout-edits.test';

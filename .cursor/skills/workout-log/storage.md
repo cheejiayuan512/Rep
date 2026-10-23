@@ -6,14 +6,16 @@ Reads and writes are serialized on a promise queue. `writeDatabase` clones, muta
 
 ## Document
 
-- `exercises`: library, including the seeded slugs in `src/data/seed-exercises.ts`
+- `exercises`: library, including the seeded slugs in `src/data/seed-exercises.ts`. `attachment` is a cable attachment or `null`
 - `routines` and `routineExercises`
 - `workouts`: `finishedAt: null` means in progress
-- `workoutExercises`: `notes` is a string, `''` when empty. `restSeconds` is a number or `null` for the default rest
+- `workoutExercises`: `notes` is a string, `''` when empty. `restSeconds` is a number or `null` for the exercise's default rest. `attachment` is a cable attachment or `null`
 - `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `setType` (`normal` or `warmup`), `completed`
-- `settings`: `weightUnit`, `restSeconds` (default 90)
+- `settings`: `weightUnit`, `warmupRestMultiplier` (0.25, 0.5, 0.75, or 1; default 0.5). Older documents also carry an unused `restSeconds`
 
-Old documents may omit `notes`, `rpe`, or `restSeconds`. `normalizeStored` fills those on load. Keep that path when adding a field.
+Old documents may omit `notes`, `rpe`, `restSeconds`, `attachment`, or `warmupRestMultiplier`. `normalizeStored` fills those on load (seeded cable exercises get their seed attachment). Keep that path when adding a field.
+
+`writeDatabase` commits in memory and saves after a short delay. `flushDatabase` (or `saveNow` in the repository) waits for queued writes and saves immediately.
 
 ## Adding a field
 

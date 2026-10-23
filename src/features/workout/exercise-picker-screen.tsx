@@ -20,6 +20,7 @@ import {
   listTargetExerciseIds,
   removeExerciseFromRoutine,
   removeExerciseFromWorkout,
+  swapWorkoutExercise,
 } from '../../data/repository';
 import { groupExercises, type ExerciseListItem } from '../../domain/exercise-families';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
@@ -66,7 +67,7 @@ export const ExercisePickerScreen: React.FC = () => {
 
   React.useEffect(() => {
     let cancel = false;
-    const target = route.params.mode === 'workout' ? { workoutId: route.params.workoutId } : { routineId: route.params.routineId };
+    const target = route.params.mode === 'routine' ? { routineId: route.params.routineId } : { workoutId: route.params.workoutId };
     void listTargetExerciseIds(target).then((ids) => {
       if (!cancel) {
         setAddedIds(new Set(ids));
@@ -82,8 +83,14 @@ export const ExercisePickerScreen: React.FC = () => {
     dispatch(dataChanged());
   }, [dispatch, navigation]);
 
+  const swapping = route.params.mode === 'swap' ? route.params : null;
+
   const addToTarget = useCallback(
     async (exerciseId: string) => {
+      if (route.params.mode === 'swap') {
+        await swapWorkoutExercise(route.params.workoutExerciseId, exerciseId);
+        return;
+      }
       if (route.params.mode === 'workout') {
         await addExerciseToWorkout(route.params.workoutId, exerciseId);
         return;
@@ -95,6 +102,9 @@ export const ExercisePickerScreen: React.FC = () => {
 
   const removeFromTarget = useCallback(
     async (exerciseId: string): Promise<boolean> => {
+      if (route.params.mode === 'swap') {
+        return false;
+      }
       if (route.params.mode === 'workout') {
         return (await removeExerciseFromWorkout(route.params.workoutId, exerciseId)) === 'removed';
       }
@@ -104,9 +114,43 @@ export const ExercisePickerScreen: React.FC = () => {
     [route.params],
   );
 
+  // Swap mode: one tap replaces the card's exercise and goes back.
+  const handleSwap = useCallback(
+    async (exerciseId: string) => {
+      if (!swapping || pendingId) {
+        return;
+      }
+      if (exerciseId === swapping.currentExerciseId) {
+        navigation.goBack();
+        return;
+      }
+      if (addedIds.has(exerciseId)) {
+        setError('That exercise is already in this workout.');
+        return;
+      }
+      setPendingId(exerciseId);
+      setError(null);
+      try {
+        await swapWorkoutExercise(swapping.workoutExerciseId, exerciseId);
+        void hapticLight();
+        navigation.goBack();
+        dispatch(dataChanged());
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Could not swap the exercise.');
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [addedIds, dispatch, navigation, pendingId, swapping],
+  );
+
   // Tapping toggles: an exercise is in the target once at most.
   const handleSelect = useCallback(
     async (exerciseId: string) => {
+      if (swapping) {
+        await handleSwap(exerciseId);
+        return;
+      }
       if (pendingId) {
         return;
       }
@@ -134,7 +178,7 @@ export const ExercisePickerScreen: React.FC = () => {
         setPendingId(null);
       }
     },
-    [addToTarget, addedIds, pendingId, removeFromTarget],
+    [addToTarget, addedIds, handleSwap, pendingId, removeFromTarget, swapping],
   );
 
   const handleCreate = useCallback(async () => {
@@ -147,6 +191,11 @@ export const ExercisePickerScreen: React.FC = () => {
     try {
       const created = await createExercise({ equipment: customEquipment, muscleGroup: customMuscle, name: trimmed });
       await addToTarget(created.id);
+      if (swapping) {
+        navigation.goBack();
+        dispatch(dataChanged());
+        return;
+      }
       setAddedIds((current) => new Set(current).add(created.id));
       setName('');
       setCreating(false);
@@ -155,7 +204,7 @@ export const ExercisePickerScreen: React.FC = () => {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the exercise.');
     }
-  }, [addToTarget, customEquipment, customMuscle, load, muscle, name, query]);
+  }, [addToTarget, customEquipment, customMuscle, dispatch, load, muscle, name, navigation, query, swapping]);
 
   const toggleFamily = useCallback((family: string) => {
     setExpandedFamilies((current) => {
@@ -176,13 +225,15 @@ export const ExercisePickerScreen: React.FC = () => {
       ) : (
         <ExerciseChoice
           added={addedIds.has(item.exercise.id)}
+          current={swapping?.currentExerciseId === item.exercise.id}
           exercise={item.exercise}
           nested={item.nested}
           onPress={handleSelect}
           pending={pendingId === item.exercise.id}
+          swapping={swapping != null}
         />
       ),
-    [addedIds, handleSelect, pendingId, toggleFamily],
+    [addedIds, handleSelect, pendingId, swapping, toggleFamily],
   );
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
@@ -193,7 +244,10 @@ export const ExercisePickerScreen: React.FC = () => {
 
   return (
     <Screen bottomInset>
-      <Header right={<TextButton label="Done" onPress={handleDone} tone="accent" />} title="Exercises" />
+      <Header
+        right={swapping ? <TextButton label="Cancel" onPress={navigation.goBack} /> : <TextButton label="Done" onPress={handleDone} tone="accent" />}
+        title={swapping ? 'Swap exercise' : 'Exercises'}
+      />
       <View style={styles.searchWrap}>
         <TextInput accessibilityLabel="Search exercises" autoCorrect={false} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
       </View>
@@ -218,7 +272,7 @@ export const ExercisePickerScreen: React.FC = () => {
               <ChoiceChip key={equipment} label={equipment} onPress={setCustomEquipment} selected={customEquipment === equipment} />
             ))}
           </ScrollView>
-          <Button label="Add custom exercise" onPress={pressCreate} />
+          <Button label={swapping ? 'Swap to custom exercise' : 'Add custom exercise'} onPress={pressCreate} />
         </View>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -311,17 +365,22 @@ interface ExerciseChoiceProps {
   added: boolean;
   pending: boolean;
   nested: boolean;
+  /** Swap mode: the card's own exercise. */
+  current: boolean;
+  swapping: boolean;
   onPress: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, onPress }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, current, swapping, onPress }) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);
+  const status = pending ? '…' : swapping ? (current ? 'Current' : added ? 'In workout' : 'Swap') : added ? '✓ Added' : '+';
+  const hint = swapping ? 'Replaces the exercise on the card' : added ? 'Removes it from the list' : 'Adds it to the list';
 
   return (
     <Pressable
-      accessibilityHint={added ? 'Removes it from the list' : 'Adds it to the list'}
+      accessibilityHint={hint}
       accessibilityLabel={exercise.name}
       accessibilityRole="button"
       accessibilityState={{ selected: added }}
@@ -337,7 +396,7 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
           {exercise.isCustom ? ' · Custom' : ''}
         </Text>
       </View>
-      <Text style={[styles.added, !added && styles.addHint]}>{pending ? '…' : added ? '✓ Added' : '+'}</Text>
+      <Text style={[styles.added, !added && !swapping && styles.addHint, swapping && (added || current) && styles.taken]}>{status}</Text>
     </Pressable>
   );
 });
@@ -449,5 +508,8 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     paddingHorizontal: 20,
+  },
+  taken: {
+    color: colors.faint,
   },
 });

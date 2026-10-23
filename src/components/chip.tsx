@@ -6,14 +6,14 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors } from '../theme/colors';
 
-interface ChipProps<T extends string> {
+interface ChipProps<T extends string | null> {
   label: string;
   value: T;
   selected: boolean;
   onSelect: (value: T) => void;
 }
 
-function ChipInner<T extends string>({ label, value, selected, onSelect }: ChipProps<T>) {
+function ChipInner<T extends string | null>({ label, value, selected, onSelect }: ChipProps<T>) {
   const handlePress = useCallback(() => {
     onSelect(value);
   }, [onSelect, value]);

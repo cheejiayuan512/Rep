@@ -9,7 +9,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleS
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useRestSeconds, useWeightUnit } from '../../state/hooks';
+import { useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
 import { ExerciseOrderList } from '../../components/exercise-order-list';
@@ -20,16 +20,16 @@ import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
 import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { RestBar } from '../../components/rest-bar';
-import type { RestActivityProps } from '../../components/rest-activity';
-import { endRestActivity, showRestActivity } from '../../components/rest-live-activity';
+import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
-import { formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
+import { formatWorkoutWhen } from '../../domain/format';
+import { clampRest, defaultRestFor, restAfterSet } from '../../domain/rest';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { detectRecords, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
-import type { LoggedSet, SetRecord, WorkoutDetail, WorkoutExercise } from '../../domain/types';
-import { findSet, orderByIds, updateSetInWorkout } from '../../domain/workout-edits';
+import type { CableAttachment, LoggedSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
+import { findNextSet, findSet, orderByIds, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   deleteSet,
@@ -42,13 +42,26 @@ import {
   renameWorkout,
   restoreSet,
   restoreWorkoutExercise,
+  saveNow,
+  saveSetPositions,
   saveWorkoutExercisePositions,
   updateSetCompleted,
   updateSetNumbers,
   updateSetType,
+  updateWorkoutExerciseAttachment,
   updateWorkoutExerciseNotes,
   updateWorkoutExerciseRest,
 } from '../../data/repository';
+import {
+  activityPropsFor,
+  claimCompleteSet,
+  clearWorkoutActivityState,
+  getLastExercise,
+  getRest,
+  setLastExercise,
+  setRest,
+  type RestState,
+} from './workout-activity-sync';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -85,17 +98,13 @@ function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set:
   );
 }
 
-function clampRestSeconds(seconds: number): number {
-  return Math.min(300, Math.max(15, Math.round(seconds)));
-}
-
 export const ActiveWorkoutScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'ActiveWorkout'>>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { unit, setUnit } = useWeightUnit();
-  const { restSeconds, setRestSeconds } = useRestSeconds();
+  const { warmupMultiplier, setWarmupMultiplier } = useWarmupRestMultiplier();
   const workoutId = route.params.workoutId;
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [drafts, setDrafts] = useState<DraftMap>({});
@@ -105,9 +114,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const [banner, setBanner] = useState<string | null>(null);
   const [recordBanner, setRecordBanner] = useState<RecordToast | null>(null);
   const [undo, setUndo] = useState<UndoToast | null>(null);
-  const [restEndsAt, setRestEndsAt] = useState<number | null>(null);
-  const restExerciseRef = useRef<string | null>(null);
-  const restActivityRef = useRef<Omit<RestActivityProps, 'endsAt'> | null>(null);
+  const [rest, setRestState] = useState<RestState | null>(() => getRest(workoutId));
+  const restEndsAt = rest?.endsAt ?? null;
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [orderIds, setOrderIds] = useState<string[] | null>(null);
@@ -122,14 +130,16 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const notePendingRef = useRef<Record<string, string>>({});
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const restEndsAtRef = useRef(restEndsAt);
+  const restRef = useRef(rest);
+  const warmupMultiplierRef = useRef(warmupMultiplier);
 
   // A finished workout opened from History: same cards, but no rest timer, PR toast, or finish step.
   const editing = workout?.finishedAt != null;
   const editingRef = useRef(editing);
   editingRef.current = editing;
   workoutRef.current = workout;
-  restEndsAtRef.current = restEndsAt;
+  restRef.current = rest;
+  warmupMultiplierRef.current = warmupMultiplier;
   draftsRef.current = drafts;
   unitRef.current = unit;
   titleRef.current = title;
@@ -228,17 +238,34 @@ export const ActiveWorkoutScreen: React.FC = () => {
     return map;
   }, [historyByExercise, workout]);
 
+  const applyRest = useCallback((next: RestState | null) => {
+    setRest(next);
+    restRef.current = next;
+    setRestState(next);
+  }, []);
+
   useEffect(() => {
     if (restEndsAt == null) {
       return;
     }
     const id = setTimeout(() => {
-      setRestEndsAt(null);
-      endRestActivity();
+      applyRest(null);
       void hapticSuccess();
     }, Math.max(0, restEndsAt - Date.now()));
     return () => clearTimeout(id);
-  }, [restEndsAt]);
+  }, [applyRest, restEndsAt]);
+
+  // The Lock Screen / notification copy of this workout. Typing changes the
+  // workout on every keystroke, so updates wait for a short pause.
+  useEffect(() => {
+    if (!workout || workout.finishedAt != null) {
+      return;
+    }
+    const id = setTimeout(() => {
+      showWorkoutActivity(activityPropsFor(workout, unit));
+    }, 400);
+    return () => clearTimeout(id);
+  }, [rest, unit, workout]);
 
   useFocusEffect(
     useCallback(() => {
@@ -405,15 +432,24 @@ export const ActiveWorkoutScreen: React.FC = () => {
     [queueNote],
   );
 
+  // Warmups always sit above the working sets, so a toggled set moves into place.
   const handleToggleWarmup = useCallback((setId: string) => {
     const current = workoutRef.current;
     const located = current ? findSet(current, setId) : null;
     if (!current || !located) {
       return;
     }
-    const setType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
-    setWorkout(updateSetInWorkout(current, setId, { setType }));
+    const setType: SetType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
+    const sets = located.exercise.sets.map((set) => (set.id === setId ? { ...set, setType } : set));
+    const ordered = warmupsFirst(sets);
+    setWorkout({
+      ...current,
+      exercises: current.exercises.map((exercise) => (exercise.id === located.exercise.id ? { ...exercise, sets: ordered ?? sets } : exercise)),
+    });
     void updateSetType(setId, setType);
+    if (ordered) {
+      void saveSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+    }
     void hapticLight();
   }, []);
 
@@ -442,17 +478,11 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       const startedAt = Date.now();
-      const endsAt = startedAt + (located.exercise.restSeconds ?? restSeconds) * 1000;
-      const nextSet = located.exercise.sets.find((set) => set.id !== setId && !set.completed);
-      restExerciseRef.current = located.exercise.id;
-      restActivityRef.current = {
-        exerciseName: located.exercise.name,
-        nextSet: nextSet ? formatLoggedLoad(nextSet.weightKg, nextSet.reps, unitRef.current, nextSet.setType === 'warmup') : '',
-        startedAt,
-      };
-      setRestEndsAt(endsAt);
+      const seconds = restAfterSet(located.exercise.restSeconds ?? defaultRestFor(located.exercise), located.set.setType, warmupMultiplierRef.current);
+      const endsAt = startedAt + seconds * 1000;
+      setLastExercise(current.id, located.exercise.id);
+      applyRest({ endsAt, startedAt, workoutExerciseId: located.exercise.id, workoutId: current.id });
       void scheduleRestEnd(endsAt, located.exercise.name);
-      showRestActivity({ ...restActivityRef.current, endsAt });
       const scored = scoreWorkoutSet(current, located.exercise, { ...located.set, ...numbers, completed: true }, current.startedAt + located.set.position + 1);
       if (!scored) {
         return;
@@ -469,11 +499,30 @@ export const ActiveWorkoutScreen: React.FC = () => {
         void hapticSuccess();
       }
     },
-    [clearPending, readSetNumbers, restSeconds],
+    [applyRest, clearPending, readSetNumbers],
   );
 
+  const handleToggleCompleteRef = useRef(handleToggleComplete);
+  handleToggleCompleteRef.current = handleToggleComplete;
+
+  // Done on the Lock Screen, Dynamic Island, or notification checks off the next set here.
+  useEffect(() => {
+    if (editing) {
+      return;
+    }
+    return claimCompleteSet(() => {
+      const current = workoutRef.current;
+      const next = current ? findNextSet(current, getLastExercise(current.id)) : null;
+      if (next) {
+        handleToggleCompleteRef.current(next.set.id);
+        // The tap may have woken the app in the background; save before it sleeps again.
+        void flushPending().then(saveNow);
+      }
+    });
+  }, [editing, flushPending]);
+
   const handleChangeRest = useCallback((workoutExerciseId: string, seconds: number | null) => {
-    const next = seconds == null ? null : clampRestSeconds(seconds);
+    const next = seconds == null ? null : clampRest(seconds);
     setWorkout((current) =>
       current
         ? { ...current, exercises: current.exercises.map((exercise) => (exercise.id === workoutExerciseId ? { ...exercise, restSeconds: next } : exercise)) }
@@ -665,9 +714,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
       await flushPending();
       await renameWorkout(current.id, titleRef.current);
       await finishWorkout(current.id);
-      setRestEndsAt(null);
+      applyRest(null);
+      clearWorkoutActivityState(current.id);
       void cancelRestEnd();
-      endRestActivity();
+      endWorkoutActivity();
       dispatch(activeWorkoutChanged(null));
       dispatch(dataChanged());
       leave();
@@ -676,7 +726,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
     } finally {
       setFinishing(false);
     }
-  }, [dispatch, finishing, flushPending, leave]);
+  }, [applyRest, dispatch, finishing, flushPending, leave]);
 
   const handleDiscard = useCallback(() => {
     setConfirm({
@@ -687,9 +737,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
         setConfirm(null);
         void (async () => {
           await discardWorkout(workoutId);
-          setRestEndsAt(null);
+          applyRest(null);
+          clearWorkoutActivityState(workoutId);
           void cancelRestEnd();
-          endRestActivity();
+          endWorkoutActivity();
           dispatch(activeWorkoutChanged(null));
           dispatch(dataChanged());
           leave();
@@ -697,7 +748,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
       },
       title: 'Discard workout?',
     });
-  }, [dispatch, leave, workoutId]);
+  }, [applyRest, dispatch, leave, workoutId]);
 
   const pressFinish = useCallback(() => {
     void handleFinish();
@@ -717,35 +768,44 @@ export const ActiveWorkoutScreen: React.FC = () => {
     void handleDoneEditing();
   }, [handleDoneEditing]);
 
+  // -15 and +15 change only this rest. The exercise's rest setting stays as it was.
   const adjustRest = useCallback(
     (delta: number) => {
-      const current = restEndsAtRef.current;
+      const current = restRef.current;
       if (current == null) {
         return;
       }
-      const next = Math.max(Date.now() + 1000, current + delta * 1000);
-      restEndsAtRef.current = next;
-      setRestEndsAt(next);
-      const seconds = Math.round((next - Date.now()) / 1000);
-      const exercise = workoutRef.current?.exercises.find((item) => item.id === restExerciseRef.current);
-      if (exercise?.restSeconds != null) {
-        handleChangeRest(exercise.id, seconds);
-      } else {
-        setRestSeconds(seconds);
-      }
-      void scheduleRestEnd(next, exercise?.name ?? 'your exercise');
-      if (restActivityRef.current) {
-        showRestActivity({ ...restActivityRef.current, endsAt: next });
-      }
+      const endsAt = Math.max(Date.now() + 1000, current.endsAt + delta * 1000);
+      applyRest({ ...current, endsAt });
+      const exercise = workoutRef.current?.exercises.find((item) => item.id === current.workoutExerciseId);
+      void scheduleRestEnd(endsAt, exercise?.name ?? 'your exercise');
     },
-    [handleChangeRest, setRestSeconds],
+    [applyRest],
   );
   const subtractRest = useCallback(() => adjustRest(-15), [adjustRest]);
   const addRest = useCallback(() => adjustRest(15), [adjustRest]);
   const skipRest = useCallback(() => {
-    setRestEndsAt(null);
+    applyRest(null);
     void cancelRestEnd();
-    endRestActivity();
+  }, [applyRest]);
+
+  const handleSwap = useCallback(
+    (workoutExerciseId: string) => {
+      const exercise = workoutRef.current?.exercises.find((item) => item.id === workoutExerciseId);
+      if (!exercise) {
+        return;
+      }
+      void flushPending();
+      navigation.navigate('ExercisePicker', { currentExerciseId: exercise.exerciseId, mode: 'swap', workoutExerciseId, workoutId });
+    },
+    [flushPending, navigation, workoutId],
+  );
+
+  const handleChangeAttachment = useCallback((workoutExerciseId: string, attachment: CableAttachment | null) => {
+    setWorkout((current) =>
+      current ? { ...current, exercises: current.exercises.map((exercise) => (exercise.id === workoutExerciseId ? { ...exercise, attachment } : exercise)) } : current,
+    );
+    void updateWorkoutExerciseAttachment(workoutExerciseId, attachment);
   }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
@@ -811,23 +871,26 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   ) : null}
                   {workout?.exercises.map((exercise) => (
                     <ExerciseBlock
-                      defaultRestSeconds={restSeconds}
                       drafts={drafts}
                       exercise={exercise}
                       key={exercise.id}
                       onAddSet={pressAddSet}
+                      onChangeAttachment={handleChangeAttachment}
                       onChangeNotes={handleChangeNotes}
                       onChangeRest={handleChangeRest}
+                      onChangeWarmupMultiplier={setWarmupMultiplier}
                       onChangeReps={handleChangeReps}
                       onChangeRpe={handleChangeRpe}
                       onChangeWeight={handleChangeWeight}
                       onDeleteSet={handleDeleteSet}
                       onHold={beginReorder}
                       onRemove={handleRemove}
+                      onSwap={handleSwap}
                       onToggleComplete={handleToggleComplete}
                       onToggleWarmup={handleToggleWarmup}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
                       unit={unit}
+                      warmupMultiplier={warmupMultiplier}
                     />
                   ))}
                   {workout && workout.exercises.length > 0 ? (

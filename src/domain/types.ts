@@ -37,12 +37,19 @@ export const equipmentTypes = [
 
 export type Equipment = (typeof equipmentTypes)[number];
 
+/** What clips onto the cable. Only cable exercises carry one. */
+export const cableAttachments = ['Rope', 'Straight bar', 'V-bar', 'Lat bar', 'EZ bar', 'Single handle', 'D-handles', 'Ankle strap'] as const;
+
+export type CableAttachment = (typeof cableAttachments)[number];
+
 export interface Exercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   isCustom: boolean;
+  /** The attachment a new workout starts with. Null for none or for non-cable exercises. */
+  attachment: CableAttachment | null;
 }
 
 export interface SetRecord {
@@ -72,8 +79,10 @@ export interface WorkoutExercise {
   position: number;
   /** Free text for this exercise in this workout, not for each set. */
   notes: string;
-  /** Rest after each set of this exercise. Null uses the default rest. */
+  /** Rest after each set of this exercise. Null uses the exercise's default from src/domain/rest.ts. */
   restSeconds: number | null;
+  /** The cable attachment used in this workout. */
+  attachment: CableAttachment | null;
   sets: SetRecord[];
   previousSets: PreviousSet[];
 }
@@ -160,6 +169,10 @@ export function isMuscleGroup(value: string): value is MuscleGroup {
 
 export function isEquipment(value: string): value is Equipment {
   return (equipmentTypes as readonly string[]).includes(value);
+}
+
+export function isCableAttachment(value: unknown): value is CableAttachment {
+  return typeof value === 'string' && (cableAttachments as readonly string[]).includes(value);
 }
 
 export function isWeightUnit(value: string): value is WeightUnit {

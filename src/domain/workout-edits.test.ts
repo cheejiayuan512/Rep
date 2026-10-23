@@ -3,7 +3,7 @@
  */
 import { assertEqual, assertTrue, test } from './test-support';
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
-import { findSet, moveById, orderByIds, updateSetInWorkout } from './workout-edits';
+import { findNextSet, findSet, moveById, orderByIds, updateSetInWorkout, warmupsFirst } from './workout-edits';
 
 function set(id: string, position: number): SetRecord {
   return { completed: false, id, position, reps: 5, rpe: null, setType: 'normal', weightKg: 80 };
@@ -11,6 +11,7 @@ function set(id: string, position: number): SetRecord {
 
 function exercise(id: string, position: number, sets: SetRecord[]): WorkoutExercise {
   return {
+    attachment: null,
     equipment: 'Barbell',
     exerciseId: 'barbell-bench-press',
     id,
@@ -66,6 +67,32 @@ test('a dragged order rewrites positions and keeps unknown rows', () => {
     ordered.map((item) => item.position),
     [0, 1, 2],
   );
+});
+
+test('warmups move ahead of working sets, keeping their order', () => {
+  const sets = [set('a', 0), { ...set('b', 1), setType: 'warmup' as const }, set('c', 2), { ...set('d', 3), setType: 'warmup' as const }];
+  const ordered = warmupsFirst(sets);
+  assertEqual(
+    ordered?.map((item) => item.id),
+    ['b', 'd', 'a', 'c'],
+  );
+  assertEqual(
+    ordered?.map((item) => item.position),
+    [0, 1, 2, 3],
+  );
+  assertEqual(warmupsFirst(ordered ?? []), null);
+});
+
+test('the next set stays in the exercise you are working on', () => {
+  const done = (item: SetRecord) => ({ ...item, completed: true });
+  const plan = workout([
+    exercise('ex-1', 0, [done(set('a', 0)), set('b', 1)]),
+    exercise('ex-2', 1, [{ ...done(set('c', 0)), setType: 'warmup' }, set('d', 1), set('e', 2)]),
+  ]);
+  assertEqual(findNextSet(plan, 'ex-2')?.set.id, 'd');
+  assertEqual(findNextSet(plan, 'ex-2')?.label, 'Set 1 of 2');
+  assertEqual(findNextSet(plan, null)?.set.id, 'b');
+  assertEqual(findNextSet(workout([exercise('ex-1', 0, [done(set('a', 0))])]), 'ex-1'), null);
 });
 
 test('an exercise at the end cannot move further', () => {

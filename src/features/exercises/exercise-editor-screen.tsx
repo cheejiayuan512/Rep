@@ -12,7 +12,9 @@ import { ConfirmDialog } from '../../components/confirm-dialog';
 import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { createExercise, deleteCustomExercise, getExercise, getExerciseUsage, updateExercise } from '../../data/repository';
-import { equipmentTypes, muscleGroups, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
+import { formatClock } from '../../domain/format';
+import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../../domain/rest';
+import { cableAttachments, equipmentTypes, muscleGroups, type CableAttachment, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { colors } from '../../theme/colors';
@@ -27,6 +29,7 @@ export const ExerciseEditorScreen: React.FC = () => {
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup>('Chest');
   const [equipment, setEquipment] = useState<Equipment>('Barbell');
+  const [attachment, setAttachment] = useState<CableAttachment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -45,6 +48,7 @@ export const ExerciseEditorScreen: React.FC = () => {
       setName(loaded.name);
       setMuscle(loaded.muscleGroup);
       setEquipment(loaded.equipment);
+      setAttachment(loaded.attachment);
     });
     return () => {
       cancel = true;
@@ -59,12 +63,12 @@ export const ExerciseEditorScreen: React.FC = () => {
     setError(null);
     try {
       if (exerciseId) {
-        await updateExercise(exerciseId, { equipment, muscleGroup: muscle, name });
+        await updateExercise(exerciseId, { attachment, equipment, muscleGroup: muscle, name });
       } else {
         if (name.trim().length < 2) {
           throw new Error('Give the exercise a name.');
         }
-        await createExercise({ equipment, muscleGroup: muscle, name });
+        await createExercise({ attachment, equipment, muscleGroup: muscle, name });
       }
       navigation.goBack();
       dispatch(dataChanged());
@@ -73,7 +77,7 @@ export const ExerciseEditorScreen: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [dispatch, equipment, exerciseId, muscle, name, navigation, saving]);
+  }, [attachment, dispatch, equipment, exerciseId, muscle, name, navigation, saving]);
 
   const pressSave = useCallback(() => {
     void handleSave();
@@ -103,6 +107,9 @@ export const ExerciseEditorScreen: React.FC = () => {
   }, [exerciseId, navigation]);
 
   const inUse = usage != null && usage.workouts + usage.routines > 0;
+  const restSubject = { equipment, exerciseId: exerciseId ?? '', muscleGroup: muscle, name };
+  const restClass = restClassFor(restSubject);
+  const restSeconds = defaultRestFor(restSubject);
 
   return (
     <Screen bottomInset>
@@ -135,6 +142,21 @@ export const ExerciseEditorScreen: React.FC = () => {
             <Chip key={item} label={item} onSelect={setEquipment} selected={item === equipment} value={item} />
           ))}
         </View>
+        {equipment === 'Cable' ? (
+          <>
+            <Text style={styles.label}>Attachment</Text>
+            <View style={styles.chips}>
+              <Chip label="None" onSelect={setAttachment} selected={attachment == null} value={null} />
+              {cableAttachments.map((item) => (
+                <Chip key={item} label={item} onSelect={setAttachment} selected={item === attachment} value={item} />
+              ))}
+            </View>
+            <Text style={styles.hint}>New workouts start with this. Changing it on a workout card updates it too.</Text>
+          </>
+        ) : null}
+        <Text style={styles.hint}>
+          Default rest {formatClock(restSeconds)} ({REST_CLASS_LABELS[restClass].toLowerCase()}).
+        </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button disabled={saving} label={exerciseId ? 'Save changes' : 'Add exercise'} onPress={pressSave} style={styles.save} />
         {exercise ? (
@@ -184,6 +206,12 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
+  },
+  hint: {
+    color: colors.faint,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
   },
   input: {
     backgroundColor: colors.surface,

@@ -140,3 +140,64 @@ test('exercises can be edited from their tab, and the calculators open', async (
   await page.getByRole('button', { name: 'Analysis' }).click();
   await expect(page.getByText('No workouts in this period')).toBeVisible();
 });
+
+test('rest follows the exercise, warmups sort first, and a card can swap or change attachment', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Back Squat');
+  await page.getByRole('button', { name: 'Back Squat', exact: true }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Rest timer 3:00, default' })).toBeVisible();
+
+  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
+  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await page.getByRole('button', { name: 'Complete set' }).click();
+  await page.getByRole('button', { name: '+15' }).click();
+  await expect(page.getByRole('button', { name: 'Rest timer 3:00, default' })).toBeVisible();
+  await page.getByRole('button', { name: 'Skip' }).click();
+
+  await page.getByRole('button', { name: 'Add set' }).click();
+  await page.getByLabel('Mark as a warmup set').nth(1).click();
+  await expect(page.getByLabel(/^Mark as a/).first()).toHaveAccessibleName('Mark as a working set');
+  await page.getByRole('button', { name: 'Complete set' }).first().click();
+  await expect(page.getByText(/^1:(29|30)$/)).toBeVisible();
+  await page.getByRole('button', { name: 'Skip' }).click();
+
+  await page.getByRole('button', { name: 'Swap Back Squat' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Front Squat');
+  await page.getByRole('button', { name: 'Front Squat', exact: true }).click();
+  await expect(page.getByText('Front Squat', { exact: true })).toBeVisible();
+  await expect(page.getByText('Back Squat', { exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Triceps Pushdown');
+  await page.getByRole('button', { name: 'Triceps Pushdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Attachment Rope' }).click();
+  await page.getByRole('button', { name: 'V-bar' }).click();
+  await expect(page.getByRole('button', { name: 'Attachment V-bar' })).toBeVisible();
+});
+
+test('the 1RM calculator blends a whole session', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/');
+
+  await page.getByRole('tab', { name: 'Progress' }).click();
+  await page.getByRole('button', { name: '1RM calculator' }).click();
+  await page.getByRole('button', { name: 'Whole session' }).click();
+  await page.getByRole('textbox', { name: 'Session weight in kg' }).nth(0).fill('120');
+  await page.getByRole('textbox', { name: 'Session reps' }).nth(0).fill('3');
+  await page.getByRole('textbox', { name: 'Session weight in kg' }).nth(1).fill('120');
+  await page.getByRole('textbox', { name: 'Session reps' }).nth(1).fill('3');
+  await page.getByRole('textbox', { name: 'Session weight in kg' }).nth(2).fill('90');
+  await page.getByRole('textbox', { name: 'Session reps' }).nth(2).fill('8');
+  await expect(page.getByLabel('Estimated one-rep max 131 kg')).toBeVisible();
+  await expect(page.getByText('Blends 2 of 3 sets', { exact: false })).toBeVisible();
+});

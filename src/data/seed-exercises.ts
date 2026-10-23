@@ -3,13 +3,14 @@
  * so a workout saved today still points at the same exercise tomorrow.
  * Custom exercises the user creates are stored separately and are not listed here.
  */
-import type { Equipment, MuscleGroup } from '../domain/types';
+import type { CableAttachment, Equipment, MuscleGroup } from '../domain/types';
 
 export interface SeedExercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
   equipment: Equipment;
+  attachment?: CableAttachment;
 }
 
 export const seedExercises: SeedExercise[] = [
@@ -19,25 +20,25 @@ export const seedExercises: SeedExercise[] = [
   { id: 'dumbbell-bench-press', name: 'Dumbbell Bench Press', muscleGroup: 'Chest', equipment: 'Dumbbell' },
   { id: 'incline-dumbbell-press', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', equipment: 'Dumbbell' },
   { id: 'dumbbell-fly', name: 'Dumbbell Fly', muscleGroup: 'Chest', equipment: 'Dumbbell' },
-  { id: 'cable-fly', name: 'Cable Fly', muscleGroup: 'Chest', equipment: 'Cable' },
+  { id: 'cable-fly', name: 'Cable Fly', muscleGroup: 'Chest', equipment: 'Cable', attachment: 'Single handle' },
   { id: 'machine-chest-press', name: 'Machine Chest Press', muscleGroup: 'Chest', equipment: 'Machine' },
   { id: 'push-up', name: 'Push-Up', muscleGroup: 'Chest', equipment: 'Bodyweight' },
   { id: 'dip', name: 'Dip', muscleGroup: 'Chest', equipment: 'Bodyweight' },
   { id: 'deadlift', name: 'Deadlift', muscleGroup: 'Back', equipment: 'Barbell' },
   { id: 'barbell-row', name: 'Barbell Row', muscleGroup: 'Back', equipment: 'Barbell' },
   { id: 'dumbbell-row', name: 'Dumbbell Row', muscleGroup: 'Back', equipment: 'Dumbbell' },
-  { id: 'lat-pulldown', name: 'Lat Pulldown', muscleGroup: 'Back', equipment: 'Cable' },
+  { id: 'lat-pulldown', name: 'Lat Pulldown', muscleGroup: 'Back', equipment: 'Cable', attachment: 'Lat bar' },
   { id: 'pull-up', name: 'Pull-Up', muscleGroup: 'Back', equipment: 'Bodyweight' },
   { id: 'chin-up', name: 'Chin-Up', muscleGroup: 'Back', equipment: 'Bodyweight' },
-  { id: 'seated-cable-row', name: 'Seated Cable Row', muscleGroup: 'Back', equipment: 'Cable' },
+  { id: 'seated-cable-row', name: 'Seated Cable Row', muscleGroup: 'Back', equipment: 'Cable', attachment: 'V-bar' },
   { id: 'chest-supported-row', name: 'Chest-Supported Row', muscleGroup: 'Back', equipment: 'Dumbbell' },
-  { id: 'straight-arm-pulldown', name: 'Straight-Arm Pulldown', muscleGroup: 'Back', equipment: 'Cable' },
-  { id: 'face-pull', name: 'Face Pull', muscleGroup: 'Back', equipment: 'Cable' },
+  { id: 'straight-arm-pulldown', name: 'Straight-Arm Pulldown', muscleGroup: 'Back', equipment: 'Cable', attachment: 'Straight bar' },
+  { id: 'face-pull', name: 'Face Pull', muscleGroup: 'Back', equipment: 'Cable', attachment: 'Rope' },
   { id: 'overhead-press', name: 'Overhead Press', muscleGroup: 'Shoulders', equipment: 'Barbell' },
   { id: 'dumbbell-shoulder-press', name: 'Dumbbell Shoulder Press', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
   { id: 'arnold-press', name: 'Arnold Press', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
   { id: 'lateral-raise', name: 'Lateral Raise', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  { id: 'cable-lateral-raise', name: 'Cable Lateral Raise', muscleGroup: 'Shoulders', equipment: 'Cable' },
+  { id: 'cable-lateral-raise', name: 'Cable Lateral Raise', muscleGroup: 'Shoulders', equipment: 'Cable', attachment: 'Single handle' },
   { id: 'rear-delt-fly', name: 'Rear Delt Fly', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
   { id: 'upright-row', name: 'Upright Row', muscleGroup: 'Shoulders', equipment: 'Barbell' },
   { id: 'barbell-curl', name: 'Barbell Curl', muscleGroup: 'Biceps', equipment: 'Barbell' },
@@ -45,8 +46,8 @@ export const seedExercises: SeedExercise[] = [
   { id: 'hammer-curl', name: 'Hammer Curl', muscleGroup: 'Biceps', equipment: 'Dumbbell' },
   { id: 'incline-dumbbell-curl', name: 'Incline Dumbbell Curl', muscleGroup: 'Biceps', equipment: 'Dumbbell' },
   { id: 'preacher-curl', name: 'Preacher Curl', muscleGroup: 'Biceps', equipment: 'Barbell' },
-  { id: 'cable-curl', name: 'Cable Curl', muscleGroup: 'Biceps', equipment: 'Cable' },
-  { id: 'triceps-pushdown', name: 'Triceps Pushdown', muscleGroup: 'Triceps', equipment: 'Cable' },
+  { id: 'cable-curl', name: 'Cable Curl', muscleGroup: 'Biceps', equipment: 'Cable', attachment: 'Straight bar' },
+  { id: 'triceps-pushdown', name: 'Triceps Pushdown', muscleGroup: 'Triceps', equipment: 'Cable', attachment: 'Rope' },
   { id: 'overhead-triceps-extension', name: 'Overhead Triceps Extension', muscleGroup: 'Triceps', equipment: 'Dumbbell' },
   { id: 'skull-crusher', name: 'Skull Crusher', muscleGroup: 'Triceps', equipment: 'Barbell' },
   { id: 'close-grip-bench-press', name: 'Close-Grip Bench Press', muscleGroup: 'Triceps', equipment: 'Barbell' },
@@ -66,13 +67,13 @@ export const seedExercises: SeedExercise[] = [
   { id: 'good-morning', name: 'Good Morning', muscleGroup: 'Hamstrings', equipment: 'Barbell' },
   { id: 'hip-thrust', name: 'Hip Thrust', muscleGroup: 'Glutes', equipment: 'Barbell' },
   { id: 'glute-bridge', name: 'Glute Bridge', muscleGroup: 'Glutes', equipment: 'Bodyweight' },
-  { id: 'cable-pull-through', name: 'Cable Pull-Through', muscleGroup: 'Glutes', equipment: 'Cable' },
+  { id: 'cable-pull-through', name: 'Cable Pull-Through', muscleGroup: 'Glutes', equipment: 'Cable', attachment: 'Rope' },
   { id: 'hip-abduction', name: 'Hip Abduction', muscleGroup: 'Glutes', equipment: 'Machine' },
   { id: 'standing-calf-raise', name: 'Standing Calf Raise', muscleGroup: 'Calves', equipment: 'Machine' },
   { id: 'seated-calf-raise', name: 'Seated Calf Raise', muscleGroup: 'Calves', equipment: 'Machine' },
   { id: 'crunch', name: 'Crunch', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: 'hanging-leg-raise', name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { id: 'cable-crunch', name: 'Cable Crunch', muscleGroup: 'Core', equipment: 'Cable' },
+  { id: 'cable-crunch', name: 'Cable Crunch', muscleGroup: 'Core', equipment: 'Cable', attachment: 'Rope' },
   { id: 'ab-wheel-rollout', name: 'Ab Wheel Rollout', muscleGroup: 'Core', equipment: 'Other' },
   { id: 'plank', name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { id: 'power-clean', name: 'Power Clean', muscleGroup: 'Full body', equipment: 'Barbell' },

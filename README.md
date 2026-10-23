@@ -26,11 +26,16 @@ If the app looks stuck on an old version, stop the server and start it again wit
 
 - **Workout** starts an empty session or resumes the one already in progress. Only one workout can be open at a time.
 - **Routines** are saved lists of exercises. Starting one copies your last completed sets in as a template.
-- **History** lists finished workouts. Open one to see each exercise, its notes, and its sets.
-- **Progress** shows personal records and a chart for each exercise you have trained.
-- Each exercise is one card. The card holds the sets (weight, reps, RPE) and a notes box for the whole exercise.
+- **History** lists finished workouts. Open one to see each exercise, its notes, and its sets, or to edit or duplicate it.
+- **Progress** shows personal records and a chart for each exercise you have trained, plus Analysis and a 1RM calculator.
+- **Exercises** is the library: add, rename, set cable attachments, and delete unused custom exercises.
+- **Profile** shows your level, weekly chart, and badges.
+- Each exercise is one card. The card holds the sets (weight, reps, RPE), a notes box for the whole exercise, its rest, and Swap.
+- While a workout is open, the Lock Screen (iOS Live Activity) or a notification (Android) shows the next set, the rest countdown, and a Done button.
 - The kg/lb switch changes what you see. The saved number is always kilograms.
 - Removing an exercise deletes it immediately. Discarding a whole workout still asks first.
+
+For what changed in each build, see [CHANGELOG.md](CHANGELOG.md).
 
 ## A map of the folders
 

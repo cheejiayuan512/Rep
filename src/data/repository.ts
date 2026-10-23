@@ -10,6 +10,7 @@ import type { AnalysisInput, AnalysisSet } from '../domain/stats';
 import { createId } from '../domain/ids';
 import type {
   ActiveWorkoutSummary,
+  CableAttachment,
   Equipment,
   Exercise,
   LoggedSet,
@@ -25,8 +26,10 @@ import type {
   WorkoutExercise,
   WorkoutSummary,
 } from '../domain/types';
-import { isEquipment, isMuscleGroup } from '../domain/types';
-import { isCommitted, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import { isCableAttachment, isEquipment, isMuscleGroup } from '../domain/types';
+import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
+import type { SessionSet } from '../domain/one-rep-max';
+import { flushDatabase, isCommitted, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 export interface HevyImportSummary {
   importedWorkouts: number;
@@ -37,7 +40,7 @@ export interface HevyImportSummary {
 
 export interface AppSettings {
   weightUnit: WeightUnit;
-  restSeconds: number;
+  warmupRestMultiplier: number;
 }
 
 export interface NewSetInput {
@@ -47,12 +50,12 @@ export interface NewSetInput {
   rpe: number | null;
 }
 
-// Settings: kg/lb and the default rest length.
+// Settings: kg/lb and how long warmups rest.
 
 export async function getSettings(): Promise<AppSettings> {
   const db = await readDatabase();
   return {
-    restSeconds: clampRest(db.settings.restSeconds),
+    warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
     weightUnit: db.settings.weightUnit,
   };
 }
@@ -63,10 +66,18 @@ export async function saveWeightUnit(unit: WeightUnit): Promise<void> {
   });
 }
 
-export async function saveRestSeconds(seconds: number): Promise<void> {
+export async function saveWarmupRestMultiplier(multiplier: number): Promise<void> {
+  if (!isWarmupMultiplier(multiplier)) {
+    return;
+  }
   await writeDatabase((db) => {
-    db.settings.restSeconds = clampRest(seconds);
+    db.settings.warmupRestMultiplier = multiplier;
   });
+}
+
+/** Saves to the device now instead of after the usual short delay. */
+export async function saveNow(): Promise<void> {
+  await flushDatabase();
 }
 
 // The exercise library: built-in moves plus ones you create.
@@ -80,8 +91,16 @@ export async function listExercises(query: string, muscleGroup: MuscleGroup | nu
     .map(mapExercise);
 }
 
-export async function createExercise(input: { name: string; muscleGroup: MuscleGroup; equipment: Equipment }): Promise<Exercise> {
+export interface ExerciseInput {
+  name: string;
+  muscleGroup: MuscleGroup;
+  equipment: Equipment;
+  attachment?: CableAttachment | null;
+}
+
+export async function createExercise(input: ExerciseInput): Promise<Exercise> {
   const exercise: Exercise = {
+    attachment: input.equipment === 'Cable' ? (input.attachment ?? null) : null,
     equipment: input.equipment,
     id: createId(),
     isCustom: true,
@@ -94,7 +113,7 @@ export async function createExercise(input: { name: string; muscleGroup: MuscleG
   return exercise;
 }
 
-export async function updateExercise(exerciseId: string, input: { name: string; muscleGroup: MuscleGroup; equipment: Equipment }): Promise<void> {
+export async function updateExercise(exerciseId: string, input: ExerciseInput): Promise<void> {
   const name = input.name.trim();
   if (name.length < 2) {
     throw new Error('Give the exercise a name.');
@@ -110,6 +129,7 @@ export async function updateExercise(exerciseId: string, input: { name: string; 
     exercise.name = name;
     exercise.muscleGroup = input.muscleGroup;
     exercise.equipment = input.equipment;
+    exercise.attachment = input.equipment === 'Cable' ? (input.attachment ?? null) : null;
   });
 }
 
@@ -272,7 +292,15 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
     db.workouts.push({ finishedAt: null, id: workoutId, name: routine.name, routineId: routine.id, startedAt: Date.now() });
     exercises.forEach((exercise, index) => {
       const workoutExerciseId = createId();
-      db.workoutExercises.push({ exerciseId: exercise.exerciseId, id: workoutExerciseId, notes: '', position: index, restSeconds: lastRestFor(db, exercise.exerciseId), workoutId });
+      db.workoutExercises.push({
+        attachment: defaultAttachment(db, exercise.exerciseId),
+        exerciseId: exercise.exerciseId,
+        id: workoutExerciseId,
+        notes: '',
+        position: index,
+        restSeconds: lastRestFor(db, exercise.exerciseId),
+        workoutId,
+      });
       addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? []));
     });
   });
@@ -417,7 +445,7 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
     }
     const position = nextPosition(rows);
     const workoutExerciseId = createId();
-    db.workoutExercises.push({ exerciseId, id: workoutExerciseId, notes: '', position, restSeconds: lastRestFor(db, exerciseId), workoutId });
+    db.workoutExercises.push({ attachment: defaultAttachment(db, exerciseId), exerciseId, id: workoutExerciseId, notes: '', position, restSeconds: lastRestFor(db, exerciseId), workoutId });
     addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? []));
   });
 }
@@ -467,7 +495,7 @@ export async function duplicateWorkout(workoutId: string): Promise<string> {
     db.workouts.push({ finishedAt: null, id, name: source.name, routineId: source.routineId, startedAt: Date.now() });
     workoutExerciseRows(db, source.id).forEach((row, index) => {
       const workoutExerciseId = createId();
-      db.workoutExercises.push({ exerciseId: row.exerciseId, id: workoutExerciseId, notes: row.notes, position: index, restSeconds: row.restSeconds, workoutId: id });
+      db.workoutExercises.push({ attachment: row.attachment, exerciseId: row.exerciseId, id: workoutExerciseId, notes: row.notes, position: index, restSeconds: row.restSeconds, workoutId: id });
       db.sets
         .filter((set) => set.workoutExerciseId === row.id)
         .sort((left, right) => left.position - right.position)
@@ -572,6 +600,85 @@ export async function updateWorkoutExerciseRest(workoutExerciseId: string, restS
   });
 }
 
+/** Sets the attachment for this workout and makes it the exercise's default for the next one. */
+export async function updateWorkoutExerciseAttachment(workoutExerciseId: string, attachment: CableAttachment | null): Promise<void> {
+  await writeDatabase((db) => {
+    const row = db.workoutExercises.find((item) => item.id === workoutExerciseId);
+    if (!row) {
+      return;
+    }
+    row.attachment = attachment;
+    const exercise = db.exercises.find((item) => item.id === row.exerciseId);
+    if (exercise?.equipment === 'Cable') {
+      exercise.attachment = attachment;
+    }
+  });
+}
+
+/**
+ * Points a workout card at another exercise. Rest and attachment reset to the
+ * new exercise's. Sets nobody has checked off are replaced with the new
+ * exercise's last session; once a set is checked off, the sets stay as logged.
+ */
+export async function swapWorkoutExercise(workoutExerciseId: string, exerciseId: string): Promise<void> {
+  await writeDatabase((db) => {
+    const row = db.workoutExercises.find((item) => item.id === workoutExerciseId);
+    if (!row || row.exerciseId === exerciseId) {
+      return;
+    }
+    if (!db.exercises.some((exercise) => exercise.id === exerciseId)) {
+      throw new Error('Exercise not found.');
+    }
+    if (db.workoutExercises.some((item) => item.workoutId === row.workoutId && item.exerciseId === exerciseId)) {
+      throw new Error('That exercise is already in this workout.');
+    }
+    const restSeconds = lastRestFor(db, exerciseId);
+    const attachment = defaultAttachment(db, exerciseId);
+    row.exerciseId = exerciseId;
+    row.restSeconds = restSeconds;
+    row.attachment = attachment;
+    const sets = db.sets.filter((set) => set.workoutExerciseId === row.id);
+    if (sets.some((set) => set.completed)) {
+      return;
+    }
+    db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
+    addTemplateSets(db, row.id, latestSessionSets(historyFor(db, [exerciseId], row.workoutId)[exerciseId] ?? []));
+  });
+}
+
+export async function saveSetPositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+  await writeDatabase((db) => {
+    const positions = new Map(rows.map((row) => [row.id, row.position]));
+    for (const set of db.sets) {
+      const position = positions.get(set.id);
+      if (position != null) {
+        set.position = position;
+      }
+    }
+  });
+}
+
+/** Working sets from the last finished workout with this exercise, for the 1RM calculator. */
+export async function getLatestSession(exerciseId: string): Promise<{ finishedAt: number; sets: SessionSet[] } | null> {
+  const db = await readDatabase();
+  const index = indexOf(db);
+  let latest: { finishedAt: number; rowId: string } | null = null;
+  for (const row of index.rowsByExercise.get(exerciseId) ?? []) {
+    const finishedAt = index.workoutsById.get(row.workoutId)?.finishedAt;
+    if (finishedAt == null || (latest && latest.finishedAt >= finishedAt) || !setsOf(db, row.id).some(isWorkingSet)) {
+      continue;
+    }
+    latest = { finishedAt, rowId: row.id };
+  }
+  if (!latest) {
+    return null;
+  }
+  const sets = setsOf(db, latest.rowId)
+    .filter(isWorkingSet)
+    .map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 }));
+  return { finishedAt: latest.finishedAt, sets };
+}
+
 export async function removeWorkoutExercise(workoutExerciseId: string): Promise<void> {
   await writeDatabase((db) => {
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== workoutExerciseId);
@@ -587,6 +694,7 @@ export async function restoreWorkoutExercise(workoutId: string, exercise: Workou
     }
     const rows = workoutExerciseRows(db, workoutId);
     const restored: StoredWorkoutExercise = {
+      attachment: exercise.attachment,
       exerciseId: exercise.exerciseId,
       id: exercise.id,
       notes: exercise.notes,
@@ -695,6 +803,7 @@ export async function importHevyCsv(csvText: string): Promise<HevyImportSummary>
           } else {
             exerciseId = createId();
             draft.exercises.push({
+              attachment: null,
               equipment: exercise.createCustom.equipment,
               id: exerciseId,
               isCustom: true,
@@ -715,6 +824,7 @@ export async function importHevyCsv(csvText: string): Promise<HevyImportSummary>
             ? [workout.description, exercise.notes].filter((part) => part.trim().length > 0).join('\n').slice(0, 500)
             : exercise.notes.slice(0, 500);
         draft.workoutExercises.push({
+          attachment: null,
           exerciseId,
           id: workoutExerciseId,
           notes,
@@ -882,6 +992,7 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
   const previous = latestSessionSets(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? []).map(toPrevious);
   const sets = setsOf(db, row.id).map(mapSet);
   return {
+    attachment: isCableAttachment(row.attachment) ? row.attachment : null,
     equipment: exercise.equipment,
     exerciseId: row.exerciseId,
     id: row.id,
@@ -998,6 +1109,7 @@ function requireExercise(db: DatabaseShape, exerciseId: string): { name: string;
 
 function mapExercise(exercise: StoredExercise): Exercise {
   return {
+    attachment: isCableAttachment(exercise.attachment) ? exercise.attachment : null,
     equipment: isEquipment(exercise.equipment) ? exercise.equipment : 'Other',
     id: exercise.id,
     isCustom: exercise.isCustom,
@@ -1026,9 +1138,7 @@ function nextPosition(rows: Array<{ position: number }>): number {
   return rows.reduce((max, row) => Math.max(max, row.position), -1) + 1;
 }
 
-function clampRest(seconds: number): number {
-  if (!Number.isFinite(seconds)) {
-    return 90;
-  }
-  return Math.min(300, Math.max(15, Math.round(seconds)));
+function defaultAttachment(db: DatabaseShape, exerciseId: string): CableAttachment | null {
+  const exercise = indexOf(db).exercisesById.get(exerciseId);
+  return exercise?.equipment === 'Cable' && isCableAttachment(exercise.attachment) ? exercise.attachment : null;
 }

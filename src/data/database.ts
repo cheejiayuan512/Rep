@@ -5,8 +5,9 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
-import { isWeightUnit } from '../domain/types';
+import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
+import type { CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
+import { isCableAttachment, isWeightUnit } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
 /**
@@ -21,6 +22,8 @@ export interface StoredExercise {
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   isCustom: boolean;
+  /** Default cable attachment, or null. */
+  attachment: CableAttachment | null;
 }
 
 export interface StoredRoutine {
@@ -50,8 +53,9 @@ export interface StoredWorkoutExercise {
   exerciseId: string;
   position: number;
   notes: string;
-  /** Rest after a set of this exercise. Null uses the default in settings. */
+  /** Rest after a set of this exercise. Null uses the exercise's default (src/domain/rest.ts). */
   restSeconds: number | null;
+  attachment: CableAttachment | null;
 }
 
 export interface StoredSet {
@@ -74,7 +78,8 @@ export interface DatabaseShape {
   sets: StoredSet[];
   settings: {
     weightUnit: WeightUnit;
-    restSeconds: number;
+    /** Warmup rest as a fraction of the exercise's rest. */
+    warmupRestMultiplier: number;
   };
 }
 
@@ -116,8 +121,9 @@ export function writeDatabase(mutator: (db: DatabaseShape) => void): Promise<voi
   });
 }
 
-/** Writes the latest document now. Call before the app may be suspended. */
+/** Waits for queued writes, then saves the latest document now. Call before the app may be suspended. */
 export async function flushDatabase(): Promise<void> {
+  await enqueue(async () => undefined);
   if (persistTimer) {
     clearTimeout(persistTimer);
     persistTimer = null;
@@ -210,7 +216,25 @@ function isDatabaseShape(value: unknown): value is DatabaseShape {
 
 function normalizeStored(db: DatabaseShape): boolean {
   let changed = false;
+  const seedAttachments = new Map(seedExercises.map((exercise) => [exercise.id, exercise.attachment ?? null]));
+  for (const exercise of db.exercises) {
+    if (exercise.attachment === undefined) {
+      exercise.attachment = seedAttachments.get(exercise.id) ?? null;
+      changed = true;
+    } else if (exercise.attachment !== null && !isCableAttachment(exercise.attachment)) {
+      exercise.attachment = null;
+      changed = true;
+    }
+  }
+  if (!isWarmupMultiplier(db.settings.warmupRestMultiplier)) {
+    db.settings.warmupRestMultiplier = DEFAULT_WARMUP_MULTIPLIER;
+    changed = true;
+  }
   for (const exercise of db.workoutExercises) {
+    if (exercise.attachment !== null && !isCableAttachment(exercise.attachment)) {
+      exercise.attachment = null;
+      changed = true;
+    }
     if (typeof exercise.notes !== 'string') {
       exercise.notes = '';
       changed = true;
@@ -245,7 +269,7 @@ function emptyDatabase(): DatabaseShape {
     routineExercises: [],
     routines: [],
     sets: [],
-    settings: { restSeconds: 90, weightUnit: 'kg' },
+    settings: { warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' },
     workoutExercises: [],
     workouts: [],
   };
@@ -259,6 +283,7 @@ function ensureSeed(db: DatabaseShape): boolean {
       continue;
     }
     db.exercises.push({
+      attachment: exercise.attachment ?? null,
       equipment: exercise.equipment,
       id: exercise.id,
       isCustom: false,
@@ -268,7 +293,7 @@ function ensureSeed(db: DatabaseShape): boolean {
     changed = true;
   }
   if (!db.settings || !isWeightUnit(db.settings.weightUnit)) {
-    db.settings = { restSeconds: 90, weightUnit: 'kg' };
+    db.settings = { warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
     changed = true;
   }
   return changed;

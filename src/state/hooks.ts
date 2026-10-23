@@ -5,11 +5,11 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getActiveWorkoutSummary, getAnalysisInput, getProfile, listRoutines, listTrainedExercises, listWorkoutSummaries, saveRestSeconds, saveWeightUnit } from '../data/repository';
+import { getActiveWorkoutSummary, getAnalysisInput, getProfile, listRoutines, listTrainedExercises, listWorkoutSummaries, saveWarmupRestMultiplier, saveWeightUnit } from '../data/repository';
 import type { ProfileSnapshot } from '../domain/profile';
 import { buildAnalysis, buildHomeStats, type Analysis, type AnalysisInput, type HomeStats } from '../domain/stats';
 import type { ActiveWorkoutSummary, RoutineSummary, TrainedExercise, WeightUnit, WorkoutSummary } from '../domain/types';
-import { restSecondsChanged, useAppDispatch, useAppSelector, weightUnitChanged } from './store';
+import { useAppDispatch, useAppSelector, warmupRestMultiplierChanged, weightUnitChanged } from './store';
 
 export function useRevision(): number {
   return useAppSelector((state) => state.app.revision);
@@ -28,18 +28,17 @@ export function useWeightUnit(): { unit: WeightUnit; setUnit: (unit: WeightUnit)
   return { setUnit, unit };
 }
 
-export function useRestSeconds(): { restSeconds: number; setRestSeconds: (seconds: number) => void } {
-  const restSeconds = useAppSelector((state) => state.app.restSeconds);
+export function useWarmupRestMultiplier(): { warmupMultiplier: number; setWarmupMultiplier: (multiplier: number) => void } {
+  const warmupMultiplier = useAppSelector((state) => state.app.warmupRestMultiplier);
   const dispatch = useAppDispatch();
-  const setRestSeconds = useCallback(
-    (seconds: number) => {
-      const next = Math.min(300, Math.max(15, Math.round(seconds)));
-      dispatch(restSecondsChanged(next));
-      void saveRestSeconds(next);
+  const setWarmupMultiplier = useCallback(
+    (multiplier: number) => {
+      dispatch(warmupRestMultiplierChanged(multiplier));
+      void saveWarmupRestMultiplier(multiplier);
     },
     [dispatch],
   );
-  return { restSeconds, setRestSeconds };
+  return { setWarmupMultiplier, warmupMultiplier };
 }
 
 export function useRoutines(): RoutineSummary[] {

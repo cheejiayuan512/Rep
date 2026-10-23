@@ -20,10 +20,16 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
 - Remove exercise deletes that exercise and its sets with no dialog. Deleting a set or an exercise shows an Undo toast for 5 seconds instead.
 - Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
-- The Rest chip sets `WorkoutExercise.restSeconds` (null uses the default). A new workout copies the last rest picked for that exercise.
+- The Rest chip sets `WorkoutExercise.restSeconds`. Null uses the exercise's default from `src/domain/rest.ts`: heavy compound 3:00, compound 2:00, isolation 1:30, calves/core 1:00, classed by seed id, then name keywords and equipment. A new workout copies the last rest picked for that exercise.
+- Warmup sets rest `exercise rest × settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½), rounded to 5 s. The multiplier is one app-wide setting, changed from any card's rest picker.
+- -15 / +15 on the rest bar change only the running rest, never `restSeconds` or a default.
+- Warmups stay above working sets: toggling W reorders the card and saves positions. Working sets are numbered without warmups.
+- Swap (card header) opens the picker in `mode: 'swap'` and calls `swapWorkoutExercise`. Rest and attachment reset to the new exercise's; untouched sets are refilled from its last session, and checked-off sets stay.
+- Cable exercises carry an attachment (`cableAttachments` in `types.ts`). `Exercise.attachment` is the default for a new workout; `WorkoutExercise.attachment` is this session's. Changing it on a card updates both.
 - When the rest timer starts, a local notification is scheduled for its end (`src/components/rest-notification.ts`). Skip, finish, and discard cancel it.
-- On iOS the same timer is a Live Activity on the Lock Screen and in the Dynamic Island (`src/components/rest-activity.tsx`, started through `rest-live-activity.ts`). The layout function runs in the widget extension: only `@expo/ui/swift-ui` views, no hooks, nothing from outside the function.
-- On Android the same timer is an ongoing countdown notification from the local module `modules/rest-live-update` (Kotlin). Android 16 promotes it to a Live Update chip in the status bar; older versions show a pinned countdown. It is silent; the expo-notifications alert still makes the sound when rest ends.
+- While a workout is open, it is shown outside the app the whole time, not only during rest (`src/components/workout-live-activity.ts`): next set, rest countdown or elapsed time, and Done. `src/features/workout/workout-activity-sync.ts` builds the props, keeps the running rest (so the rest bar survives leaving the screen), and handles Done when the workout screen is closed by checking off the next set (`findNextSet`), starting its rest, and saving now. With the screen open, the screen handles Done.
+- On iOS that is a Live Activity (`src/components/workout-activity.tsx`, native name still `RestActivity`). The layout function runs in the widget extension: only `@expo/ui/swift-ui` views, no hooks, nothing from outside the function. The rest end is the stale date, so the layout falls back to elapsed time without the app. Done is a `Button` with `target="complete-set"` (iOS 17+), heard through `addUserInteractionListener`.
+- On Android it is an ongoing notification from the local module `modules/rest-live-update` (Kotlin) with a "Done set" action through `WorkoutActionReceiver`. Android 16 promotes it to a Live Update chip; older versions show a pinned notification. It switches from countdown to elapsed time by itself when rest ends. It is silent; the expo-notifications alert still makes the sound.
 - A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
 - An exercise appears in a workout or routine at most once. In the picker, tapping an added exercise removes it again, unless it already has a completed set (then it stays and the card's Remove is the way out).
@@ -58,7 +64,9 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Hevy CSV import | `src/domain/hevy-import.ts`, then `importHevyCsv` in the repository |
 | Profile level, badges, weekly chart | `src/domain/profile.ts` and `src/features/profile/profile-screen.tsx`; badge art in `src/components/badge-icons.tsx` |
 | Home week stats, Analysis screen | `src/domain/stats.ts`, then `src/features/progress/analysis-screen.tsx` |
-| 1RM calculator formulas | `src/domain/one-rep-max.ts` (Epley, Brzycki, Lombardi; up to 20 reps) |
+| 1RM calculator formulas | `src/domain/one-rep-max.ts` (Epley, Brzycki, Lombardi; up to 20 reps). `estimateFromSets` is the whole-session blend |
+| Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
+| What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

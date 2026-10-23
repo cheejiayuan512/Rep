@@ -51,6 +51,40 @@ export function orderByIds<T extends { id: string; position: number }>(items: T[
   return ordered.map((item, position) => ({ ...item, position }));
 }
 
+/** Warmups first, everything else after, each group keeping its order. Null when nothing moves. */
+export function warmupsFirst(sets: SetRecord[]): SetRecord[] | null {
+  const ordered = [...sets.filter((set) => set.setType === 'warmup'), ...sets.filter((set) => set.setType !== 'warmup')];
+  if (ordered.every((set, index) => set.id === sets[index]?.id)) {
+    return null;
+  }
+  return ordered.map((set, position) => ({ ...set, position }));
+}
+
+export interface NextSet {
+  exercise: WorkoutExercise;
+  set: SetRecord;
+  /** "Warmup", or "Set 2 of 4" counting working sets only. */
+  label: string;
+}
+
+/**
+ * The set to do next: the first open set in the exercise you last checked a
+ * set off in, or else the first open set in workout order.
+ */
+export function findNextSet(workout: WorkoutDetail, lastExerciseId: string | null): NextSet | null {
+  const current = workout.exercises.find((exercise) => exercise.id === lastExerciseId);
+  const exercise = current?.sets.some((set) => !set.completed) ? current : workout.exercises.find((item) => item.sets.some((set) => !set.completed));
+  const set = exercise?.sets.find((item) => !item.completed);
+  if (!exercise || !set) {
+    return null;
+  }
+  if (set.setType === 'warmup') {
+    return { exercise, label: 'Warmup', set };
+  }
+  const working = exercise.sets.filter((item) => item.setType !== 'warmup');
+  return { exercise, label: `Set ${working.indexOf(set) + 1} of ${working.length}`, set };
+}
+
 export function moveById<T extends { id: string; position: number }>(items: T[], id: string, direction: -1 | 1): T[] | null {
   const index = items.findIndex((item) => item.id === id);
   const target = index + direction;

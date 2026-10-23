@@ -19,7 +19,11 @@ export type TabParamList = {
   Profile: undefined;
 };
 
-export type ExercisePickerParams = { mode: 'workout'; workoutId: string } | { mode: 'routine'; routineId: string };
+export type ExercisePickerParams =
+  | { mode: 'workout'; workoutId: string }
+  | { mode: 'routine'; routineId: string }
+  /** Replaces one card's exercise, then goes back. */
+  | { mode: 'swap'; workoutId: string; workoutExerciseId: string; currentExerciseId: string };
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;

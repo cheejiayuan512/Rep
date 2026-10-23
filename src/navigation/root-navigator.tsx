@@ -12,8 +12,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { bootFailed, bootstrapped, useAppDispatch, useAppSelector } from '../state/store';
 import { ExercisesIcon, HistoryIcon, ProfileIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
-import { getInProgressWorkoutId, getSettings } from '../data/repository';
+import { getInProgressWorkoutId, getSettings, getWorkout } from '../data/repository';
 import { flushDatabase, initDatabase } from '../data/database';
+import { endWorkoutActivity, showWorkoutActivity } from '../components/workout-live-activity';
+import { activityPropsFor, installCompleteSetListener } from '../features/workout/workout-activity-sync';
 import { ExerciseEditorScreen } from '../features/exercises/exercise-editor-screen';
 import { ExercisesScreen } from '../features/exercises/exercises-screen';
 import { HistoryScreen } from '../features/history/history-screen';
@@ -95,7 +97,7 @@ export const RootNavigator: React.FC = () => {
         const settings = await getSettings();
         const activeWorkoutId = await getInProgressWorkoutId();
         if (!cancel) {
-          dispatch(bootstrapped({ activeWorkoutId, restSeconds: settings.restSeconds, weightUnit: settings.weightUnit }));
+          dispatch(bootstrapped({ activeWorkoutId, warmupRestMultiplier: settings.warmupRestMultiplier, weightUnit: settings.weightUnit }));
         }
       } catch (error) {
         if (!cancel) {
@@ -116,6 +118,32 @@ export const RootNavigator: React.FC = () => {
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const listener = installCompleteSetListener();
+    return () => listener.remove();
+  }, []);
+
+  const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
+  const unit = useAppSelector((state) => state.app.weightUnit);
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+    if (!activeWorkoutId) {
+      endWorkoutActivity();
+      return;
+    }
+    let cancel = false;
+    void getWorkout(activeWorkoutId).then((workout) => {
+      if (!cancel && workout && workout.finishedAt == null) {
+        showWorkoutActivity(activityPropsFor(workout, unit));
+      }
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [activeWorkoutId, ready, unit]);
 
   if (bootError) {
     return (

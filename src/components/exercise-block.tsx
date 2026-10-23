@@ -8,7 +8,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
-import type { WeightUnit, WorkoutExercise } from '../domain/types';
+import { defaultRestFor, formatMultiplier, REST_CLASS_LABELS, restClassFor, WARMUP_MULTIPLIERS } from '../domain/rest';
+import { cableAttachments, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { colors } from '../theme/colors';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { setColumn, SetRow } from './set-row';
@@ -21,8 +22,11 @@ interface ExerciseBlockProps {
   drafts: DraftMap;
   /** Ids of completed sets in this card that beat a previous best. */
   recordIds: ReadonlySet<string>;
-  defaultRestSeconds: number;
+  /** Warmup rest as a fraction of this card's rest. One setting for every exercise. */
+  warmupMultiplier: number;
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
+  onChangeWarmupMultiplier: (multiplier: number) => void;
+  onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
@@ -32,16 +36,21 @@ interface ExerciseBlockProps {
   onDeleteSet: (setId: string) => void;
   onAddSet: (workoutExerciseId: string) => void;
   onRemove: (workoutExerciseId: string) => void;
+  onSwap: (workoutExerciseId: string) => void;
   onHold: (workoutExerciseId: string) => void;
 }
+
+type OpenPanel = 'rest' | 'attachment' | null;
 
 export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function ExerciseBlock({
   exercise,
   unit,
   drafts,
   recordIds,
-  defaultRestSeconds,
+  warmupMultiplier,
   onChangeRest,
+  onChangeWarmupMultiplier,
+  onChangeAttachment,
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
@@ -51,6 +60,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onDeleteSet,
   onAddSet,
   onRemove,
+  onSwap,
   onHold,
 }) {
   const handleAdd = useCallback(() => {
@@ -59,6 +69,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const handleRemove = useCallback(() => {
     onRemove(exercise.id);
   }, [exercise.id, onRemove]);
+  const handleSwap = useCallback(() => {
+    onSwap(exercise.id);
+  }, [exercise.id, onSwap]);
   const handleHold = useCallback(() => {
     onHold(exercise.id);
   }, [exercise.id, onHold]);
@@ -68,19 +81,31 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     },
     [exercise.id, onChangeNotes],
   );
-  const [pickingRest, setPickingRest] = useState(false);
-  const toggleRestPicker = useCallback(() => {
-    setPickingRest((open) => !open);
+  const [panel, setPanel] = useState<OpenPanel>(null);
+  const toggleRest = useCallback(() => {
+    setPanel((open) => (open === 'rest' ? null : 'rest'));
+  }, []);
+  const toggleAttachment = useCallback(() => {
+    setPanel((open) => (open === 'attachment' ? null : 'attachment'));
   }, []);
   const handleRest = useCallback(
     (seconds: number | null) => {
       onChangeRest(exercise.id, seconds);
-      setPickingRest(false);
+      setPanel(null);
     },
     [exercise.id, onChangeRest],
   );
+  const handleAttachment = useCallback(
+    (attachment: CableAttachment | null) => {
+      onChangeAttachment(exercise.id, attachment);
+      setPanel(null);
+    },
+    [exercise.id, onChangeAttachment],
+  );
   const hasRecord = exercise.sets.some((set) => recordIds.has(set.id));
-  const restLabel = formatClock(exercise.restSeconds ?? defaultRestSeconds);
+  const defaultRest = defaultRestFor(exercise);
+  const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
+  const isCable = exercise.equipment === 'Cable';
 
   return (
     <View style={styles.card}>
@@ -94,27 +119,64 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             {exercise.muscleGroup} · {exercise.equipment}
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" hitSlop={4} onPress={handleRemove} style={styles.remove}>
-          <Text style={styles.removeText}>Remove</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityLabel={`Swap ${exercise.name}`} accessibilityRole="button" hitSlop={4} onPress={handleSwap} style={styles.remove}>
+            <Text style={styles.removeText}>Swap</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" hitSlop={4} onPress={handleRemove} style={styles.remove}>
+            <Text style={styles.removeText}>Remove</Text>
+          </Pressable>
+        </View>
       </View>
-      <Pressable
-        accessibilityLabel={`Rest timer ${restLabel}${exercise.restSeconds == null ? ', default' : ''}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: pickingRest }}
-        onPress={toggleRestPicker}
-        style={[styles.restChip, pickingRest && styles.restChipOpen]}
-      >
-        <Text style={styles.restChipText}>
-          Rest {restLabel}
-          {exercise.restSeconds == null ? ' · default' : ''}
-        </Text>
-      </Pressable>
-      {pickingRest ? (
-        <View style={styles.restChoices}>
-          <RestChoice label="Default" onPress={handleRest} seconds={null} selected={exercise.restSeconds == null} />
-          {restChoices.map((seconds) => (
-            <RestChoice key={seconds} label={formatClock(seconds)} onPress={handleRest} seconds={seconds} selected={exercise.restSeconds === seconds} />
+      <View style={styles.chipRow}>
+        <Pressable
+          accessibilityLabel={`Rest timer ${restLabel}${exercise.restSeconds == null ? ', default' : ''}`}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: panel === 'rest' }}
+          onPress={toggleRest}
+          style={[styles.chip, panel === 'rest' && styles.chipOpen]}
+        >
+          <Text style={styles.chipText}>
+            Rest {restLabel}
+            {exercise.restSeconds == null ? ' · default' : ''}
+          </Text>
+        </Pressable>
+        {isCable ? (
+          <Pressable
+            accessibilityLabel={`Attachment ${exercise.attachment ?? 'none'}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: panel === 'attachment' }}
+            onPress={toggleAttachment}
+            style={[styles.chip, panel === 'attachment' && styles.chipOpen]}
+          >
+            <Text style={styles.chipText}>{exercise.attachment ?? 'Attachment'} ▾</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {panel === 'rest' ? (
+        <View>
+          <View style={styles.choices}>
+            <Choice label={`Default ${formatClock(defaultRest)}`} onPress={handleRest} selected={exercise.restSeconds == null} value={null} />
+            {restChoices.map((seconds) => (
+              <Choice key={seconds} label={formatClock(seconds)} onPress={handleRest} selected={exercise.restSeconds === seconds} value={seconds} />
+            ))}
+          </View>
+          <Text style={styles.choiceNote}>
+            Default {formatClock(defaultRest)} for a {REST_CLASS_LABELS[restClassFor(exercise)].toLowerCase()} exercise.
+          </Text>
+          <Text style={styles.choiceNote}>Warmup sets rest, for every exercise:</Text>
+          <View style={styles.choices}>
+            {WARMUP_MULTIPLIERS.map((multiplier) => (
+              <Choice key={multiplier} label={formatMultiplier(multiplier)} onPress={onChangeWarmupMultiplier} selected={warmupMultiplier === multiplier} value={multiplier} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {panel === 'attachment' ? (
+        <View style={styles.choices}>
+          <Choice label="None" onPress={handleAttachment} selected={exercise.attachment == null} value={null} />
+          {cableAttachments.map((attachment) => (
+            <Choice key={attachment} label={attachment} onPress={handleAttachment} selected={exercise.attachment === attachment} value={attachment} />
           ))}
         </View>
       ) : null}
@@ -142,7 +204,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         {exercise.sets.map((set, index) => (
           <SetRow
             draft={drafts[set.id] ?? draftFromSet(set, unit)}
-            index={index}
+            index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
             isRecord={recordIds.has(set.id)}
             key={set.id}
             onChangeReps={onChangeReps}
@@ -164,24 +226,26 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   );
 });
 
-interface RestChoiceProps {
+interface ChoiceProps<T> {
   label: string;
-  seconds: number | null;
+  value: T;
   selected: boolean;
-  onPress: (seconds: number | null) => void;
+  onPress: (value: T) => void;
 }
 
-const RestChoice: React.FC<RestChoiceProps> = React.memo(function RestChoice({ label, seconds, selected, onPress }) {
+function ChoiceInner<T>({ label, value, selected, onPress }: ChoiceProps<T>) {
   const handlePress = useCallback(() => {
-    onPress(seconds);
-  }, [onPress, seconds]);
+    onPress(value);
+  }, [onPress, value]);
 
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={handlePress} style={[styles.restOption, selected && styles.restOptionSelected]}>
-      <Text style={[styles.restOptionText, selected && styles.restOptionTextSelected]}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={handlePress} style={[styles.option, selected && styles.optionSelected]}>
+      <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{label}</Text>
     </Pressable>
   );
-});
+}
+
+const Choice = React.memo(ChoiceInner) as typeof ChoiceInner;
 
 const styles = StyleSheet.create({
   add: {
@@ -208,6 +272,40 @@ const styles = StyleSheet.create({
   checkSpacer: {
     width: setColumn.check + setColumn.gap + setColumn.delete,
   },
+  chip: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  chipOpen: {
+    borderColor: colors.accent,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  chipText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  choiceNote: {
+    color: colors.faint,
+    fontSize: 12,
+    marginTop: 10,
+  },
+  choices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
   column: {
     color: colors.faint,
     fontSize: 11,
@@ -226,18 +324,14 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: 'space-between',
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 14,
+  },
   meta: {
     color: colors.muted,
     fontSize: 13,
     marginTop: 2,
-  },
-  remove: {
-    paddingVertical: 2,
-  },
-  removeText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
   },
   name: {
     color: colors.text,
@@ -253,9 +347,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  option: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  optionSelected: {
+    backgroundColor: colors.accent,
+  },
+  optionText: {
+    color: colors.text,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  optionTextSelected: {
+    color: colors.accentInk,
+  },
   previousCol: {
     flex: 1,
     minWidth: 52,
+  },
+  remove: {
+    paddingVertical: 2,
+  },
+  removeText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
   },
   repsCol: {
     textAlign: 'center',
@@ -264,49 +384,6 @@ const styles = StyleSheet.create({
   rpeCol: {
     textAlign: 'center',
     width: setColumn.rpe,
-  },
-  restChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceRaised,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  restChipOpen: {
-    borderColor: colors.accent,
-  },
-  restChipText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  restChoices: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  restOption: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  restOptionSelected: {
-    backgroundColor: colors.accent,
-  },
-  restOptionText: {
-    color: colors.text,
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  restOptionTextSelected: {
-    color: colors.accentInk,
   },
   section: {
     color: colors.faint,

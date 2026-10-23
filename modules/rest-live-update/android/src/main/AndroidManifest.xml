@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <!-- Install-time permission that lets Android 16 promote the rest timer to a Live Update. -->
+  <!-- Install-time permission that lets Android 16 promote the workout notification to a Live Update. -->
   <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+  <application>
+    <!-- Receives the notification's "Done set" tap. Only this app's PendingIntent can reach it. -->
+    <receiver android:name="expo.modules.restliveupdate.WorkoutActionReceiver" android:exported="false" />
+  </application>
 </manifest>

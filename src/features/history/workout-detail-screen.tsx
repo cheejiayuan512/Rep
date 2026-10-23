@@ -155,6 +155,7 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
       <Text style={styles.exercise}>{exercise.name}</Text>
       <Text style={styles.meta}>
         {exercise.muscleGroup} · {exercise.equipment}
+        {exercise.attachment ? ` · ${exercise.attachment}` : ''}
       </Text>
       {exercise.notes.trim() ? (
         <View style={styles.notesWrap}>
