@@ -23,6 +23,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - The Rest chip sets `WorkoutExercise.restSeconds` (null uses the default). A new workout copies the last rest picked for that exercise.
 - When the rest timer starts, a local notification is scheduled for its end (`src/components/rest-notification.ts`). Skip, finish, and discard cancel it.
 - On iOS the same timer is a Live Activity on the Lock Screen and in the Dynamic Island (`src/components/rest-activity.tsx`, started through `rest-live-activity.ts`). The layout function runs in the widget extension: only `@expo/ui/swift-ui` views, no hooks, nothing from outside the function.
+- On Android the same timer is an ongoing countdown notification from the local module `modules/rest-live-update` (Kotlin). Android 16 promotes it to a Live Update chip in the status bar; older versions show a pinned countdown. It is silent; the expo-notifications alert still makes the sound when rest ends.
 - A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
 

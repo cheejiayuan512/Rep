@@ -1,11 +1,14 @@
 /**
- * Starts, moves, and ends the rest timer Live Activity on iOS.
- * Android, web, and Expo Go (which has no widget extension) skip it quietly,
- * so the rest notification in rest-notification.ts stays the fallback.
+ * Shows the running rest countdown outside the app. On iOS it is a Live Activity
+ * on the Lock Screen and in the Dynamic Island. On Android it is an ongoing
+ * countdown notification, promoted to a Live Update (status bar chip) on Android 16.
+ * Web and Expo Go skip it quietly; the rest notification in rest-notification.ts
+ * stays the fallback everywhere.
  */
 import { Platform } from 'react-native';
 import type { LiveActivityFactory } from 'expo-widgets';
 
+import { RestLiveUpdate } from '../../modules/rest-live-update';
 import type { RestActivityProps } from './rest-activity';
 
 let factory: LiveActivityFactory<RestActivityProps> | null | undefined;
@@ -27,8 +30,16 @@ function restActivity(): LiveActivityFactory<RestActivityProps> | null {
   return factory;
 }
 
-/** Shows the countdown, reusing a running activity so only one timer is ever on screen. */
+/** Shows the countdown, reusing a running one so only one timer is ever on screen. */
 export function showRestActivity(props: RestActivityProps): void {
+  if (Platform.OS === 'android') {
+    try {
+      RestLiveUpdate?.show(`Rest · ${props.exerciseName}`, props.nextSet ? `Next: ${props.nextSet}` : 'Next set coming up', props.endsAt);
+    } catch {
+      // Notifications are blocked for Rep.
+    }
+    return;
+  }
   const activities = restActivity();
   if (!activities) {
     return;
@@ -49,6 +60,14 @@ export function showRestActivity(props: RestActivityProps): void {
 }
 
 export function endRestActivity(): void {
+  if (Platform.OS === 'android') {
+    try {
+      RestLiveUpdate?.end();
+    } catch {
+      // Nothing showing.
+    }
+    return;
+  }
   const activities = restActivity();
   if (!activities) {
     return;
