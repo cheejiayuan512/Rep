@@ -6,8 +6,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
-import type { CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
-import { isCableAttachment, isWeightUnit } from '../domain/types';
+import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
+import { isBodySex, isCableAttachment, isWeightUnit } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
 /**
@@ -78,8 +78,11 @@ export interface DatabaseShape {
   sets: StoredSet[];
   settings: {
     weightUnit: WeightUnit;
-    /** Warmup rest as a fraction of the exercise's rest. */
+    /** Rest after a light warmup, as a fraction of the exercise's rest. */
     warmupRestMultiplier: number;
+    /** For strength levels. Null until entered on Profile. */
+    bodyweightKg: number | null;
+    sex: BodySex | null;
   };
 }
 
@@ -101,6 +104,14 @@ export function initDatabase(): Promise<void> {
  */
 export function readDatabase(): Promise<DatabaseShape> {
   return enqueue(async () => ensureLoaded());
+}
+
+/**
+ * The current document without waiting, or null before the first load.
+ * Lets a screen draw its first frame with data instead of an empty state.
+ */
+export function peekDatabase(): DatabaseShape | null {
+  return state;
 }
 
 /** True for a document that `writeDatabase` will never change again, so lookups built from it can be cached. */
@@ -230,6 +241,15 @@ function normalizeStored(db: DatabaseShape): boolean {
     db.settings.warmupRestMultiplier = DEFAULT_WARMUP_MULTIPLIER;
     changed = true;
   }
+  const bodyweight = db.settings.bodyweightKg;
+  if (bodyweight !== null && !(typeof bodyweight === 'number' && Number.isFinite(bodyweight) && bodyweight > 0)) {
+    db.settings.bodyweightKg = null;
+    changed = true;
+  }
+  if (db.settings.sex !== null && !isBodySex(db.settings.sex)) {
+    db.settings.sex = null;
+    changed = true;
+  }
   for (const exercise of db.workoutExercises) {
     if (exercise.attachment !== null && !isCableAttachment(exercise.attachment)) {
       exercise.attachment = null;
@@ -269,7 +289,7 @@ function emptyDatabase(): DatabaseShape {
     routineExercises: [],
     routines: [],
     sets: [],
-    settings: { warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' },
+    settings: defaultSettings(),
     workoutExercises: [],
     workouts: [],
   };
@@ -293,10 +313,14 @@ function ensureSeed(db: DatabaseShape): boolean {
     changed = true;
   }
   if (!db.settings || !isWeightUnit(db.settings.weightUnit)) {
-    db.settings = { warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
+    db.settings = defaultSettings();
     changed = true;
   }
   return changed;
+}
+
+function defaultSettings(): DatabaseShape['settings'] {
+  return { bodyweightKg: null, sex: null, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
 }
 
 /** Copies every row one level deep. Mutators edit row fields, and readers still hold the old rows. */

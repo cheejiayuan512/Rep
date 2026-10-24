@@ -28,8 +28,29 @@ import type {
 } from '../domain/types';
 import { isCableAttachment, isEquipment, isMuscleGroup } from '../domain/types';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
-import type { SessionSet } from '../domain/one-rep-max';
-import { flushDatabase, isCommitted, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
+import { fuzzyFilter } from '../domain/fuzzy-search';
+import { rateLift, STRENGTH_LIFTS, type StrengthRating } from '../domain/strength';
+import type { BodyProfile } from '../domain/types';
+import { isBodySex } from '../domain/types';
+import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+
+/** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
+export interface Reader<A extends unknown[], R> {
+  (...args: A): Promise<R>;
+  /** The same result without waiting, or null before the log has loaded. */
+  now: (...args: A) => R | null;
+}
+
+function reader<A extends unknown[], R>(read: (db: DatabaseShape, ...args: A) => R): Reader<A, R> {
+  const run = async (...args: A): Promise<R> => read(await readDatabase(), ...args);
+  return Object.assign(run, {
+    now: (...args: A): R | null => {
+      const db = peekDatabase();
+      return db ? read(db, ...args) : null;
+    },
+  });
+}
 
 export interface HevyImportSummary {
   importedWorkouts: number;
@@ -38,7 +59,7 @@ export interface HevyImportSummary {
   skippedCardioRows: number;
 }
 
-export interface AppSettings {
+export interface AppSettings extends BodyProfile {
   weightUnit: WeightUnit;
   warmupRestMultiplier: number;
 }
@@ -52,12 +73,26 @@ export interface NewSetInput {
 
 // Settings: kg/lb and how long warmups rest.
 
-export async function getSettings(): Promise<AppSettings> {
-  const db = await readDatabase();
+export const getSettings = reader((db): AppSettings => ({
+  ...bodyProfileOf(db),
+  warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
+  weightUnit: db.settings.weightUnit,
+}));
+
+function bodyProfileOf(db: DatabaseShape): BodyProfile {
+  const bodyweight = db.settings.bodyweightKg;
   return {
-    warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
-    weightUnit: db.settings.weightUnit,
+    bodyweightKg: typeof bodyweight === 'number' && bodyweight > 0 ? bodyweight : null,
+    sex: isBodySex(db.settings.sex) ? db.settings.sex : null,
   };
+}
+
+/** Bodyweight in kilograms (null clears it) and sex, for strength levels. */
+export async function saveBodyProfile(profile: BodyProfile): Promise<void> {
+  await writeDatabase((db) => {
+    db.settings.bodyweightKg = profile.bodyweightKg != null && profile.bodyweightKg > 0 ? Math.round(profile.bodyweightKg * 10) / 10 : null;
+    db.settings.sex = profile.sex;
+  });
 }
 
 export async function saveWeightUnit(unit: WeightUnit): Promise<void> {
@@ -82,14 +117,55 @@ export async function saveNow(): Promise<void> {
 
 // The exercise library: built-in moves plus ones you create.
 
-export async function listExercises(query: string, muscleGroup: MuscleGroup | null): Promise<Exercise[]> {
-  const db = await readDatabase();
-  const needle = query.trim().toLowerCase();
-  return db.exercises
-    .filter((exercise) => (needle.length === 0 || exercise.name.toLowerCase().includes(needle)) && (muscleGroup == null || exercise.muscleGroup === muscleGroup))
+/** The library, filtered by muscle group. A search is fuzzy (typos, shorthand) and sorts the best match first. */
+export const listExercises = reader((db, query: string, muscleGroup: MuscleGroup | null): Exercise[] => {
+  const sorted = db.exercises
+    .filter((exercise) => muscleGroup == null || exercise.muscleGroup === muscleGroup)
     .sort((left, right) => Number(right.isCustom) - Number(left.isCustom) || left.name.localeCompare(right.name))
     .map(mapExercise);
-}
+  return fuzzyFilter(sorted, query);
+});
+
+const STARTER_EXERCISES = ['barbell-bench-press', 'back-squat', 'deadlift', 'overhead-press', 'barbell-row', 'lat-pulldown', 'dumbbell-curl', 'triceps-pushdown', 'leg-press', 'lateral-raise'];
+const QUICK_ADD_COUNT = 8;
+
+/**
+ * One-tap suggestions for a workout: what you train most (recent sessions
+ * count more), then common starters, minus what the workout already has.
+ */
+export const listQuickAddExercises = reader((db, workoutId: string): Exercise[] => {
+  const index = indexOf(db);
+  const taken = new Set(workoutExerciseRows(db, workoutId).map((row) => row.exerciseId));
+  const now = Date.now();
+  const scores = new Map<string, number>();
+  for (const [exerciseId, rows] of index.rowsByExercise) {
+    let score = 0;
+    for (const row of rows) {
+      const finishedAt = index.workoutsById.get(row.workoutId)?.finishedAt;
+      if (finishedAt == null) {
+        continue;
+      }
+      const days = (now - finishedAt) / 86400000;
+      score += days <= 30 ? 3 : days <= 90 ? 2 : 1;
+    }
+    if (score > 0) {
+      scores.set(exerciseId, score);
+    }
+  }
+  const ranked = [...scores.entries()].sort((left, right) => right[1] - left[1]).map(([exerciseId]) => exerciseId);
+  const picks: Exercise[] = [];
+  for (const exerciseId of [...ranked, ...STARTER_EXERCISES]) {
+    const exercise = index.exercisesById.get(exerciseId);
+    if (!exercise || taken.has(exerciseId) || picks.some((pick) => pick.id === exerciseId)) {
+      continue;
+    }
+    picks.push(mapExercise(exercise));
+    if (picks.length === QUICK_ADD_COUNT) {
+      break;
+    }
+  }
+  return picks;
+});
 
 export interface ExerciseInput {
   name: string;
@@ -134,14 +210,13 @@ export async function updateExercise(exerciseId: string, input: ExerciseInput): 
 }
 
 /** How often an exercise is used, so the editor can explain why it cannot be deleted. */
-export async function getExerciseUsage(exerciseId: string): Promise<{ workouts: number; routines: number }> {
-  const db = await readDatabase();
+export const getExerciseUsage = reader((db, exerciseId: string): { workouts: number; routines: number } => {
   const rows = indexOf(db).rowsByExercise.get(exerciseId) ?? [];
   return {
     routines: new Set(db.routineExercises.filter((item) => item.exerciseId === exerciseId).map((item) => item.routineId)).size,
     workouts: new Set(rows.map((row) => row.workoutId)).size,
   };
-}
+});
 
 export async function deleteCustomExercise(exerciseId: string): Promise<'deleted' | 'in-use' | 'missing'> {
   const db = await readDatabase();
@@ -161,19 +236,17 @@ export async function deleteCustomExercise(exerciseId: string): Promise<'deleted
 
 // Routines: a named list of exercises you can start again later.
 
-export async function listRoutines(): Promise<RoutineSummary[]> {
-  const db = await readDatabase();
-  return [...db.routines]
+export const listRoutines = reader((db): RoutineSummary[] =>
+  [...db.routines]
     .sort((left, right) => right.createdAt - left.createdAt)
     .map((routine) => ({
       exerciseNames: routineExerciseRows(db, routine.id).map((exercise) => exerciseName(db, exercise.exerciseId)),
       id: routine.id,
       name: routine.name,
-    }));
-}
+    })),
+);
 
-export async function getRoutine(routineId: string): Promise<RoutineDetail | null> {
-  const db = await readDatabase();
+export const getRoutine = reader((db, routineId: string): RoutineDetail | null => {
   const routine = db.routines.find((item) => item.id === routineId);
   if (!routine) {
     return null;
@@ -193,7 +266,7 @@ export async function getRoutine(routineId: string): Promise<RoutineDetail | nul
     id: routine.id,
     name: routine.name,
   };
-}
+});
 
 export async function createRoutine(name: string): Promise<string> {
   const id = createId();
@@ -249,27 +322,25 @@ export async function saveRoutinePositions(rows: Array<{ id: string; position: n
 
 // Workouts: start one, edit its sets, then finish or discard it.
 
-export async function getInProgressWorkoutId(): Promise<string | null> {
-  const db = await readDatabase();
+export const getInProgressWorkoutId = reader((db): string | null => {
   const active = db.workouts
     .filter((workout) => workout.finishedAt == null)
     .sort((left, right) => right.startedAt - left.startedAt)[0];
   return active?.id ?? null;
-}
+});
 
-export async function getActiveWorkoutSummary(workoutId: string): Promise<ActiveWorkoutSummary | null> {
-  const db = await readDatabase();
+export const getActiveWorkoutSummary = reader((db, workoutId: string): ActiveWorkoutSummary | null => {
   const workout = db.workouts.find((item) => item.id === workoutId && item.finishedAt == null);
   if (!workout) {
     return null;
   }
   return {
-    exerciseCount: db.workoutExercises.filter((exercise) => exercise.workoutId === workout.id).length,
+    exerciseCount: workoutExerciseRows(db, workout.id).length,
     id: workout.id,
     name: workout.name,
     startedAt: workout.startedAt,
   };
-}
+});
 
 export async function startEmptyWorkout(): Promise<string> {
   const id = createId();
@@ -310,9 +381,8 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
   return workoutId;
 }
 
-export async function getWorkout(workoutId: string): Promise<WorkoutDetail | null> {
-  const db = await readDatabase();
-  const workout = db.workouts.find((item) => item.id === workoutId);
+export const getWorkout = reader((db, workoutId: string): WorkoutDetail | null => {
+  const workout = indexOf(db).workoutsById.get(workoutId);
   if (!workout) {
     return null;
   }
@@ -325,16 +395,16 @@ export async function getWorkout(workoutId: string): Promise<WorkoutDetail | nul
     routineId: workout.routineId,
     startedAt: workout.startedAt,
   };
-}
+});
 
-export async function getExercise(exerciseId: string): Promise<Exercise | null> {
-  const db = await readDatabase();
-  const exercise = db.exercises.find((item) => item.id === exerciseId);
+export const getExercise = reader((db, exerciseId: string): Exercise | null => {
+  const exercise = indexOf(db).exercisesById.get(exerciseId);
   return exercise ? mapExercise(exercise) : null;
-}
+});
 
-export async function listWorkoutSummaries(): Promise<WorkoutSummary[]> {
-  const db = await readDatabase();
+export const listWorkoutSummaries = reader(workoutSummariesOf);
+
+function workoutSummariesOf(db: DatabaseShape): WorkoutSummary[] {
   const records = recordsByWorkout(db);
   return db.workouts
     .filter((workout) => workout.finishedAt != null)
@@ -360,9 +430,8 @@ export async function listWorkoutSummaries(): Promise<WorkoutSummary[]> {
 }
 
 /** Everything the Analysis screen needs: finished workouts and their working sets. */
-export async function getAnalysisInput(): Promise<AnalysisInput> {
-  const db = await readDatabase();
-  const summaries = await listWorkoutSummaries();
+export const getAnalysisInput = reader((db): AnalysisInput => {
+  const summaries = workoutSummariesOf(db);
   const sets: AnalysisSet[] = [];
   for (const workout of db.workouts) {
     if (workout.finishedAt == null) {
@@ -388,7 +457,7 @@ export async function getAnalysisInput(): Promise<AnalysisInput> {
     }
   }
   return { sets, workouts: summaries };
-}
+});
 
 function bestSet(sets: StoredSet[]): { weightKg: number; reps: number } | null {
   let best: { weightKg: number; reps: number; score: number } | null = null;
@@ -451,11 +520,10 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
 }
 
 /** Library exercise ids already in a workout or routine, for the picker's add/remove toggle. */
-export async function listTargetExerciseIds(target: { workoutId: string } | { routineId: string }): Promise<string[]> {
-  const db = await readDatabase();
+export const listTargetExerciseIds = reader((db, target: { workoutId: string } | { routineId: string }): string[] => {
   const rows = 'workoutId' in target ? workoutExerciseRows(db, target.workoutId) : routineExerciseRows(db, target.routineId);
   return rows.map((row) => row.exerciseId);
-}
+});
 
 /**
  * Takes an exercise back out of a workout from the picker. An exercise with a
@@ -659,8 +727,7 @@ export async function saveSetPositions(rows: Array<{ id: string; position: numbe
 }
 
 /** Working sets from the last finished workout with this exercise, for the 1RM calculator. */
-export async function getLatestSession(exerciseId: string): Promise<{ finishedAt: number; sets: SessionSet[] } | null> {
-  const db = await readDatabase();
+export const getLatestSession = reader((db, exerciseId: string): { finishedAt: number; sets: SessionSet[] } | null => {
   const index = indexOf(db);
   let latest: { finishedAt: number; rowId: string } | null = null;
   for (const row of index.rowsByExercise.get(exerciseId) ?? []) {
@@ -677,7 +744,7 @@ export async function getLatestSession(exerciseId: string): Promise<{ finishedAt
     .filter(isWorkingSet)
     .map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 }));
   return { finishedAt: latest.finishedAt, sets };
-}
+});
 
 export async function removeWorkoutExercise(workoutExerciseId: string): Promise<void> {
   await writeDatabase((db) => {
@@ -859,23 +926,28 @@ export async function importHevyCsv(csvText: string): Promise<HevyImportSummary>
 
 // History and progress: finished workouts and the sets that count.
 
-export async function getProfile(now = Date.now()): Promise<ProfileSnapshot> {
-  const db = await readDatabase();
+export const getProfile = reader((db): ProfileSnapshot => profileOf(db, Date.now(), null));
+
+/** The profile from finished workouts, optionally as it was before `withoutWorkoutId` was logged. */
+function profileOf(db: DatabaseShape, now: number, withoutWorkoutId: string | null): ProfileSnapshot {
   const workouts: ProfileWorkout[] = db.workouts
-    .filter((workout) => workout.finishedAt != null)
+    .filter((workout) => workout.finishedAt != null && workout.id !== withoutWorkoutId)
     .map((workout) => {
       const exercises = workoutExerciseRows(db, workout.id);
       const sets = exercises.flatMap((exercise) => setsOf(db, exercise.id));
       const working = sets.filter(isWorkingSet);
       const heaviestKg = working.reduce((max, set) => Math.max(max, set.weightKg ?? 0), 0);
+      const trained = exercises.filter((exercise) => working.some((set) => set.workoutExerciseId === exercise.id));
       return {
-        exerciseIds: [...new Set(exercises.filter((exercise) => working.some((set) => set.workoutExerciseId === exercise.id)).map((exercise) => exercise.exerciseId))],
+        exerciseIds: [...new Set(trained.map((exercise) => exercise.exerciseId))],
         finishedAt: workout.finishedAt ?? workout.startedAt,
         heaviestKg,
         id: workout.id,
+        muscleGroups: [...new Set(trained.map((exercise) => requireExercise(db, exercise.exerciseId).muscleGroup))],
         name: workout.name,
         notedExercises: exercises.filter((exercise) => exercise.notes.trim().length > 0).length,
         reps: working.reduce((total, set) => total + (set.reps ?? 0), 0),
+        rpeSets: working.filter((set) => typeof set.rpe === 'number').length,
         startedAt: workout.startedAt,
         volumeKg: working.reduce((total, set) => total + (set.weightKg ?? 0) * (set.reps ?? 0), 0),
         warmupSets: sets.filter((set) => set.completed && set.setType === 'warmup').length,
@@ -884,19 +956,131 @@ export async function getProfile(now = Date.now()): Promise<ProfileSnapshot> {
     });
 
   let recordCount = 0;
-  for (const count of recordsByWorkout(db).values()) {
-    recordCount += count;
+  for (const [workoutId, count] of recordsByWorkout(db)) {
+    if (workoutId !== withoutWorkoutId) {
+      recordCount += count;
+    }
   }
+  const ratings = strengthRatingsOf(db, withoutWorkoutId);
   return buildProfile({
     customExerciseCount: db.exercises.filter((exercise) => exercise.isCustom).length,
     now,
     recordCount,
+    strengthLevelIndex: ratings == null ? null : ratings.reduce((best, rating) => Math.max(best, rating.levelIndex), -1),
     workouts,
   });
 }
 
-export async function listTrainedExercises(): Promise<TrainedExercise[]> {
-  const db = await readDatabase();
+/** Above this many reps an estimated max is too loose to rank strength. */
+const STRENGTH_MAX_REPS = 10;
+
+export interface StrengthOverview {
+  body: BodyProfile;
+  /** Rated lifts you have trained, strongest percentile first. Empty without bodyweight and sex. */
+  ratings: Array<StrengthRating & { achievedAt: number }>;
+  /** Lifts with a standard you have not logged yet. */
+  untrained: Array<{ exerciseId: string; name: string }>;
+}
+
+export const getStrengthOverview = reader((db): StrengthOverview => {
+  const body = bodyProfileOf(db);
+  const ratings = strengthRatingsOf(db, null) ?? [];
+  const rated = new Set(ratings.map((rating) => rating.exerciseId));
+  const best = bestLifts(db, null);
+  return {
+    body,
+    ratings: [...ratings].sort((left, right) => right.percentile - left.percentile),
+    untrained: STRENGTH_LIFTS.filter((exerciseId) => !rated.has(exerciseId) && !best.has(exerciseId)).map((exerciseId) => ({ exerciseId, name: exerciseName(db, exerciseId) })),
+  };
+});
+
+/** Null when bodyweight or sex is missing. */
+function strengthRatingsOf(db: DatabaseShape, withoutWorkoutId: string | null): Array<StrengthRating & { achievedAt: number }> | null {
+  const { bodyweightKg, sex } = bodyProfileOf(db);
+  if (bodyweightKg == null || sex == null) {
+    return null;
+  }
+  const ratings: Array<StrengthRating & { achievedAt: number }> = [];
+  for (const [exerciseId, lift] of bestLifts(db, withoutWorkoutId)) {
+    const rating = rateLift(exerciseId, lift.oneRepMaxKg, bodyweightKg, sex);
+    if (rating) {
+      ratings.push({ ...rating, achievedAt: lift.achievedAt, liftName: exerciseName(db, exerciseId) });
+    }
+  }
+  return ratings;
+}
+
+/** Best Epley estimate per rated lift, from working sets of 10 reps or fewer. */
+function bestLifts(db: DatabaseShape, withoutWorkoutId: string | null): Map<string, { oneRepMaxKg: number; achievedAt: number }> {
+  const best = new Map<string, { oneRepMaxKg: number; achievedAt: number }>();
+  const history = historyFor(db, STRENGTH_LIFTS, withoutWorkoutId ?? '');
+  for (const exerciseId of STRENGTH_LIFTS) {
+    for (const set of history[exerciseId] ?? []) {
+      const reps = set.reps ?? 0;
+      const weightKg = set.weightKg ?? 0;
+      if (!set.completed || set.setType !== 'normal' || reps <= 0 || reps > STRENGTH_MAX_REPS || weightKg <= 0) {
+        continue;
+      }
+      const oneRepMaxKg = estimateOneRepMax(weightKg, reps);
+      if (oneRepMaxKg > (best.get(exerciseId)?.oneRepMaxKg ?? 0)) {
+        best.set(exerciseId, { achievedAt: set.performedAt, oneRepMaxKg });
+      }
+    }
+  }
+  return best;
+}
+
+export interface WorkoutRecap {
+  workout: WorkoutSummary;
+  reps: number;
+  exercises: Array<{ name: string; sets: number; best: { weightKg: number; reps: number } | null; sessionKg: number | null }>;
+  /** Exercises where a set beat the previous best estimated 1RM. */
+  records: Array<{ name: string; oneRepMaxKg: number }>;
+  before: ProfileSnapshot;
+  after: ProfileSnapshot;
+}
+
+/** What a finished workout added: its numbers, records, and the XP and badges it earned. */
+export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | null => {
+  const workout = workoutSummariesOf(db).find((item) => item.id === workoutId);
+  if (!workout) {
+    return null;
+  }
+  const rows = workoutExerciseRows(db, workoutId);
+  const exercises = rows.map((row) => {
+    const sets = setsOf(db, row.id).filter(isWorkingSet);
+    const estimate = estimateFromSets(sets.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })));
+    return { best: bestSet(sets), name: exerciseName(db, row.exerciseId), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
+  });
+  const records: WorkoutRecap['records'] = [];
+  for (const row of rows) {
+    const history = (historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? []).flatMap((set) => {
+      const scored = scoreLoggedSet(set);
+      return scored ? [{ scored, workoutId: set.workoutId }] : [];
+    });
+    let best = 0;
+    oneRepMaxRecordFlags(history.map((item) => item.scored)).forEach((beat, position) => {
+      const item = history[position];
+      if (beat && item?.workoutId === workoutId) {
+        best = Math.max(best, item.scored.oneRepMaxKg ?? 0);
+      }
+    });
+    if (best > 0) {
+      records.push({ name: exerciseName(db, row.exerciseId), oneRepMaxKg: best });
+    }
+  }
+  const now = Date.now();
+  return {
+    after: profileOf(db, now, null),
+    before: profileOf(db, now, workoutId),
+    exercises: exercises.filter((exercise) => exercise.sets > 0),
+    records,
+    reps: rows.reduce((total, row) => total + setsOf(db, row.id).filter(isWorkingSet).reduce((sum, set) => sum + (set.reps ?? 0), 0), 0),
+    workout,
+  };
+});
+
+export const listTrainedExercises = reader((db): TrainedExercise[] => {
   const latest = new Map<string, number>();
   for (const workout of db.workouts) {
     if (workout.finishedAt == null) {
@@ -917,23 +1101,19 @@ export async function listTrainedExercises(): Promise<TrainedExercise[]> {
       return { id: exerciseId, lastPerformedAt, muscleGroup: exercise.muscleGroup, name: exercise.name };
     })
     .sort((left, right) => right.lastPerformedAt - left.lastPerformedAt);
-}
+});
 
-export async function getExerciseLog(exerciseId: string): Promise<LoggedSet[]> {
-  const db = await readDatabase();
-  return historyFor(db, [exerciseId], '')[exerciseId] ?? [];
-}
+export const getExerciseLog = reader((db, exerciseId: string): LoggedSet[] => historyFor(db, [exerciseId], '')[exerciseId] ?? []);
 
 /** Finished sets from other workouts. With `before`, only workouts started earlier count, so an edited past session compares against its own past. */
-export async function getHistorySets(exerciseIds: string[], excludeWorkoutId: string, before?: number): Promise<Record<string, LoggedSet[]>> {
-  const db = await readDatabase();
+export const getHistorySets = reader((db, exerciseIds: string[], excludeWorkoutId: string, before?: number): Record<string, LoggedSet[]> => {
   const history = historyFor(db, exerciseIds, excludeWorkoutId);
   if (before == null) {
     return history;
   }
   const earlier = new Set(db.workouts.filter((workout) => workout.startedAt < before).map((workout) => workout.id));
   return Object.fromEntries(Object.entries(history).map(([exerciseId, sets]) => [exerciseId, sets.filter((set) => earlier.has(set.workoutId))]));
-}
+});
 
 function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: string): Record<string, LoggedSet[]> {
   const grouped: Record<string, LoggedSet[]> = {};

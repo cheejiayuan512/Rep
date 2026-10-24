@@ -36,6 +36,9 @@ export type RootStackParamList = {
   ExerciseEditor: { exerciseId: string | null };
   Analysis: undefined;
   OneRepMax: undefined;
+  /** Shown once, right after Finish. */
+  WorkoutComplete: { workoutId: string };
+  StrengthLevels: undefined;
 };
 
 export type AppNavigation<T extends keyof TabParamList> = CompositeNavigationProp<

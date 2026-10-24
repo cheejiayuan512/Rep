@@ -29,8 +29,8 @@ export const RoutineEditorScreen: React.FC = () => {
   const route = useRoute<StackRoute<'RoutineEditor'>>();
   const dispatch = useAppDispatch();
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
-  const [routine, setRoutine] = useState<RoutineDetail | null>(null);
-  const [name, setName] = useState('New routine');
+  const [routine, setRoutine] = useState<RoutineDetail | null>(() => getRoutine.now(route.params.routineId));
+  const [name, setName] = useState(() => routine?.name ?? 'New routine');
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const routineRef = useRef(routine);
   const nameRef = useRef(name);

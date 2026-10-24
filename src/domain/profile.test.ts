@@ -7,6 +7,8 @@ function workout(overrides: Partial<ProfileWorkout> = {}): ProfileWorkout {
     finishedAt: new Date(2026, 9, 20, 20, 41).getTime(),
     heaviestKg: 80,
     id: 'w1',
+    muscleGroups: ['Quads'],
+    rpeSets: 2,
     name: 'Morning workout',
     notedExercises: 1,
     reps: 24,
@@ -56,7 +58,7 @@ test('the new badges read heaviest set, records, and session times', () => {
   const early = workout({ finishedAt: new Date(2026, 9, 19, 9, 0).getTime(), heaviestKg: 120, id: 'w2', startedAt: new Date(2026, 9, 19, 6, 30).getTime() });
   const profile = buildProfile({ customExerciseCount: 0, now, recordCount: 12, workouts: [workout(), early] });
   const tier = (id: string) => profile.badges.find((item) => item.id === id)?.tier;
-  assertEqual(profile.badges.length, 12);
+  assertEqual(profile.badges.length, 20);
   assertEqual(tier('heavy'), 'regular');
   assertEqual(tier('records'), 'regular');
   assertEqual(tier('early'), 'novice');
@@ -65,9 +67,41 @@ test('the new badges read heaviest set, records, and session times', () => {
   assertEqual(profile.badges.find((item) => item.id === 'heavy')?.next, 140);
 });
 
-test('level ceilings stop at the top floor', () => {
-  assertEqual(levelForPoints(8000).level, 8);
-  assertEqual(levelForPoints(8000).ceiling, null);
+test('levels say how far the next one is, and stop at the top', () => {
+  assertEqual(levelForPoints(13000).level, 20);
+  assertEqual(levelForPoints(13000).ceiling, null);
+  assertEqual(levelForPoints(13000).toNext, null);
+  assertEqual(levelForPoints(13000).title, 'Legend');
   assertEqual(levelForPoints(19).level, 1);
+  assertEqual(levelForPoints(19).toNext, 1);
   assertEqual(levelForPoints(20).level, 2);
+  assertEqual(levelForPoints(20).maxLevel, 20);
+  assertEqual(levelForPoints(700).title, 'Regular');
+});
+
+test('records add XP and the newer badges count their own thing', () => {
+  const now = new Date(2026, 9, 22).getTime();
+  // Saturday 17 Oct 2026, 40 minutes, 12 sets, 120 reps.
+  const quick = workout({
+    finishedAt: new Date(2026, 9, 17, 10, 40).getTime(),
+    id: 'w3',
+    muscleGroups: ['Chest', 'Back', 'Quads', 'Biceps'],
+    reps: 120,
+    startedAt: new Date(2026, 9, 17, 10, 0).getTime(),
+    volumeKg: 6000,
+    workingSets: 12,
+  });
+  const withoutRecords = buildProfile({ customExerciseCount: 0, now, recordCount: 0, workouts: [quick] });
+  const withRecords = buildProfile({ customExerciseCount: 0, now, recordCount: 2, strengthLevelIndex: 2, workouts: [quick] });
+  assertEqual(withRecords.level.points - withoutRecords.level.points, 6);
+  const tier = (id: string) => withRecords.badges.find((item) => item.id === id)?.tier;
+  assertEqual(tier('quick'), 'novice');
+  assertEqual(tier('weekender'), 'novice');
+  assertEqual(tier('century'), 'novice');
+  assertEqual(tier('allrounder'), 'novice');
+  assertEqual(tier('bigday'), 'novice');
+  assertEqual(tier('strong'), 'regular');
+  assertEqual(tier('sets'), 'locked');
+  assertEqual(withoutRecords.badges.find((item) => item.id === 'strong')?.tier, 'locked');
+  assertEqual(withRecords.badges.every((item) => item.description.length > 0), true);
 });

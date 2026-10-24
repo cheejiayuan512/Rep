@@ -2,11 +2,11 @@
  * Records and the chart for one exercise. The 1RM / Weight / Volume chips
  * only change which number the line is plotting.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
-import { useRevision, useWeightUnit } from '../../state/hooks';
+import { useStored, useWeightUnit } from '../../state/hooks';
 import { EmptyState } from '../../components/empty-state';
 import { Header, TextButton } from '../../components/header';
 import { LineChart } from '../../components/line-chart';
@@ -18,6 +18,8 @@ import type { ChartMetric, Exercise, LoggedSet } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
+const NO_SETS: LoggedSet[] = [];
+
 const metrics: Array<{ id: ChartMetric; label: string }> = [
   { id: 'oneRepMax', label: '1RM' },
   { id: 'topSet', label: 'Weight' },
@@ -27,24 +29,10 @@ const metrics: Array<{ id: ChartMetric; label: string }> = [
 export const ExerciseProgressScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'ExerciseProgress'>>();
-  const revision = useRevision();
   const { unit } = useWeightUnit();
-  const [exercise, setExercise] = useState<Exercise | null>(null);
-  const [sets, setSets] = useState<LoggedSet[]>([]);
+  const exercise = useStored(getExercise, route.params.exerciseId);
+  const sets = useStored(getExerciseLog, route.params.exerciseId) ?? NO_SETS;
   const [metric, setMetric] = useState<ChartMetric>('oneRepMax');
-
-  useEffect(() => {
-    let cancel = false;
-    void Promise.all([getExercise(route.params.exerciseId), getExerciseLog(route.params.exerciseId)]).then(([loadedExercise, loadedSets]) => {
-      if (!cancel) {
-        setExercise(loadedExercise);
-        setSets(loadedSets);
-      }
-    });
-    return () => {
-      cancel = true;
-    };
-  }, [revision, route.params.exerciseId]);
 
   const sessions = useMemo(() => buildSessionStats(sets), [sets]);
   const cards = useMemo(() => recordCardsFromSets(sets, unit), [sets, unit]);

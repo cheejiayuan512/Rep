@@ -5,11 +5,11 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-import { useTrainedExercises, useWeightUnit } from '../../state/hooks';
+import { useTrainedExercises } from '../../state/hooks';
 import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
-import { UnitToggle } from '../../components/unit-toggle';
 import { formatWorkoutWhen } from '../../domain/format';
+import { fuzzyFilter } from '../../domain/fuzzy-search';
 import type { TrainedExercise } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -21,15 +21,8 @@ function exerciseKey(exercise: TrainedExercise): string {
 export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'Progress'>>();
   const exercises = useTrainedExercises();
-  const { unit, setUnit } = useWeightUnit();
   const [query, setQuery] = useState('');
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return exercises;
-    }
-    return exercises.filter((exercise) => exercise.name.toLowerCase().includes(needle) || exercise.muscleGroup.toLowerCase().includes(needle));
-  }, [exercises, query]);
+  const filtered = useMemo(() => fuzzyFilter(exercises.map((exercise) => ({ ...exercise, equipment: '' })), query), [exercises, query]);
 
   const handleOpen = useCallback(
     (exerciseId: string) => {
@@ -39,6 +32,7 @@ export const ProgressScreen: React.FC = () => {
   );
   const openAnalysis = useCallback(() => navigation.navigate('Analysis'), [navigation]);
   const openOneRepMax = useCallback(() => navigation.navigate('OneRepMax'), [navigation]);
+  const openStrength = useCallback(() => navigation.navigate('StrengthLevels'), [navigation]);
   const renderExercise = useCallback(
     ({ item }: ListRenderItemInfo<TrainedExercise>) => <TrainedRow exercise={item} onPress={handleOpen} />,
     [handleOpen],
@@ -47,14 +41,14 @@ export const ProgressScreen: React.FC = () => {
   return (
     <Screen>
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Progress</Text>
-          <UnitToggle onChange={setUnit} unit={unit} />
-        </View>
+        <Text style={styles.title}>Progress</Text>
         <Text style={styles.subtitle}>Personal records and charts for exercises you have logged.</Text>
         <View style={styles.tools}>
           <ToolCard detail="Volume, balance, effort, top lifts" label="Analysis" onPress={openAnalysis} />
-          <ToolCard detail="Estimate a max from any set" label="1RM calculator" onPress={openOneRepMax} />
+          <ToolCard detail="Estimate a max from a set or a session" label="1RM calculator" onPress={openOneRepMax} />
+        </View>
+        <View style={styles.tools}>
+          <ToolCard detail="Your lifts against other lifters at your bodyweight" label="Strength levels" onPress={openStrength} />
         </View>
         <TextInput autoCorrect={false} onChangeText={setQuery} placeholder="Search trained exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
       </View>
@@ -168,11 +162,6 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '800',
   },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   tool: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -195,6 +184,6 @@ const styles = StyleSheet.create({
   tools: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 14,
+    marginTop: 10,
   },
 });

@@ -12,7 +12,6 @@ import { Chip } from '../../components/chip';
 import { Header, TextButton } from '../../components/header';
 import { KeyboardDoneBar, keyboardDoneId } from '../../components/keyboard-done-bar';
 import { Screen } from '../../components/screen';
-import { UnitToggle } from '../../components/unit-toggle';
 import { getLatestSession } from '../../data/repository';
 import { formatWorkoutWhen } from '../../domain/format';
 import { estimateAll, estimateFromSets, MAX_ESTIMATE_REPS, percentTable, type SessionSet } from '../../domain/one-rep-max';
@@ -51,16 +50,16 @@ function showWeight(kg: number, unit: WeightUnit): string {
 
 export const OneRepMaxScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
-  const { unit, setUnit } = useWeightUnit();
-  const [mode, setMode] = useState<Mode>('single');
+  const { unit } = useWeightUnit();
+  const [mode, setMode] = useState<Mode>('session');
 
   return (
     <Screen bottomInset>
-      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} right={<UnitToggle onChange={setUnit} unit={unit} />} title="1RM calculator" />
+      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} title="1RM calculator" />
       <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" style={styles.fill}>
         <View style={styles.modes}>
-          <Chip label="One set" onSelect={setMode} selected={mode === 'single'} value="single" />
           <Chip label="Whole session" onSelect={setMode} selected={mode === 'session'} value="session" />
+          <Chip label="One set" onSelect={setMode} selected={mode === 'single'} value="single" />
         </View>
         {mode === 'single' ? <SingleSet unit={unit} /> : <WholeSession unit={unit} />}
       </ScrollView>

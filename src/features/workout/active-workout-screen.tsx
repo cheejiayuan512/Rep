@@ -23,15 +23,16 @@ import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
 import { formatWorkoutWhen } from '../../domain/format';
-import { clampRest, defaultRestFor, restAfterSet } from '../../domain/rest';
+import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import { Screen } from '../../components/screen';
-import { UnitToggle } from '../../components/unit-toggle';
+import { QuickAdd } from '../../components/quick-add';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { detectRecords, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
 import type { CableAttachment, LoggedSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { findNextSet, findSet, orderByIds, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
+  addExerciseToWorkout,
   deleteSet,
   discardWorkout,
   finishWorkout,
@@ -103,14 +104,26 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const route = useRoute<StackRoute<'ActiveWorkout'>>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
-  const { unit, setUnit } = useWeightUnit();
+  const { unit } = useWeightUnit();
   const { warmupMultiplier, setWarmupMultiplier } = useWarmupRestMultiplier();
   const workoutId = route.params.workoutId;
-  const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
-  const [drafts, setDrafts] = useState<DraftMap>({});
-  const [historyByExercise, setHistoryByExercise] = useState<Record<string, LoggedSet[]>>({});
+  // The log is already in memory, so the first frame shows the cards instead of an empty page.
+  const [initial] = useState(() => {
+    const loaded = getWorkout.now(workoutId);
+    const history = loaded
+      ? getHistorySets.now(
+          loaded.exercises.map((exercise) => exercise.exerciseId),
+          loaded.id,
+          loaded.finishedAt != null ? loaded.startedAt : undefined,
+        )
+      : null;
+    return { history, workout: loaded };
+  });
+  const [workout, setWorkout] = useState<WorkoutDetail | null>(initial.workout);
+  const [drafts, setDrafts] = useState<DraftMap>(() => (initial.workout ? mergeDrafts({}, initial.workout.exercises.flatMap((exercise) => exercise.sets), unit) : {}));
+  const [historyByExercise, setHistoryByExercise] = useState<Record<string, LoggedSet[]>>(initial.history ?? {});
   const [missing, setMissing] = useState(false);
-  const [title, setTitle] = useState('Workout');
+  const [title, setTitle] = useState(initial.workout?.name ?? 'Workout');
   const [banner, setBanner] = useState<string | null>(null);
   const [recordBanner, setRecordBanner] = useState<RecordToast | null>(null);
   const [undo, setUndo] = useState<UndoToast | null>(null);
@@ -478,7 +491,12 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       const startedAt = Date.now();
-      const seconds = restAfterSet(located.exercise.restSeconds ?? defaultRestFor(located.exercise), located.set.setType, warmupMultiplierRef.current);
+      const seconds = restAfterSet(
+        located.exercise.restSeconds ?? defaultRestFor(located.exercise),
+        located.set.setType,
+        warmupMultiplierRef.current,
+        warmupLoadRatio(numbers.weightKg, located.exercise.sets, located.exercise.previousSets),
+      );
       const endsAt = startedAt + seconds * 1000;
       setLastExercise(current.id, located.exercise.id);
       applyRest({ endsAt, startedAt, workoutExerciseId: located.exercise.id, workoutId: current.id });
@@ -693,6 +711,29 @@ export const ActiveWorkoutScreen: React.FC = () => {
     navigation.navigate('ExercisePicker', { mode: 'workout', workoutId });
   }, [navigation, workoutId]);
 
+  const handleQuickAdd = useCallback(
+    async (exerciseId: string) => {
+      await flushPending();
+      await addExerciseToWorkout(workoutId, exerciseId);
+      const loaded = getWorkout.now(workoutId);
+      if (loaded) {
+        setWorkout(loaded);
+        setDrafts((previous) => mergeDrafts(previous, loaded.exercises.flatMap((exercise) => exercise.sets), unitRef.current));
+        const history = getHistorySets.now(
+          loaded.exercises.map((exercise) => exercise.exerciseId),
+          loaded.id,
+          loaded.finishedAt != null ? loaded.startedAt : undefined,
+        );
+        if (history) {
+          setHistoryByExercise(history);
+        }
+      }
+      void hapticLight();
+      dispatch(dataChanged());
+    },
+    [dispatch, flushPending, workoutId],
+  );
+
   const handleFinish = useCallback(async () => {
     const current = workoutRef.current;
     if (!current || finishing) {
@@ -718,15 +759,16 @@ export const ActiveWorkoutScreen: React.FC = () => {
       clearWorkoutActivityState(current.id);
       void cancelRestEnd();
       endWorkoutActivity();
+      void hapticSuccess();
+      navigation.replace('WorkoutComplete', { workoutId: current.id });
       dispatch(activeWorkoutChanged(null));
       dispatch(dataChanged());
-      leave();
     } catch (error) {
       setBanner(error instanceof Error ? error.message : 'Could not finish the workout.');
     } finally {
       setFinishing(false);
     }
-  }, [applyRest, dispatch, finishing, flushPending, leave]);
+  }, [applyRest, dispatch, finishing, flushPending, navigation]);
 
   const handleDiscard = useCallback(() => {
     setConfirm({
@@ -846,7 +888,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   ) : (
                     <Text style={styles.elapsed}>0:00</Text>
                   )}
-                  <UnitToggle onChange={setUnit} unit={unit} />
                 </View>
                 {banner ? <Text style={styles.banner}>{banner}</Text> : null}
               </View>
@@ -867,8 +908,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
               ) : (
                 <View>
                   {workout && workout.exercises.length === 0 ? (
-                    <EmptyState actionLabel="Add exercise" message="Search the library, then log weight and reps. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
+                    <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
                   ) : null}
+                  {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
                   {workout?.exercises.map((exercise) => (
                     <ExerciseBlock
                       drafts={drafts}
@@ -899,6 +941,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   {workout && workout.exercises.length > 0 ? (
                     <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" />
                   ) : null}
+                  {workout && workout.exercises.length > 0 && !editing ? <QuickAdd compact onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
                 </View>
               )}
             </View>

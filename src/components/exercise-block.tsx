@@ -164,7 +164,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           <Text style={styles.choiceNote}>
             Default {formatClock(defaultRest)} for a {REST_CLASS_LABELS[restClassFor(exercise)].toLowerCase()} exercise.
           </Text>
-          <Text style={styles.choiceNote}>Warmup sets rest, for every exercise:</Text>
+          <Text style={styles.choiceNote}>Light warmups rest, for every exercise. Heavier warmups rest longer, up to the full rest:</Text>
           <View style={styles.choices}>
             {WARMUP_MULTIPLIERS.map((multiplier) => (
               <Choice key={multiplier} label={formatMultiplier(multiplier)} onPress={onChangeWarmupMultiplier} selected={warmupMultiplier === multiplier} value={multiplier} />
@@ -219,9 +219,12 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           />
         ))}
       </View>
-      <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
-        <Text style={styles.addText}>Add set</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
+          <Text style={styles.addText}>Add set</Text>
+        </Pressable>
+        {exercise.sets.length > 0 ? <Text style={styles.swipeHint}>Swipe a set left to delete</Text> : null}
+      </View>
     </View>
   );
 });
@@ -249,9 +252,17 @@ const Choice = React.memo(ChoiceInner) as typeof ChoiceInner;
 
 const styles = StyleSheet.create({
   add: {
-    alignSelf: 'flex-start',
-    marginTop: 12,
     paddingVertical: 4,
+  },
+  footer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  swipeHint: {
+    color: colors.faint,
+    fontSize: 12,
   },
   addText: {
     color: colors.accent,
@@ -270,7 +281,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   checkSpacer: {
-    width: setColumn.check + setColumn.gap + setColumn.delete,
+    width: setColumn.check,
   },
   chip: {
     backgroundColor: colors.surfaceRaised,

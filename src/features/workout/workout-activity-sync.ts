@@ -10,7 +10,7 @@ import { getWorkout, saveNow, updateSetCompleted } from '../../data/repository';
 import { addCompleteSetListener, showWorkoutActivity, type WorkoutActivityProps } from '../../components/workout-live-activity';
 import { scheduleRestEnd } from '../../components/rest-notification';
 import { formatLoggedLoad } from '../../domain/format';
-import { defaultRestFor, restAfterSet } from '../../domain/rest';
+import { defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import type { WeightUnit, WorkoutDetail } from '../../domain/types';
 import { findNextSet, updateSetInWorkout } from '../../domain/workout-edits';
 import { dataChanged, store } from '../../state/store';
@@ -106,7 +106,7 @@ async function completeNextSetInBackground(): Promise<void> {
   const { exercise, set } = next;
   await updateSetCompleted(set.id, true, set.weightKg, set.reps, set.rpe);
   setLastExercise(workout.id, exercise.id);
-  const seconds = restAfterSet(exercise.restSeconds ?? defaultRestFor(exercise), set.setType, warmupRestMultiplier);
+  const seconds = restAfterSet(exercise.restSeconds ?? defaultRestFor(exercise), set.setType, warmupRestMultiplier, warmupLoadRatio(set.weightKg, exercise.sets, exercise.previousSets));
   const startedAt = Date.now();
   setRest({ endsAt: startedAt + seconds * 1000, startedAt, workoutExerciseId: exercise.id, workoutId: workout.id });
   showWorkoutActivity(activityPropsFor(updateSetInWorkout(workout, set.id, { completed: true }), weightUnit));

@@ -45,14 +45,16 @@ export const ExercisePickerScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>(() => listExercises.now('', null) ?? []);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [customMuscle, setCustomMuscle] = useState<MuscleGroup>('Chest');
   const [customEquipment, setCustomEquipment] = useState<Equipment>('Barbell');
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [addedIds, setAddedIds] = useState<ReadonlySet<string>>(new Set());
+  const [addedIds, setAddedIds] = useState<ReadonlySet<string>>(
+    () => new Set(listTargetExerciseIds.now(route.params.mode === 'routine' ? { routineId: route.params.routineId } : { workoutId: route.params.workoutId }) ?? []),
+  );
   const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
   const items = useMemo(() => groupExercises(exercises, expandedFamilies, query.trim().length > 0), [exercises, expandedFamilies, query]);
 

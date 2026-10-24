@@ -15,13 +15,15 @@ Rep is local-only. There is no account, feed, or server.
 One exercise is one card (`src/components/exercise-block.tsx`).
 
 - Notes: multiline text on the exercise, max 500 characters.
-- Each set row: previous load, weight, reps, RPE, complete, delete.
+- Each set row: previous load, weight, reps, RPE, complete. Swipe the row left to delete it (`src/components/set-row.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action.
 - Tap the set number to toggle warmup.
+- A blank workout shows Quick add chips (`src/components/quick-add.tsx`, `listQuickAddExercises`): exercises weighted by how recently and often they were trained, then `STARTER_EXERCISES`, up to 8, minus those already in the workout.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
 - Remove exercise deletes that exercise and its sets with no dialog. Deleting a set or an exercise shows an Undo toast for 5 seconds instead.
 - Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
 - The Rest chip sets `WorkoutExercise.restSeconds`. Null uses the exercise's default from `src/domain/rest.ts`: heavy compound 3:00, compound 2:00, isolation 1:30, calves/core 1:00, classed by seed id, then name keywords and equipment. A new workout copies the last rest picked for that exercise.
-- Warmup sets rest `exercise rest × settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½), rounded to 5 s. The multiplier is one app-wide setting, changed from any card's rest picker.
+- Warmup sets rest `exercise rest × (m + (1 − m) × ratio²)`, where `m` is `settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½) and `ratio` is `warmupLoadRatio`: the warmup's kg over the heaviest working set on the card, or last session's when none is entered. Rounded to 5 s, at least 15 s. The multiplier is one app-wide setting, changed from Profile or any card's rest picker.
+- Finish replaces the workout screen with `WorkoutComplete` (`src/features/workout/workout-complete-screen.tsx`), built from `getWorkoutRecap`: stats, PRs, XP before and after, badges whose tier went up, and each exercise's session 1RM.
 - -15 / +15 on the rest bar change only the running rest, never `restSeconds` or a default.
 - Warmups stay above working sets: toggling W reorders the card and saves positions. Working sets are numbered without warmups.
 - Swap (card header) opens the picker in `mode: 'swap'` and calls `swapWorkoutExercise`. Rest and attachment reset to the new exercise's; untouched sets are refilled from its last session, and checked-off sets stay.
@@ -32,6 +34,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - On Android it is an ongoing notification from the local module `modules/rest-live-update` (Kotlin) with a "Done set" action through `WorkoutActionReceiver`. Android 16 promotes it to a Live Update chip; older versions show a pinned notification. It switches from countdown to elapsed time by itself when rest ends. It is silent; the expo-notifications alert still makes the sound.
 - A completed set that beats every earlier set (history plus earlier sets in this workout) gets a star, and so does its card title. The toast lists every record kind the set beat.
 - The exercise picker folds variants of one movement into a row (`src/domain/exercise-families.ts`). Search expands every family.
+- Exercise search is `fuzzyFilter` (`src/domain/fuzzy-search.ts`): aliases (db, bb, ohp, rdl…), prefix, substring, subsequence, and small edit distance, with muscle and equipment words at lower weight. The picker, Exercises tab, and Progress search all use it.
 - An exercise appears in a workout or routine at most once. In the picker, tapping an added exercise removes it again, unless it already has a completed set (then it stays and the card's Remove is the way out).
 - History detail has Edit and Duplicate. Edit opens the finished workout in the same workout screen with Done instead of Finish/Discard, no rest timer, and no PR toast; stars compare only against earlier workouts. Duplicate starts a new workout with the same exercises, notes, rest, and set weight/reps, nothing checked off, RPE empty.
 - The picker only adds and removes. Renaming, recategorizing, and deleting exercises happen in the Exercises tab. Only unused custom exercises can be deleted; built-ins never.
@@ -42,6 +45,14 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - `readDatabase` returns the shared committed document. Treat it as read-only; mutate only inside `writeDatabase`.
 - `writeDatabase` commits in memory right away and persists to AsyncStorage after a 400 ms debounce. `flushDatabase` runs when the app leaves the foreground.
 - The repository caches lookup maps per committed document (`indexOf`). Navigate before dispatching `dataChanged` so the next screen does not wait on a reload.
+- Read functions are built with `reader()`, so each also has `.now(...)` that reads the loaded document synchronously (`peekDatabase`). Screens start from `.now` (or `useStored(reader, ...args)` in `src/state/hooks.ts`) so the first frame has data instead of an empty state. Only show "missing" states after a real load.
+
+## Profile and settings
+
+- kg / lb, warmup rest, bodyweight, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it.
+- 20 levels (`LEVEL_FLOORS` in `src/domain/profile.ts`) with titles. Show "Level N of 20", the title, XP in this level, and XP to the next. `XP_RULES` lists how XP is earned and is shown under "How XP works".
+- 20 badges with three tiers each. `BADGE_INFO` holds the title, unit, and description shown when a badge is tapped. Kg badges are formatted in the user's unit; `strong` steps are strength level indexes.
+- Strength levels (`src/domain/strength.ts`, `StrengthLevelsScreen`) need `settings.bodyweightKg` and `settings.sex`. They use the best Epley e1RM from working sets of 10 reps or fewer, bodyweight-multiple standards scaled by bodyweight^⅔, and map Beginner…Elite to the 5th/20th/50th/80th/95th percentile of lifters. Say "lifters", not "everyone": most untrained people sit below Beginner.
 
 ## Numbers
 

@@ -17,6 +17,7 @@ import { deleteWorkout, duplicateWorkout, getWorkout } from '../../data/reposito
 import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
 import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
+import { estimateFromSets } from '../../domain/one-rep-max';
 import type { SetRecord, WeightUnit, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -26,16 +27,18 @@ export const WorkoutDetailScreen: React.FC = () => {
   const route = useRoute<StackRoute<'WorkoutDetail'>>();
   const dispatch = useAppDispatch();
   const { unit } = useWeightUnit();
-  const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
+  const [workout, setWorkout] = useState<WorkoutDetail | null>(() => getWorkout.now(route.params.workoutId));
+  const [loaded, setLoaded] = useState(workout != null);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
 
   useFocusEffect(
     useCallback(() => {
       let cancel = false;
-      void getWorkout(route.params.workoutId).then((loaded) => {
+      void getWorkout(route.params.workoutId).then((next) => {
         if (!cancel) {
-          setWorkout(loaded);
+          setWorkout(next);
+          setLoaded(true);
         }
       });
       return () => {
@@ -93,7 +96,7 @@ export const WorkoutDetailScreen: React.FC = () => {
     <Screen bottomInset>
       <Header left={<TextButton label="Back" onPress={navigation.goBack} />} right={<TextButton label="Delete" onPress={handleDelete} tone="danger" />} title="Workout" />
       {!workout ? (
-        <EmptyState message="This session is no longer on the device." title="Workout missing" />
+        loaded ? <EmptyState message="This session is no longer on the device." title="Workout missing" /> : null
       ) : (
         <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
           <Text style={styles.title}>{workout.name}</Text>
@@ -148,6 +151,7 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
     const reps = set.reps ?? 0;
     return weight > 0 && reps > 0 ? Math.max(best, estimateOneRepMax(weight, reps)) : best;
   }, 0);
+  const session = working.length > 1 ? estimateFromSets(working.map((set) => ({ reps: set.reps ?? 0, rpe: set.rpe, weightKg: set.weightKg ?? 0 }))) : null;
   let workingNumber = 0;
 
   return (
@@ -195,6 +199,11 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
           </Text>
         ) : null}
       </View>
+      {session && session.used > 1 ? (
+        <Text style={styles.sessionLine}>
+          Session 1RM {formatWeight(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
+        </Text>
+      ) : null}
     </View>
   );
 });
@@ -271,6 +280,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: colors.muted,
     fontSize: 13,
+  },
+  sessionLine: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'right',
   },
   head: {
     color: colors.faint,

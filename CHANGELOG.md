@@ -2,6 +2,20 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
+
+- **Quick add.** A blank workout shows up to eight exercises you train most (or the main lifts when the log is new). Tap one to add it. A shorter row stays under **Add exercise**.
+- **Typo-tolerant search.** The picker and the Exercises tab find "benhc pres", "db curl", "rdl", or "ohp", and match muscle and equipment words.
+- **Swipe a set left to delete it.** The small × is gone, so the row has more room. Undo still works for 5 seconds.
+- **Workout complete screen.** Finishing shows confetti, time, volume, sets and reps, new PRs, XP earned with the level bar, badges unlocked, and each exercise's session 1RM.
+- **Heavier warmups rest longer.** Warmup rest now scales with how close the warmup is to your working weight: a light ramp-up rests the multiplier's share, and a warmup near working weight rests almost the full time.
+- **Session 1RM in History.** Workout detail shows a session 1RM blended from all working sets next to the best single-set e1RM. The 1RM calculator opens in **Whole session** mode.
+- **No more blank flash.** Screens open with their data instead of loading after the first frame.
+- **Units live in Profile.** kg / lb, warmup rest, and bodyweight are under **Settings** on the Profile tab.
+- **Badges explain themselves.** Tap a badge to see what it counts, where you are, and each tier's target. **Show all** expands the full list. 8 new badges: Big day, Set stacker, Century, Weekender, All-rounder, RPE logger, Quick session, and Strong.
+- **Levels make sense.** "Level 8 of 20" with a title (Starter to Legend), XP toward the next level, how many XP are left, and how XP is earned. The medal star is centered.
+- **Strength levels.** Enter bodyweight and sex in Profile to rate your squat, bench, deadlift, press, row, and more from Beginner to Elite, with the percentile of lifters you beat and the kg to the next level.
+
 ## 1.1.0 · Android 9 / iOS 16 (2026-10-23)
 
 - **Workout on the Lock Screen the whole time.** While a workout is open, the iOS Live Activity (Lock Screen and Dynamic Island) and the Android notification stay up between rests. They show the next set ("Set 2 of 4 · 100 kg × 5"), the rest countdown or the time since you started, and a **Done** button that checks that set off and starts its rest without opening the app. iOS 17 or later is needed for the button.

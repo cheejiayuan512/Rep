@@ -1,18 +1,36 @@
 /**
  * Local profile: a level and badges in the style of Google's Local Guide,
  * laid out like a training profile. Every number comes from finished workouts.
+ * Settings live here too: kg or lb, warmup rest, and bodyweight for strength levels.
  */
-import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BadgeGlyph } from '../../components/badge-icons';
+import { BodyProfileForm } from '../../components/body-profile-form';
+import { Chip } from '../../components/chip';
+import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { Screen } from '../../components/screen';
+import { UnitToggle } from '../../components/unit-toggle';
 import { formatDay, formatDuration, formatWorkoutWhen } from '../../domain/format';
-import { BADGE_UNITS, weekValue, type BadgeId, type ProfileBadge, type ProfileChartMetric, type ProfileSnapshot, type ProfileWeek } from '../../domain/profile';
+import {
+  BADGE_INFO,
+  weekValue,
+  XP_RULES,
+  type BadgeId,
+  type ProfileBadge,
+  type ProfileChartMetric,
+  type ProfileLevel,
+  type ProfileSnapshot,
+  type ProfileWeek,
+} from '../../domain/profile';
+import { formatMultiplier, WARMUP_MULTIPLIERS } from '../../domain/rest';
+import { STRENGTH_LEVELS } from '../../domain/strength';
 import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import type { WeightUnit } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
-import { useProfile, useWeightUnit } from '../../state/hooks';
+import { useBodyProfile, useProfile, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
 interface ProfileScreenProps {
@@ -25,6 +43,9 @@ const METRICS: Array<{ id: ProfileChartMetric; label: string }> = [
   { id: 'reps', label: 'Reps' },
 ];
 
+const COLLAPSED_BADGES = 8;
+const TIER_RANK = { expert: 3, locked: 0, novice: 1, regular: 2 } as const;
+
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const profile = useProfile();
   const { unit } = useWeightUnit();
@@ -36,32 +57,44 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     },
     [navigation],
   );
+  const openStrength = useCallback(() => navigation.navigate('StrengthLevels'), [navigation]);
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.header}>Profile</Text>
         {profile ? (
-          <ProfileBody metric={metric} onMetric={setMetric} onOpenRecent={openRecent} profile={profile} unit={unit} />
-        ) : (
-          <Text style={styles.muted}>Opening your log.</Text>
-        )}
+          <ProfileBody metric={metric} onMetric={setMetric} onOpenRecent={openRecent} onOpenStrength={openStrength} profile={profile} unit={unit} />
+        ) : null}
+        <Settings />
       </ScrollView>
+      <KeyboardDoneBar />
     </Screen>
   );
 };
 
 interface ProfileBodyProps {
   profile: ProfileSnapshot;
-  unit: 'kg' | 'lb';
+  unit: WeightUnit;
   metric: ProfileChartMetric;
   onMetric: (metric: ProfileChartMetric) => void;
   onOpenRecent: (workoutId: string) => void;
+  onOpenStrength: () => void;
 }
 
-const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecent, profile, unit }) => {
+const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecent, onOpenStrength, profile, unit }) => {
   const weekLabel = profile.thisWeekMinutes < 60 ? `${profile.thisWeekMinutes} min` : formatHours(profile.thisWeekMinutes);
   const earned = profile.badges.filter((badge) => badge.tier !== 'locked').length;
+  const [showAllBadges, setShowAllBadges] = useState(false);
+  const [openBadge, setOpenBadge] = useState<BadgeId | null>(null);
+  const ordered = useMemo(
+    () => [...profile.badges].sort((left, right) => TIER_RANK[right.tier] - TIER_RANK[left.tier] || right.ring - left.ring),
+    [profile.badges],
+  );
+  const visibleBadges = showAllBadges ? ordered : ordered.slice(0, COLLAPSED_BADGES);
+  const selected = openBadge ? (profile.badges.find((badge) => badge.id === openBadge) ?? null) : null;
+  const toggleBadges = useCallback(() => setShowAllBadges((open) => !open), []);
+  const closeBadge = useCallback(() => setOpenBadge(null), []);
 
   return (
     <View>
@@ -71,16 +104,9 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
         <Stat label="Exercises" value={String(profile.trainedExercises)} />
       </View>
 
-      <View style={styles.levelBlock}>
-        <LevelMedal />
-        <Text style={styles.levelTitle}>Rep Level {profile.level.level}</Text>
-        <LevelBar ceiling={profile.level.ceiling} floor={profile.level.floor} points={profile.level.points} />
-        <Text style={styles.points}>
-          {profile.level.ceiling == null
-            ? `${profile.level.points.toLocaleString()} points`
-            : `${profile.level.points.toLocaleString()} / ${profile.level.ceiling.toLocaleString()} points`}
-        </Text>
-      </View>
+      <LevelBlock level={profile.level} />
+
+      <StrengthSummary onOpen={onOpenStrength} unit={unit} />
 
       <View style={styles.sectionHead}>
         <Text style={styles.weekLine}>
@@ -102,11 +128,15 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
           {earned} of {profile.badges.length} earned
         </Text>
       </View>
+      <Text style={styles.hint}>Tap a badge to see what it counts and how to level it up.</Text>
       <View style={styles.badges}>
-        {profile.badges.map((badge) => (
-          <BadgeView badge={badge} key={badge.id} unit={unit} />
+        {visibleBadges.map((badge) => (
+          <BadgeView badge={badge} key={badge.id} onOpen={setOpenBadge} unit={unit} />
         ))}
       </View>
+      <Pressable accessibilityRole="button" onPress={toggleBadges} style={styles.more}>
+        <Text style={styles.moreText}>{showAllBadges ? 'Show fewer' : `Show all ${profile.badges.length} badges`}</Text>
+      </Pressable>
 
       <Text style={styles.section}>Number of contributions</Text>
       {profile.contributions.map((item) => (
@@ -118,12 +148,103 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
 
       <Text style={styles.section}>Workouts</Text>
       {profile.recent.length === 0 ? (
-        <Text style={styles.empty}>Finish a workout and it will show up here, with points toward your next level.</Text>
+        <Text style={styles.empty}>Finish a workout and it will show up here, with XP toward your next level.</Text>
       ) : (
-        profile.recent.map((workout) => (
-          <RecentRow key={workout.id} onOpen={onOpenRecent} unit={unit} workout={workout} />
-        ))
+        profile.recent.map((workout) => <RecentRow key={workout.id} onOpen={onOpenRecent} unit={unit} workout={workout} />)
       )}
+      <BadgeSheet badge={selected} onClose={closeBadge} unit={unit} />
+    </View>
+  );
+};
+
+const LevelBlock: React.FC<{ level: ProfileLevel }> = ({ level }) => {
+  const [explain, setExplain] = useState(false);
+  const toggle = useCallback(() => setExplain((open) => !open), []);
+  const inLevel = level.ceiling == null ? null : { done: level.points - level.floor, span: level.ceiling - level.floor };
+  return (
+    <View style={styles.levelBlock}>
+      <LevelMedal level={level.level} />
+      <Text style={styles.levelTitle}>
+        Level {level.level} <Text style={styles.levelOf}>of {level.maxLevel}</Text>
+      </Text>
+      <Text style={styles.levelName}>{level.title}</Text>
+      <LevelBar ceiling={level.ceiling} floor={level.floor} points={level.points} />
+      <View style={styles.levelNumbers}>
+        <Text style={styles.points}>{inLevel ? `${inLevel.done.toLocaleString()} / ${inLevel.span.toLocaleString()} XP` : `${level.points.toLocaleString()} XP`}</Text>
+        <Text style={styles.pointsStrong}>{level.toNext == null ? 'Top level' : `${level.toNext.toLocaleString()} XP to level ${level.level + 1}`}</Text>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: explain }} hitSlop={6} onPress={toggle}>
+        <Text style={styles.link}>{explain ? 'Hide how XP works' : 'How XP works'}</Text>
+      </Pressable>
+      {explain ? (
+        <View style={styles.xpRules}>
+          {XP_RULES.map((rule) => (
+            <View key={rule.label} style={styles.xpRule}>
+              <Text style={styles.xpLabel}>{rule.label}</Text>
+              <Text style={styles.xpValue}>+{rule.points} XP</Text>
+            </View>
+          ))}
+          <Text style={styles.xpNote}>Total so far: {level.points.toLocaleString()} XP. Levels get further apart as you climb.</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+const StrengthSummary: React.FC<{ onOpen: () => void; unit: WeightUnit }> = ({ onOpen, unit }) => {
+  const overview = useStrengthOverview();
+  const best = overview?.ratings[0];
+  const ready = overview?.body.bodyweightKg != null && overview.body.sex != null;
+  return (
+    <Pressable accessibilityLabel="Strength levels" accessibilityRole="button" onPress={onOpen} style={styles.strength}>
+      <View style={styles.flex}>
+        <Text style={styles.strengthKicker}>Strength level</Text>
+        {best ? (
+          <>
+            <Text style={styles.strengthTitle}>
+              {best.liftName} · {best.level}
+            </Text>
+            <Text style={styles.muted}>
+              Stronger than about {best.percentile}% of lifters · est. 1RM {formatWeight(Math.round(kgToDisplay(best.oneRepMaxKg, unit)))} {unit}
+            </Text>
+            <View style={styles.strengthScale}>
+              {STRENGTH_LEVELS.map((level, index) => (
+                <View key={level} style={[styles.strengthSegment, index <= best.levelIndex && styles.strengthSegmentOn]} />
+              ))}
+            </View>
+          </>
+        ) : (
+          <Text style={styles.strengthTitle}>{ready ? 'Log a main lift to get a level' : 'See how your lifts compare'}</Text>
+        )}
+      </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
+  );
+};
+
+const Settings: React.FC = () => {
+  const { setUnit, unit } = useWeightUnit();
+  const { setWarmupMultiplier, warmupMultiplier } = useWarmupRestMultiplier();
+  const { body, setBody } = useBodyProfile();
+  const selectMultiplier = useCallback((value: string) => setWarmupMultiplier(Number(value)), [setWarmupMultiplier]);
+  return (
+    <View>
+      <Text style={styles.section}>Settings</Text>
+      <View style={styles.settingRow}>
+        <Text style={styles.contributionLabel}>Weight unit</Text>
+        <UnitToggle onChange={setUnit} unit={unit} />
+      </View>
+      <View style={styles.settingBlock}>
+        <Text style={styles.contributionLabel}>Warmup rest</Text>
+        <Text style={styles.hint}>A light warmup rests this share of the exercise&apos;s rest. Heavier warmups rest longer, up to the full rest.</Text>
+        <View style={styles.multipliers}>
+          {WARMUP_MULTIPLIERS.map((multiplier) => (
+            <Chip key={multiplier} label={formatMultiplier(multiplier)} onSelect={selectMultiplier} selected={warmupMultiplier === multiplier} value={String(multiplier)} />
+          ))}
+        </View>
+      </View>
+      <Text style={styles.settingCaption}>For strength levels</Text>
+      <BodyProfileForm body={body} onChange={setBody} unit={unit} />
     </View>
   );
 };
@@ -137,15 +258,24 @@ const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => {
   );
 };
 
-const LevelMedal: React.FC = () => {
+/** A five-point star centred on (cx, cy). */
+function starPath(cx: number, cy: number, outer: number, inner: number): string {
+  const points = Array.from({ length: 10 }, (_, index) => {
+    const radius = index % 2 === 0 ? outer : inner;
+    const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+    return `${(cx + radius * Math.cos(angle)).toFixed(2)} ${(cy + radius * Math.sin(angle)).toFixed(2)}`;
+  });
+  return `M${points.join('L')}Z`;
+}
+
+const MEDAL_STAR = starPath(36, 37.5, 17, 7.2);
+
+const LevelMedal: React.FC<{ level: number }> = ({ level }) => {
   return (
-    <View style={styles.medal}>
+    <View accessibilityLabel={`Level ${level}`} style={styles.medal}>
       <Svg height="72" viewBox="0 0 72 72" width="72">
         <Circle cx="36" cy="36" fill={colors.accent} r="32" />
-        <Path
-          d="M36 18l4.2 9.2 10 .9-7.6 6.4 2.3 9.8L36 39.4 27.1 44.3l2.3-9.8-7.6-6.4 10-.9L36 18z"
-          fill={colors.accentInk}
-        />
+        <Path d={MEDAL_STAR} fill={colors.accentInk} />
       </Svg>
     </View>
   );
@@ -161,7 +291,7 @@ const LevelBar: React.FC<{ points: number; floor: number; ceiling: number | null
   );
 };
 
-const WeekChart: React.FC<{ weeks: ProfileWeek[]; metric: ProfileChartMetric; unit: 'kg' | 'lb' }> = ({ metric, unit, weeks }) => {
+const WeekChart: React.FC<{ weeks: ProfileWeek[]; metric: ProfileChartMetric; unit: WeightUnit }> = ({ metric, unit, weeks }) => {
   const values = weeks.map((week) => (metric === 'volume' ? kgToDisplay(weekValue(week, metric), unit) : weekValue(week, metric)));
   const peak = Math.max(...values, 1);
   const first = weeks[0];
@@ -200,61 +330,104 @@ const MetricPill: React.FC<{
   );
 };
 
-const BadgeView: React.FC<{ badge: ProfileBadge; unit: 'kg' | 'lb' }> = React.memo(function BadgeView({ badge, unit }) {
+const BadgeRing: React.FC<{ badge: ProfileBadge; size: number }> = ({ badge, size }) => {
   const locked = badge.tier === 'locked';
   const color = locked ? colors.faint : badgeColor(badge.id);
-  const size = 64;
   const radius = 26;
   const circumference = 2 * Math.PI * radius;
   const dash = circumference * Math.min(1, Math.max(0.08, badge.ring));
-  const goal = badge.next == null ? null : formatBadgeGoal(badge, unit);
   return (
-    <View accessibilityLabel={`${badge.title}, ${badge.detail}${goal ? `, next at ${goal}` : ''}`} style={styles.badge}>
-      <View style={styles.badgeArt}>
-        <Svg height={size} viewBox="0 0 64 64" width={size}>
-          <Circle cx="32" cy="32" r={radius} stroke={colors.border} strokeWidth="4" />
-          <Circle
-            cx="32"
-            cy="32"
-            r={radius}
-            stroke={color}
-            strokeDasharray={`${dash} ${circumference}`}
-            strokeLinecap="round"
-            strokeWidth="4"
-            transform="rotate(-90 32 32)"
-          />
-          <Circle cx="32" cy="32" fill={locked ? colors.surface : colors.surfaceRaised} r="20" />
-        </Svg>
-        <View style={styles.badgeGlyph}>
-          <BadgeGlyph color={color} id={badge.id} size={24} />
-        </View>
+    <View style={[styles.badgeArt, { height: size, width: size }]}>
+      <Svg height={size} viewBox="0 0 64 64" width={size}>
+        <Circle cx="32" cy="32" fill="none" r={radius} stroke={colors.border} strokeWidth="4" />
+        <Circle cx="32" cy="32" fill="none" r={radius} stroke={color} strokeDasharray={`${dash} ${circumference}`} strokeLinecap="round" strokeWidth="4" transform="rotate(-90 32 32)" />
+        <Circle cx="32" cy="32" fill={locked ? colors.surface : colors.surfaceRaised} r="20" />
+      </Svg>
+      <View style={styles.badgeGlyph}>
+        <BadgeGlyph color={color} id={badge.id} size={Math.round(size * 0.375)} />
       </View>
+    </View>
+  );
+};
+
+const BadgeView: React.FC<{ badge: ProfileBadge; unit: WeightUnit; onOpen: (id: BadgeId) => void }> = React.memo(function BadgeView({ badge, onOpen, unit }) {
+  const locked = badge.tier === 'locked';
+  const goal = badge.next == null ? null : formatBadgeAmount(badge, badge.next, unit);
+  const handlePress = useCallback(() => onOpen(badge.id), [badge.id, onOpen]);
+  return (
+    <Pressable
+      accessibilityHint="Shows what the badge counts"
+      accessibilityLabel={`${badge.title}, ${badge.detail}${goal ? `, next at ${goal}` : ''}`}
+      accessibilityRole="button"
+      onPress={handlePress}
+      style={styles.badge}
+    >
+      <BadgeRing badge={badge} size={64} />
       <Text numberOfLines={1} style={[styles.badgeName, locked && styles.badgeNameLocked]}>
         {badge.title}
       </Text>
       <Text numberOfLines={2} style={styles.badgeTitle}>
         {locked ? goal : badge.detail}
       </Text>
-    </View>
+    </Pressable>
   );
 });
 
-function formatBadgeGoal(badge: ProfileBadge, unit: 'kg' | 'lb'): string {
-  const next = badge.next ?? 0;
-  const label = BADGE_UNITS[badge.id];
-  if (badge.id === 'heavy' || badge.id === 'lifter') {
-    return `${formatStep(Math.round(kgToDisplay(next, unit)))} ${label.replace('kg', unit)}`;
+/** What a badge counts, where you are, and each tier's target. */
+const BadgeSheet: React.FC<{ badge: ProfileBadge | null; unit: WeightUnit; onClose: () => void }> = ({ badge, onClose, unit }) => {
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={badge != null}>
+      <Pressable accessibilityLabel="Close badge" onPress={onClose} style={styles.backdrop}>
+        {badge ? (
+          <Pressable accessibilityRole="none" style={styles.sheet}>
+            <BadgeRing badge={badge} size={96} />
+            <Text style={styles.sheetTitle}>{badge.title}</Text>
+            <Text style={styles.sheetTier}>{badge.tier === 'locked' ? 'Locked' : `${badge.detail} tier`}</Text>
+            <Text style={styles.sheetText}>{badge.description}</Text>
+            <Text style={styles.sheetProgress}>
+              Now: {formatBadgeAmount(badge, badge.value, unit)}
+              {badge.next != null ? ` · next at ${formatBadgeAmount(badge, badge.next, unit)}` : ' · top tier'}
+            </Text>
+            <View style={styles.tiers}>
+              {(['Novice', 'Regular', 'Expert'] as const).map((tier, index) => {
+                const reached = badge.value >= badge.steps[index];
+                return (
+                  <View key={tier} style={styles.tierRow}>
+                    <Text style={[styles.tierMark, reached && styles.tierMarkOn]}>{reached ? '✓' : '○'}</Text>
+                    <Text style={[styles.tierName, reached && styles.tierNameOn]}>{tier}</Text>
+                    <Text style={styles.tierGoal}>{formatBadgeAmount(badge, badge.steps[index], unit)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Pressable accessibilityRole="button" onPress={onClose} style={styles.sheetClose}>
+              <Text style={styles.sheetCloseText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        ) : null}
+      </Pressable>
+    </Modal>
+  );
+};
+
+function formatBadgeAmount(badge: ProfileBadge, amount: number, unit: WeightUnit): string {
+  const label = BADGE_INFO[badge.id].unit;
+  if (badge.id === 'strong') {
+    return amount <= 0 ? 'no level yet' : (STRENGTH_LEVELS[amount - 1] ?? 'Elite');
   }
-  return `${formatStep(next)} ${label}`;
+  if (label.startsWith('kg')) {
+    return `${formatStep(Math.round(kgToDisplay(amount, unit)))} ${label.replace('kg', unit)}`;
+  }
+  return `${formatStep(amount)} ${label}`;
 }
 
 function formatStep(value: number): string {
-  return value >= 1000 ? `${formatWeight(value / 1000)}k` : String(value);
+  return value >= 1000 ? `${formatWeight(value / 1000)}k` : String(Math.round(value));
 }
 
 const RecentRow: React.FC<{
   workout: ProfileSnapshot['recent'][number];
-  unit: 'kg' | 'lb';
+  unit: WeightUnit;
   onOpen: (workoutId: string) => void;
 }> = ({ onOpen, unit, workout }) => {
   const onPress = useCallback(() => {
@@ -278,6 +451,9 @@ const RecentRow: React.FC<{
 };
 
 const BADGE_COLORS: Record<BadgeId, string> = {
+  allrounder: '#7EB6FF',
+  bigday: '#FF8A8A',
+  century: '#3DDC97',
   early: '#FFB86B',
   explorer: '#C084FC',
   heavy: '#FF8A8A',
@@ -285,11 +461,16 @@ const BADGE_COLORS: Record<BadgeId, string> = {
   logger: colors.accent,
   marathon: '#5EEAD4',
   night: '#A5B4FC',
+  quick: '#F0C14A',
   records: '#F0C14A',
   reps: '#3DDC97',
+  rpe: '#5EEAD4',
   scribe: '#F0C14A',
+  sets: colors.accent,
   streak: '#FF9F43',
+  strong: '#FB7185',
   warmup: '#FB7185',
+  weekender: '#C084FC',
 };
 
 function badgeColor(id: BadgeId): string {
@@ -311,6 +492,13 @@ function formatHours(minutes: number): string {
 }
 
 const styles = StyleSheet.create({
+  backdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
   badge: {
     alignItems: 'center',
     marginBottom: 18,
@@ -318,9 +506,7 @@ const styles = StyleSheet.create({
   },
   badgeArt: {
     alignItems: 'center',
-    height: 64,
     justifyContent: 'center',
-    width: 64,
   },
   badgeGlyph: {
     position: 'absolute',
@@ -373,6 +559,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 4,
   },
+  chevron: {
+    color: colors.faint,
+    fontSize: 24,
+  },
   content: {
     paddingBottom: 32,
     paddingHorizontal: 16,
@@ -404,15 +594,43 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 8,
   },
+  flex: {
+    flex: 1,
+  },
   header: {
     color: colors.text,
     fontSize: 34,
     fontWeight: '700',
     marginBottom: 16,
   },
+  hint: {
+    color: colors.faint,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
   levelBlock: {
     alignItems: 'center',
     marginTop: 24,
+  },
+  levelName: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  levelNumbers: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    width: '100%',
+  },
+  levelOf: {
+    color: colors.muted,
+    fontSize: 18,
+    fontWeight: '600',
   },
   levelTitle: {
     color: colors.text,
@@ -420,12 +638,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 12,
   },
+  link: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
+  },
   medal: {
     alignItems: 'center',
   },
+  more: {
+    alignSelf: 'center',
+    paddingVertical: 6,
+  },
+  moreText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  multipliers: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
   muted: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 13,
+    marginTop: 2,
   },
   pill: {
     backgroundColor: colors.surface,
@@ -452,7 +691,11 @@ const styles = StyleSheet.create({
   points: {
     color: colors.muted,
     fontSize: 13,
-    marginTop: 4,
+  },
+  pointsStrong: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
   range: {
     color: colors.accent,
@@ -503,15 +746,83 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 24,
   },
-  sectionInline: {
-    marginBottom: 0,
-    marginTop: 0,
-  },
   sectionHead: {
     alignItems: 'flex-end',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 24,
+  },
+  sectionInline: {
+    marginBottom: 0,
+    marginTop: 0,
+  },
+  settingBlock: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+  },
+  settingCaption: {
+    color: colors.faint,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginTop: 16,
+    textTransform: 'uppercase',
+  },
+  settingRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  sheet: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    maxWidth: 380,
+    padding: 22,
+    width: '100%',
+  },
+  sheetClose: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sheetCloseText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sheetProgress: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  sheetText: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  sheetTier: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  sheetTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 10,
   },
   stat: {
     alignItems: 'center',
@@ -536,6 +847,74 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     width: '100%',
   },
+  strength: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+    padding: 14,
+  },
+  strengthKicker: {
+    color: colors.faint,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  strengthScale: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+  },
+  strengthSegment: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    flex: 1,
+    height: 6,
+  },
+  strengthSegmentOn: {
+    backgroundColor: colors.accent,
+  },
+  strengthTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  tierGoal: {
+    color: colors.muted,
+    fontSize: 13,
+  },
+  tierMark: {
+    color: colors.faint,
+    fontSize: 14,
+    width: 20,
+  },
+  tierMarkOn: {
+    color: colors.accent,
+  },
+  tierName: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tierNameOn: {
+    color: colors.text,
+  },
+  tierRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    paddingVertical: 4,
+  },
+  tiers: {
+    alignSelf: 'stretch',
+    marginTop: 12,
+  },
   track: {
     backgroundColor: colors.surfaceRaised,
     borderRadius: 999,
@@ -552,5 +931,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 20,
     fontWeight: '700',
+  },
+  xpLabel: {
+    color: colors.text,
+    fontSize: 14,
+  },
+  xpNote: {
+    color: colors.faint,
+    fontSize: 12,
+    marginTop: 8,
+  },
+  xpRule: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  xpRules: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 12,
+  },
+  xpValue: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

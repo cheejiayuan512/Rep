@@ -2,7 +2,7 @@
  * The Exercises tab: the whole library. Tap one to rename it, change its muscle
  * group or equipment, or delete a custom one. Adding to a workout happens in the picker.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
@@ -11,9 +11,10 @@ import { EmptyState } from '../../components/empty-state';
 import { TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { listExercises } from '../../data/repository';
+import { fuzzyFilter } from '../../domain/fuzzy-search';
 import { muscleGroups, type Exercise, type MuscleGroup } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
-import { useRevision } from '../../state/hooks';
+import { useStored } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
 const ROW_HEIGHT = 64;
@@ -31,27 +32,15 @@ function getRowLayout(_data: ArrayLike<Exercise> | null | undefined, index: numb
 
 export const ExercisesScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'Exercises'>>();
-  const revision = useRevision();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>(ALL);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const library = useStored(listExercises, '', null);
+  const exercises = useMemo(() => [...(library ?? [])].sort((left, right) => left.name.localeCompare(right.name)), [library]);
 
-  useEffect(() => {
-    let cancel = false;
-    void listExercises('', null).then((rows) => {
-      if (!cancel) {
-        setExercises([...rows].sort((left, right) => left.name.localeCompare(right.name)));
-      }
-    });
-    return () => {
-      cancel = true;
-    };
-  }, [revision]);
-
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return exercises.filter((exercise) => (filter === ALL || exercise.muscleGroup === filter) && (!needle || exercise.name.toLowerCase().includes(needle)));
-  }, [exercises, filter, query]);
+  const visible = useMemo(
+    () => fuzzyFilter(filter === ALL ? exercises : exercises.filter((exercise) => exercise.muscleGroup === filter), query),
+    [exercises, filter, query],
+  );
 
   const customCount = useMemo(() => exercises.filter((exercise) => exercise.isCustom).length, [exercises]);
 

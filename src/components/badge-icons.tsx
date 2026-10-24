@@ -2,7 +2,7 @@
  * One glyph per profile badge, drawn on a 24-unit grid like the tab icons.
  */
 import React from 'react';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import type { BadgeId } from '../domain/profile';
 
@@ -78,5 +78,46 @@ function glyph(id: BadgeId, color: string, stroke: Stroke): React.ReactNode {
       return <Path d="M18.5 14.5A7 7 0 0 1 9.5 5.5a7 7 0 1 0 9 9z" {...stroke} />;
     case 'warmup':
       return <Path d="M10 14V5.5a2 2 0 0 1 4 0V14a4 4 0 1 1-4 0zM12 9v7.5" {...stroke} />;
+    case 'bigday':
+      return <Path d="M3 20h18M6 20v-5M10.5 20V10M15 20v-7M19.5 20V5" {...stroke} />;
+    case 'sets':
+      return (
+        <>
+          <Path d="M4 6.5l1.5 1.5 3-3M4 12.5l1.5 1.5 3-3M4 18.5l1.5 1.5 3-3" {...stroke} />
+          <Path d="M12 6.5h8M12 12.5h8M12 18.5h8" {...stroke} />
+        </>
+      );
+    case 'century':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="8.5" {...stroke} />
+          <SvgText fill={color} fontSize="7.5" fontWeight="bold" textAnchor="middle" x="12" y="14.6">
+            100
+          </SvgText>
+        </>
+      );
+    case 'weekender':
+      return (
+        <>
+          <Rect height="15" rx="2" width="17" x="3.5" y="5.5" {...stroke} />
+          <Path d="M3.5 10h17M8 3.5v4M16 3.5v4" {...stroke} />
+          <Rect fill={color} height="3.5" rx="0.8" width="3.5" x="12.5" y="13.5" />
+          <Rect fill={color} height="3.5" rx="0.8" width="3.5" x="16" y="13.5" />
+        </>
+      );
+    case 'allrounder':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="8" {...stroke} />
+          <Path d="M12 4v16M4 12h16" {...stroke} />
+          <Path d="M12 4a8 8 0 0 1 8 8h-8z" fill={color} />
+        </>
+      );
+    case 'rpe':
+      return <Path d="M4 16.5a8 8 0 0 1 16 0M12 16.5l4-5M7 16.5h.01M17 16.5h.01" {...stroke} />;
+    case 'quick':
+      return <Path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z" {...stroke} />;
+    case 'strong':
+      return <Path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM8.5 12l2.5 2.5 4.5-5" {...stroke} />;
   }
 }

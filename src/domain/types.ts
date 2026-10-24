@@ -7,6 +7,19 @@ export type WeightUnit = 'kg' | 'lb';
 
 export type SetType = 'normal' | 'warmup';
 
+/** Only used to pick a strength-standards table. */
+export type BodySex = 'male' | 'female';
+
+export function isBodySex(value: unknown): value is BodySex {
+  return value === 'male' || value === 'female';
+}
+
+/** Bodyweight and sex for strength levels. Both optional. */
+export interface BodyProfile {
+  bodyweightKg: number | null;
+  sex: BodySex | null;
+}
+
 export type ChartMetric = 'oneRepMax' | 'topSet' | 'volume';
 
 export const muscleGroups = [

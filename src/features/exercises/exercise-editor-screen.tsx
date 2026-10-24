@@ -24,12 +24,12 @@ export const ExerciseEditorScreen: React.FC = () => {
   const route = useRoute<StackRoute<'ExerciseEditor'>>();
   const dispatch = useAppDispatch();
   const exerciseId = route.params.exerciseId;
-  const [exercise, setExercise] = useState<Exercise | null>(null);
-  const [usage, setUsage] = useState<{ workouts: number; routines: number } | null>(null);
-  const [name, setName] = useState('');
-  const [muscle, setMuscle] = useState<MuscleGroup>('Chest');
-  const [equipment, setEquipment] = useState<Equipment>('Barbell');
-  const [attachment, setAttachment] = useState<CableAttachment | null>(null);
+  const [exercise, setExercise] = useState<Exercise | null>(() => (exerciseId ? getExercise.now(exerciseId) : null));
+  const [usage, setUsage] = useState<{ workouts: number; routines: number } | null>(() => (exerciseId ? getExerciseUsage.now(exerciseId) : null));
+  const [name, setName] = useState(() => exercise?.name ?? '');
+  const [muscle, setMuscle] = useState<MuscleGroup>(() => exercise?.muscleGroup ?? 'Chest');
+  const [equipment, setEquipment] = useState<Equipment>(() => exercise?.equipment ?? 'Barbell');
+  const [attachment, setAttachment] = useState<CableAttachment | null>(() => exercise?.attachment ?? null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);

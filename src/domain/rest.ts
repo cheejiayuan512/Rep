@@ -2,7 +2,7 @@
  * How long to rest after a set. Each exercise gets a default from how
  * demanding it is: heavy barbell compounds rest longest, small isolation
  * moves and core work the least. A rest picked on the card overrides it.
- * Warmup sets rest for a fraction of that, set by the warmup multiplier.
+ * Warmup sets rest for a fraction of that, longer the closer they are to the working weight.
  */
 import type { Equipment, MuscleGroup, SetType } from './types';
 
@@ -96,12 +96,37 @@ export function isWarmupMultiplier(value: unknown): value is number {
   return typeof value === 'number' && (WARMUP_MULTIPLIERS as readonly number[]).includes(value);
 }
 
-/** Rest after one set: the exercise's rest, shortened for warmups and rounded to 5 seconds. */
-export function restAfterSet(exerciseRest: number, setType: SetType, warmupMultiplier: number): number {
+/**
+ * Rest after one set, rounded to 5 seconds. Working sets get the exercise's rest.
+ * A light warmup gets `warmupMultiplier` of it, and heavier warmups climb toward
+ * the full rest: `loadRatio` is the warmup's weight over the working weight (0 to 1).
+ * The climb is squared so the empty bar and early ramps stay short.
+ */
+export function restAfterSet(exerciseRest: number, setType: SetType, warmupMultiplier: number, loadRatio = 0): number {
   if (setType !== 'warmup') {
     return exerciseRest;
   }
-  return Math.max(MIN_REST_SECONDS, Math.round((exerciseRest * warmupMultiplier) / 5) * 5);
+  const ratio = Math.min(1, Math.max(0, Number.isFinite(loadRatio) ? loadRatio : 0));
+  const factor = warmupMultiplier + (1 - warmupMultiplier) * ratio * ratio;
+  return Math.max(MIN_REST_SECONDS, Math.round((exerciseRest * factor) / 5) * 5);
+}
+
+interface LoadedSet {
+  setType: SetType;
+  weightKg: number | null;
+}
+
+/**
+ * How heavy a warmup is next to the work: its weight over the heaviest working
+ * set on the card, or over last session's when nothing is entered yet. 0 when unknown.
+ */
+export function warmupLoadRatio(weightKg: number | null, sets: LoadedSet[], previous: LoadedSet[] = []): number {
+  const heaviest = (rows: LoadedSet[]) => rows.reduce((max, row) => (row.setType === 'warmup' ? max : Math.max(max, row.weightKg ?? 0)), 0);
+  const working = heaviest(sets) || heaviest(previous);
+  if (!weightKg || weightKg <= 0 || working <= 0) {
+    return 0;
+  }
+  return Math.min(1, weightKg / working);
 }
 
 export function formatMultiplier(value: number): string {

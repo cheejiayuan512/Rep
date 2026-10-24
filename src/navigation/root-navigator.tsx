@@ -29,7 +29,9 @@ import { RoutineEditorScreen } from '../features/routines/routine-editor-screen'
 import { RoutinesScreen } from '../features/routines/routines-screen';
 import { ActiveWorkoutScreen } from '../features/workout/active-workout-screen';
 import { ExercisePickerScreen } from '../features/workout/exercise-picker-screen';
+import { WorkoutCompleteScreen } from '../features/workout/workout-complete-screen';
 import { WorkoutHomeScreen } from '../features/workout/workout-home-screen';
+import { StrengthLevelsScreen } from '../features/progress/strength-levels-screen';
 import { colors } from '../theme/colors';
 import { navigationTheme, type RootStackParamList, type TabParamList } from './types';
 
@@ -175,6 +177,8 @@ export const RootNavigator: React.FC = () => {
         <Stack.Screen component={ExerciseEditorScreen} name="ExerciseEditor" />
         <Stack.Screen component={AnalysisScreen} name="Analysis" />
         <Stack.Screen component={OneRepMaxScreen} name="OneRepMax" />
+        <Stack.Screen component={WorkoutCompleteScreen} name="WorkoutComplete" options={{ animation: 'fade_from_bottom', gestureEnabled: false }} />
+        <Stack.Screen component={StrengthLevelsScreen} name="StrengthLevels" />
       </Stack.Navigator>
     </NavigationContainer>
   );

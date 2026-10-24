@@ -11,7 +11,6 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } fro
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { Screen } from '../../components/screen';
-import { UnitToggle } from '../../components/unit-toggle';
 import { formatClock, formatWorkoutWhen, summarizeNames } from '../../domain/format';
 import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
@@ -25,7 +24,7 @@ export const WorkoutHomeScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
   const home = useHomeData(activeWorkoutId);
-  const { unit, setUnit } = useWeightUnit();
+  const { unit } = useWeightUnit();
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [now, setNow] = useState(Date.now());
 
@@ -126,10 +125,6 @@ export const WorkoutHomeScreen: React.FC = () => {
           {home?.lastWorkout ? <TextButtonLike label={`Last: ${formatWorkoutWhen(home.lastWorkout.finishedAt)}`} onPress={handleOpenLast} /> : null}
         </View>
         {home ? <WeekStats stats={home.stats} unit={unit} /> : null}
-        <View style={styles.unitRow}>
-          <Text style={styles.section}>Weight unit</Text>
-          <UnitToggle onChange={setUnit} unit={unit} />
-        </View>
       </ScrollView>
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
@@ -393,12 +388,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 22,
     marginTop: 6,
-  },
-  unitRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 22,
   },
   wordmark: {
     color: colors.text,
