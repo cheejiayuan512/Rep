@@ -15,19 +15,19 @@ Rep is local-only. There is no account, feed, or server.
 One exercise is one card (`src/components/exercise-block.tsx`).
 
 - Notes: multiline text on the exercise, max 500 characters.
-- Each set row: previous load, weight, reps, RPE, complete. Swipe the row left to delete it (`src/components/set-row.tsx` wraps `src/components/swipe-to-delete.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action.
+- Each set row: previous load, weight, reps, RPE, complete. Tap Previous to copy that load into the current weight and reps. Swipe the row left to delete it (`src/components/set-row.tsx` wraps `src/components/swipe-to-delete.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action. Previous lines up warmup with warmup and working set with working set.
 - Tap the set number to toggle warmup.
 - A blank workout shows Quick add chips (`src/components/quick-add.tsx`, `listQuickAddExercises`): exercises weighted by how recently and often they were trained, then `STARTER_EXERCISES`, up to 8, minus those already in the workout.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
 - Remove exercise deletes that exercise and its sets with no dialog. Deleting a set or an exercise shows an Undo toast for 5 seconds instead.
-- Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
+- Drag the three dots on a card to reorder, same as a routine. Screen readers get Move up / Move down.
 - The Rest chip sets `WorkoutExercise.restSeconds`. Null uses the exercise's default from `src/domain/rest.ts`: heavy compound 3:00, compound 2:00, isolation 1:30, calves/core 1:00, classed by seed id, then name keywords and equipment. A new workout copies the last rest picked for that exercise.
 - Warmup sets rest `exercise rest × (m + (1 − m) × ratio²)`, where `m` is `settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½) and `ratio` is `warmupLoadRatio`: the warmup's kg over the heaviest working set on the card, or last session's when none is entered. Rounded to 5 s, at least 15 s. The multiplier is one app-wide setting, changed from Profile or any card's rest picker.
 - The workout opens as a full-screen modal. The down chevron or a downward swipe leaves it in progress. **Discard** sits next to the clock and deletes the session.
-- Finish replaces the workout screen with `WorkoutComplete` (`src/features/workout/workout-complete-screen.tsx`), built from `getWorkoutRecap`: stats, PRs, XP before and after, badges whose tier went up, and each exercise's session 1RM.
+- Finish replaces the workout screen with `WorkoutComplete` (`src/features/workout/workout-complete-screen.tsx`), built from `getWorkoutRecap`: stats, PRs, XP before and after, badges whose tier went up, and each exercise's session 1RM. **Undo finish** reopens the session.
 - -15 / +15 on the rest bar change only the running rest, never `restSeconds` or a default.
 - Warmups stay above working sets: toggling W reorders the card and saves positions. Working sets are numbered without warmups.
-- Swap (card header) opens the picker in `mode: 'swap'` and calls `swapWorkoutExercise`. Rest and attachment reset to the new exercise's; untouched sets are refilled from its last session, and checked-off sets stay.
+- Swap (header icon) opens the picker in `mode: 'swap'` and calls `swapWorkoutExercise`. Rest and attachment reset to the new exercise's; untouched sets are refilled from its last session, and checked-off sets stay. Remove is the close icon. The card shows equipment only, not the muscle group. The rest chip is the clock (`1:00`); the screen-reader name still says "Rest timer 1:00, default" when unset.
 - Cable exercises carry an attachment (`cableAttachments` in `types.ts`). `Exercise.attachment` is the default for a new workout; `WorkoutExercise.attachment` is this session's. Changing it on a card updates both.
 - Machine and cable cards carry a setup (`machineSetup`): Precor, Life Fitness, Hammer Strength, Generic, a typed brand, or Unknown brand (null). `Exercise.machineSetup` is the default for a new workout or routine; the card's value is this session's. Changing it updates both. Previous, PRs, and the exercise chart only compare the same setup. Free weights have no chip. Old sets stay Unknown brand until named. Previous reads `20 × 12 · Life Fitness`.
 - The setup panel (`machineSetupOptions` in `src/domain/machine-setup.ts`) lists used stacks first with their last load. Tapping one calls `switchWorkoutExerciseSetup`: unchecked sets refill from that stack's last session (or one blank set); checked-off sets stay. Undo for 5 seconds restores the previous stack and numbers.
@@ -72,7 +72,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - RPE is `number | null` on the set. Parse with `parseRpe` (0–10, one decimal). Blank clears it.
 - Bodyweight is `0` kg. It counts reps and does not produce an estimated 1RM.
 - Estimated 1RM is Epley: `weight * (1 + reps / 30)`. One rep equals the weight.
-- Record priority when completing a set: 1RM, heaviest weight, volume, then reps.
+- Record priority when completing a set: 1RM, heaviest weight, volume, reps, then easier RPE. An RPE PR needs a prior working set at the same weight and the same or more reps, and this RPE at least 0.5 lower. The first RPE is stored, not announced.
 - Epsilon is 0.05 kg for weight and 1RM, and 0.5 kg for volume.
 - History, volume, and charts use finished workouts only. In-progress workouts are excluded.
 

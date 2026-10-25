@@ -3,7 +3,7 @@
  * The rows under it are the sets. This component draws the card; the workout screen saves.
  */
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent } from 'react-native';
 
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
@@ -11,12 +11,19 @@ import { formatClock } from '../domain/format';
 import { defaultRestFor, formatMultiplier, REST_CLASS_LABELS, restClassFor, WARMUP_MULTIPLIERS } from '../domain/rest';
 import type { MachineSetupOption } from '../domain/machine-setup';
 import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
+import { previousForSet } from '../domain/workout-edits';
 import { colors } from '../theme/colors';
+import { CloseIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
+import type { SortHandle } from './sortable-list';
 
 const restChoices = [30, 60, 90, 120, 150, 180, 240, 300];
+const moveActions = [
+  { label: 'Move up', name: 'up' },
+  { label: 'Move down', name: 'down' },
+];
 
 interface ExerciseBlockProps {
   exercise: WorkoutExercise;
@@ -41,7 +48,9 @@ interface ExerciseBlockProps {
   onAddSet: (workoutExerciseId: string) => void;
   onRemove: (workoutExerciseId: string) => void;
   onSwap: (workoutExerciseId: string) => void;
-  onHold: (workoutExerciseId: string) => void;
+  onApplyPrevious: (setId: string) => void;
+  onMove: (workoutExerciseId: string, direction: -1 | 1) => void;
+  sortHandle: SortHandle;
 }
 
 type OpenPanel = 'rest' | 'attachment' | 'setup' | null;
@@ -67,7 +76,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onAddSet,
   onRemove,
   onSwap,
-  onHold,
+  onApplyPrevious,
+  onMove,
+  sortHandle,
 }) {
   const handleAdd = useCallback(() => {
     onAddSet(exercise.id);
@@ -78,9 +89,12 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const handleSwap = useCallback(() => {
     onSwap(exercise.id);
   }, [exercise.id, onSwap]);
-  const handleHold = useCallback(() => {
-    onHold(exercise.id);
-  }, [exercise.id, onHold]);
+  const handleMoveAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      onMove(exercise.id, event.nativeEvent.actionName === 'up' ? -1 : 1);
+    },
+    [exercise.id, onMove],
+  );
   const handleNotes = useCallback(
     (value: string) => {
       onChangeNotes(exercise.id, value);
@@ -125,24 +139,36 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const isCable = exercise.equipment === 'Cable';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
-        <Pressable accessibilityHint="Hold to reorder exercises" accessibilityRole="button" delayLongPress={400} onLongPress={handleHold} style={styles.titleWrap}>
+        <View style={styles.titleWrap}>
           <Text style={styles.name}>
             {exercise.name}
             {hasRecord ? <Text style={styles.star}> ★</Text> : null}
           </Text>
-          <Text style={styles.meta}>
-            {exercise.muscleGroup} · {exercise.equipment}
-          </Text>
-        </Pressable>
+          <Text style={styles.meta}>{exercise.equipment}</Text>
+        </View>
         <View style={styles.headerActions}>
-          <Pressable accessibilityLabel={`Swap ${exercise.name}`} accessibilityRole="button" hitSlop={4} onPress={handleSwap} style={styles.remove}>
-            <Text style={styles.removeText}>Swap</Text>
+          <Pressable accessibilityLabel={`Swap ${exercise.name}`} accessibilityRole="button" hitSlop={6} onPress={handleSwap} style={styles.iconAction}>
+            <SwapIcon color={colors.muted} size={18} />
           </Pressable>
-          <Pressable accessibilityRole="button" hitSlop={4} onPress={handleRemove} style={styles.remove}>
-            <Text style={styles.removeText}>Remove</Text>
+          <Pressable accessibilityLabel={`Remove ${exercise.name}`} accessibilityRole="button" hitSlop={6} onPress={handleRemove} style={styles.iconAction}>
+            <CloseIcon color={colors.muted} size={18} />
           </Pressable>
+          <View
+            accessibilityActions={moveActions}
+            accessibilityHint="Drag to reorder"
+            accessibilityLabel={`Reorder ${exercise.name}`}
+            accessibilityRole="adjustable"
+            hitSlop={12}
+            onAccessibilityAction={handleMoveAction}
+            style={styles.handle}
+            {...sortHandle.panHandlers}
+          >
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
         </View>
       </View>
       <View style={styles.chipRow}>
@@ -153,10 +179,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           onPress={toggleRest}
           style={[styles.chip, panel === 'rest' && styles.chipOpen]}
         >
-          <Text style={styles.chipText}>
-            Rest {restLabel}
-            {exercise.restSeconds == null ? ' · default' : ''}
-          </Text>
+          <Text style={styles.chipText}>{restLabel}</Text>
         </Pressable>
         {showSetup ? (
           <Pressable
@@ -239,13 +262,14 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
             isRecord={recordIds.has(set.id)}
             key={set.id}
+            onApplyPrevious={onApplyPrevious}
             onChangeReps={onChangeReps}
             onChangeRpe={onChangeRpe}
             onChangeWeight={onChangeWeight}
             onDelete={onDeleteSet}
             onToggleComplete={onToggleComplete}
             onToggleWarmup={onToggleWarmup}
-            previous={exercise.previousSets[index] ?? null}
+            previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             showSetup={showSetup}
             set={set}
             unit={unit}
@@ -301,6 +325,9 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
+  },
+  cardDragging: {
+    opacity: 0.72,
   },
   card: {
     alignSelf: 'stretch',
@@ -374,8 +401,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerActions: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 14,
+    gap: 4,
+  },
+  handle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  iconAction: {
+    padding: 6,
+  },
+  dot: {
+    backgroundColor: colors.muted,
+    borderRadius: 1.5,
+    height: 3,
+    marginVertical: 1.5,
+    width: 3,
   },
   meta: {
     color: colors.muted,

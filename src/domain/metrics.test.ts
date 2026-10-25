@@ -71,6 +71,22 @@ test('volume can be a record when the estimated max did not rise', () => {
   assertEqual(detectRecord(current, [prior], 'kg')?.kind, 'volume');
 });
 
+test('the same load at a lower RPE is a record', () => {
+  const prior = scored({ performedAt: 1, reps: 5, rpe: 8, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 5, rpe: 7, weightKg: 100 });
+  assertEqual(detectRecords(current, [prior], 'kg').map((hit) => hit.kind), ['rpe']);
+});
+
+test('an easier RPE on a lighter set is not a record', () => {
+  const prior = scored({ performedAt: 1, reps: 5, rpe: 8, weightKg: 100 });
+  const current = scored({ performedAt: 2, reps: 5, rpe: 6, weightKg: 80 });
+  assertEqual(detectRecord(current, [prior], 'kg'), null);
+});
+
+test('the first set with RPE is stored but not announced', () => {
+  assertEqual(detectRecord(scored({ reps: 5, rpe: 8, weightKg: 100 }), [], 'kg'), null);
+});
+
 test('a rep record is announced only after weight and volume do not win', () => {
   const prior = scored({ performedAt: 1, reps: 5, weightKg: 100 });
   const current = scored({ performedAt: 2, reps: 6, weightKg: 40 });

@@ -2,7 +2,7 @@
  * Pure helpers for changing a workout object already in memory.
  * They do not save. The screen saves after it calls one of these.
  */
-import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
+import type { PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from './types';
 
 export function findSet(workout: WorkoutDetail, setId: string): { exercise: WorkoutExercise; set: SetRecord } | null {
   for (const exercise of workout.exercises) {
@@ -58,6 +58,16 @@ export function warmupsFirst(sets: SetRecord[]): SetRecord[] | null {
     return null;
   }
   return ordered.map((set, position) => ({ ...set, position }));
+}
+
+/** Last session's warmup N lines up with this session's warmup N, same for working sets. */
+export function previousForSet<T extends { setType: SetType }>(sets: T[], previous: PreviousSet[], index: number): PreviousSet | null {
+  const set = sets[index];
+  if (!set) {
+    return null;
+  }
+  const slot = sets.slice(0, index).filter((item) => item.setType === set.setType).length;
+  return previous.filter((item) => item.setType === set.setType)[slot] ?? null;
 }
 
 export interface NextSet {

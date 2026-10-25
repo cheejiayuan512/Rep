@@ -196,6 +196,8 @@ export interface LoggedSet {
   completed: boolean;
   /** The stack this set was logged on. Null when unknown or for free weights. */
   machineSetup: string | null;
+  /** Present when the stored set had RPE. Older history may omit it. */
+  rpe?: number | null;
 }
 
 export function isMuscleGroup(value: string): value is MuscleGroup {

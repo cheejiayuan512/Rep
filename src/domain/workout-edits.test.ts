@@ -3,7 +3,7 @@
  */
 import { assertEqual, assertTrue, test } from './test-support';
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
-import { findNextSet, findSet, moveById, orderByIds, updateSetInWorkout, warmupsFirst } from './workout-edits';
+import { findNextSet, findSet, moveById, orderByIds, previousForSet, updateSetInWorkout, warmupsFirst } from './workout-edits';
 
 function set(id: string, position: number): SetRecord {
   return { completed: false, id, position, reps: 5, rpe: null, setType: 'normal', weightKg: 80 };
@@ -82,6 +82,19 @@ test('warmups move ahead of working sets, keeping their order', () => {
     [0, 1, 2, 3],
   );
   assertEqual(warmupsFirst(ordered ?? []), null);
+});
+
+test('previous lines up warmup with warmup and working with working', () => {
+  const sets = [{ setType: 'warmup' as const }, { setType: 'warmup' as const }, { setType: 'normal' as const }, { setType: 'normal' as const }];
+  const previous = [
+    { reps: 8, setType: 'warmup' as const, weightKg: 40 },
+    { reps: 5, setType: 'normal' as const, weightKg: 80 },
+    { reps: 5, setType: 'normal' as const, weightKg: 90 },
+  ];
+  assertEqual(previousForSet(sets, previous, 0)?.weightKg, 40);
+  assertEqual(previousForSet(sets, previous, 1), null);
+  assertEqual(previousForSet(sets, previous, 2)?.weightKg, 80);
+  assertEqual(previousForSet(sets, previous, 3)?.weightKg, 90);
 });
 
 test('the next set stays in the exercise you are working on', () => {

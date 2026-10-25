@@ -12,6 +12,11 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Switch stack, load that stack's last session.** The setup list shows `last 20 × 12` on stacks you have used. Tapping Precor refills unchecked sets from your last Precor session (or blanks them). Checked-off sets stay. Undo for 5 seconds.
 - **Hide-keyboard chip** on iOS and Android, for every field — a keyboard-down button above the pad, not a Done word.
 - **Leave a workout by swiping down** or tapping the down chevron. The session stays in progress. **Discard** is next to the clock.
+- **Warmups stay above working sets** on load, and Previous lines up warmup with warmup.
+- **Tap Previous** to copy that session's weight and reps into the current set.
+- **Undo finish** on the complete screen reopens the workout.
+- **Less card clutter.** Muscle group is gone. Swap and Remove are icons. Rest is just `1:00`. Drag ⋮ to reorder, same as a routine.
+- **RPE PR.** The same (or harder) load at a lower RPE is a personal record.
 
 ## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
 

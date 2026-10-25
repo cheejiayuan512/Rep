@@ -10,6 +10,7 @@ import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from './units
 
 const WEIGHT_EPSILON_KG = 0.05;
 const VOLUME_EPSILON_KG = 0.5;
+const RPE_EPSILON = 0.45;
 
 export interface ScoredSet {
   weightKg: number;
@@ -17,6 +18,7 @@ export interface ScoredSet {
   oneRepMaxKg: number | null;
   volumeKg: number;
   achievedAt: number;
+  rpe: number | null;
 }
 
 export interface Bests {
@@ -27,7 +29,7 @@ export interface Bests {
 }
 
 export interface RecordHit {
-  kind: 'oneRepMax' | 'heaviest' | 'volume' | 'reps';
+  kind: 'oneRepMax' | 'heaviest' | 'volume' | 'reps' | 'rpe';
   title: string;
   detail: string;
 }
@@ -74,6 +76,7 @@ export function scoreLoggedSet(set: LoggedSet): ScoredSet | null {
     achievedAt: set.performedAt,
     oneRepMaxKg: weightKg > 0 ? estimateOneRepMax(weightKg, set.reps) : null,
     reps: set.reps,
+    rpe: typeof set.rpe === 'number' ? set.rpe : null,
     volumeKg: weightKg * set.reps,
     weightKg,
   };
@@ -109,7 +112,7 @@ export function detectRecord(current: ScoredSet, prior: ScoredSet[], unit: Weigh
   return detectRecords(current, prior, unit)[0] ?? null;
 }
 
-/** Every record this set beats, in priority order: 1RM, heaviest, volume, reps. */
+/** Every record this set beats, in priority order: 1RM, heaviest, volume, reps, then easier RPE. */
 export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit[] {
   const best = bestsFromScored(prior);
   const hits: RecordHit[] = [];
@@ -140,6 +143,18 @@ export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: Weig
       kind: 'reps',
       title: `Rep PR · ${current.reps}`,
     });
+  }
+  if (current.rpe != null) {
+    const hardest = prior
+      .filter((set) => set.rpe != null && Math.abs(set.weightKg - current.weightKg) <= WEIGHT_EPSILON_KG && current.reps >= set.reps)
+      .reduce<number | null>((min, set) => (min == null || (set.rpe ?? 10) < min ? set.rpe ?? null : min), null);
+    if (hardest != null && current.rpe < hardest - RPE_EPSILON) {
+      hits.push({
+        detail: formatLoggedLoad(current.weightKg, current.reps, unit),
+        kind: 'rpe',
+        title: `RPE PR · ${current.rpe}`,
+      });
+    }
   }
 
   return hits;
@@ -301,8 +316,9 @@ export function toLoggedSet(input: {
   reps: number | null;
   completed: boolean;
   machineSetup?: string | null;
+  rpe?: number | null;
 }): LoggedSet {
-  return { ...input, machineSetup: input.machineSetup ?? null };
+  return { ...input, machineSetup: input.machineSetup ?? null, rpe: input.rpe ?? null };
 }
 
 function card(label: string, value: string | null, detail: string, achievedAt: number | null): RecordCard {

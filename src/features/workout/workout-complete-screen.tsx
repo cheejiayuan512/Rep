@@ -9,7 +9,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { BadgeGlyph } from '../../components/badge-icons';
 import { Button } from '../../components/button';
 import { Screen } from '../../components/screen';
-import { getWorkoutRecap, type WorkoutRecap } from '../../data/repository';
+import { getWorkoutRecap, unfinishWorkout, type WorkoutRecap } from '../../data/repository';
+import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { formatDuration, formatLoggedLoad } from '../../domain/format';
 import type { ProfileBadge } from '../../domain/profile';
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
@@ -25,6 +26,7 @@ const CONFETTI_COUNT = 42;
 export const WorkoutCompleteScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'WorkoutComplete'>>();
+  const dispatch = useAppDispatch();
   const { unit } = useWeightUnit();
   const recap = useStored(getWorkoutRecap, route.params.workoutId);
 
@@ -40,11 +42,22 @@ export const WorkoutCompleteScreen: React.FC = () => {
     navigation.replace('WorkoutDetail', { workoutId: route.params.workoutId });
   }, [navigation, route.params.workoutId]);
 
+  const handleUndo = useCallback(() => {
+    const workoutId = route.params.workoutId;
+    void (async () => {
+      await unfinishWorkout(workoutId);
+      dispatch(activeWorkoutChanged(workoutId));
+      dispatch(dataChanged());
+      navigation.replace('ActiveWorkout', { workoutId });
+    })();
+  }, [dispatch, navigation, route.params.workoutId]);
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         {recap ? <RecapBody recap={recap} unit={unit} /> : <Text style={styles.muted}>Saving your workout…</Text>}
         <Button label="Done" onPress={handleDone} style={styles.done} />
+        <Button label="Undo finish" onPress={handleUndo} style={styles.view} variant="secondary" />
         <Button label="View workout" onPress={handleView} style={styles.view} variant="secondary" />
       </ScrollView>
       <Confetti />

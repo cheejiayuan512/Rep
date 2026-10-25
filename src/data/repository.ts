@@ -30,6 +30,7 @@ import type {
 } from '../domain/types';
 import { isCableAttachment, isEquipment, isMuscleGroup, normalizeMachineSetup, sameMachineSetup, usesMachineSetup } from '../domain/types';
 import { filterSetsBySetup } from '../domain/metrics';
+import { warmupsFirst } from '../domain/workout-edits';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
 import { fuzzyFilter } from '../domain/fuzzy-search';
@@ -1060,6 +1061,15 @@ export async function finishWorkout(workoutId: string): Promise<void> {
   });
 }
 
+export async function unfinishWorkout(workoutId: string): Promise<void> {
+  await writeDatabase((db) => {
+    const workout = db.workouts.find((item) => item.id === workoutId);
+    if (workout) {
+      workout.finishedAt = null;
+    }
+  });
+}
+
 export async function discardWorkout(workoutId: string): Promise<void> {
   await deleteWorkout(workoutId);
 }
@@ -1393,6 +1403,7 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
         performedAt: workout.finishedAt,
         position: set.position,
         reps: set.reps,
+        rpe: typeof set.rpe === 'number' ? set.rpe : null,
         setType: set.setType,
         weightKg: set.weightKg,
         workoutId: workout.id,
@@ -1407,7 +1418,8 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
 }
 
 function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous: LoggedSet[]): void {
-  const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
+  const ordered = [...previous.filter((set) => set.setType === 'warmup'), ...previous.filter((set) => set.setType !== 'warmup')];
+  const templates = ordered.length > 0 ? ordered.slice(0, 10) : [null];
   templates.forEach((template, index) => {
     db.sets.push({
       completed: false,
@@ -1427,7 +1439,8 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
   const previous = latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? [], exercise.equipment, row.machineSetup)).map((set) =>
     toPrevious(set, exercise.equipment),
   );
-  const sets = setsOf(db, row.id).map(mapSet);
+  const mapped = setsOf(db, row.id).map(mapSet);
+  const sets = warmupsFirst(mapped) ?? mapped;
   return {
     attachment: isCableAttachment(row.attachment) ? row.attachment : null,
     equipment: exercise.equipment,

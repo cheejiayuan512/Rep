@@ -5,14 +5,14 @@
  * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
-import { ExerciseOrderList } from '../../components/exercise-order-list';
+import { SortableList } from '../../components/sortable-list';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
@@ -31,8 +31,8 @@ import { detectRecords, filterSetsBySetup, latestSessionSets, recordSetIds, scor
 import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { machineSetupOptions } from '../../domain/machine-setup';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
-import { findNextSet, findSet, orderByIds, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
-import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
+import { findNextSet, findSet, moveById, previousForSet, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
+import { formatWeight, kgToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   addExerciseToWorkout,
   deleteSet,
@@ -97,6 +97,7 @@ function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set:
       performedAt,
       position: set.position,
       reps: set.reps,
+      rpe: set.rpe,
       setType: set.setType,
       machineSetup: exercise.machineSetup,
       weightKg: set.weightKg,
@@ -151,8 +152,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const restEndsAt = rest?.endsAt ?? null;
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const [orderIds, setOrderIds] = useState<string[] | null>(null);
-  const [orderDragging, setOrderDragging] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const workoutRef = useRef(workout);
   const draftsRef = useRef(drafts);
   const unitRef = useRef(unit);
@@ -705,34 +705,54 @@ export const ActiveWorkoutScreen: React.FC = () => {
 
   const dismissRecord = useCallback(() => setRecordBanner(null), []);
 
-  const beginReorder = useCallback(() => {
+  const saveOrder = useCallback((exercises: WorkoutExercise[]) => {
     const current = workoutRef.current;
-    if (!current || current.exercises.length === 0) {
+    if (!current) {
       return;
     }
-    Keyboard.dismiss();
-    void hapticLight();
-    setOrderIds(current.exercises.map((exercise) => exercise.id));
+    const positioned = exercises.map((exercise, position) => ({ ...exercise, position }));
+    setWorkout({ ...current, exercises: positioned });
+    void saveWorkoutExercisePositions(positioned.map((exercise) => ({ id: exercise.id, position: exercise.position })));
   }, []);
 
-  const cancelReorder = useCallback(() => {
-    setOrderDragging(false);
-    setOrderIds(null);
-  }, []);
+  const handleReorder = useCallback((ids: string[]) => {
+    const byId = new Map(workoutRef.current?.exercises.map((exercise) => [exercise.id, exercise]));
+    saveOrder(ids.flatMap((id) => byId.get(id) ?? []));
+  }, [saveOrder]);
 
-  const commitReorder = useCallback(() => {
-    const current = workoutRef.current;
-    if (current && orderIds) {
-      const ordered = orderByIds(current.exercises, orderIds);
-      const changed = ordered.some((exercise, index) => exercise.id !== current.exercises[index]?.id);
-      if (changed) {
-        setWorkout({ ...current, exercises: ordered });
-        void saveWorkoutExercisePositions(ordered.map((exercise) => ({ id: exercise.id, position: exercise.position })));
-      }
+  const handleMove = useCallback((workoutExerciseId: string, direction: -1 | 1) => {
+    const moved = workoutRef.current ? moveById(workoutRef.current.exercises, workoutExerciseId, direction) : null;
+    if (moved) {
+      saveOrder(moved);
     }
-    setOrderDragging(false);
-    setOrderIds(null);
-  }, [orderIds]);
+  }, [saveOrder]);
+
+  const handleApplyPrevious = useCallback(
+    (setId: string) => {
+      const current = workoutRef.current;
+      const located = current ? findSet(current, setId) : null;
+      if (!current || !located) {
+        return;
+      }
+      const index = located.exercise.sets.findIndex((set) => set.id === setId);
+      const previous = previousForSet(located.exercise.sets, located.exercise.previousSets, index);
+      if (!previous) {
+        return;
+      }
+      const weightText = previous.weightKg == null ? '' : formatWeight(kgToDisplay(previous.weightKg, unitRef.current));
+      const repsText = previous.reps == null ? '' : String(previous.reps);
+      setDrafts((drafts) => ({ ...drafts, [setId]: withDraft(drafts[setId], { repsText, weightText }) }));
+      const numbers = readSetNumbers(setId, located.set, { repsText, weightText });
+      setWorkout(updateSetInWorkout(current, setId, numbers));
+      queueSave(setId, numbers);
+      void hapticLight();
+    },
+    [queueSave, readSetNumbers],
+  );
+
+  function exerciseKey(exercise: WorkoutExercise): string {
+    return exercise.id;
+  }
 
   const handleAddExercise = useCallback(() => {
     navigation.navigate('ExercisePicker', { mode: 'workout', workoutId });
@@ -934,24 +954,18 @@ export const ActiveWorkoutScreen: React.FC = () => {
     <Screen bottomInset={false}>
       <Header
         left={
-          orderIds ? (
-            <TextButton label="Cancel" onPress={cancelReorder} />
-          ) : (
-            <IconButton accessibilityLabel="Close workout" onPress={leave}>
-              <ChevronDownIcon color={colors.text} size={26} />
-            </IconButton>
-          )
+          <IconButton accessibilityLabel="Close workout" onPress={leave}>
+            <ChevronDownIcon color={colors.text} size={26} />
+          </IconButton>
         }
         right={
-          orderIds ? (
-            <TextButton label="Done" onPress={commitReorder} tone="accent" />
-          ) : editing ? (
+          editing ? (
             <TextButton label="Done" onPress={pressDoneEditing} tone="accent" />
           ) : (
             <TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />
           )
         }
-        title={orderIds ? 'Reorder' : editing ? 'Edit workout' : undefined}
+        title={editing ? 'Edit workout' : undefined}
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
         {missing ? (
@@ -961,11 +975,10 @@ export const ActiveWorkoutScreen: React.FC = () => {
             contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner || undo ? 168 : 48) + insets.bottom }}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
-            scrollEnabled={!orderDragging}
+            scrollEnabled={!dragging}
             style={styles.fill}
           >
-            {orderIds ? null : (
-              <View style={styles.intro}>
+            <View style={styles.intro}>
                 <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
                 <View style={styles.metaRow}>
                   {workout?.finishedAt != null ? (
@@ -979,61 +992,48 @@ export const ActiveWorkoutScreen: React.FC = () => {
                 </View>
                 {banner ? <Text style={styles.banner}>{banner}</Text> : null}
               </View>
-            )}
             <View style={styles.list}>
-              {orderIds && workout ? (
-                <View>
-                  <Text style={styles.reorderHint}>Drag an exercise into place.</Text>
-                  <ExerciseOrderList
-                    items={orderIds.flatMap((id) => {
-                      const exercise = workout.exercises.find((item) => item.id === id);
-                      return exercise ? [{ detail: `${exercise.muscleGroup} · ${exercise.equipment}`, id: exercise.id, name: exercise.name }] : [];
-                    })}
-                    onChange={setOrderIds}
-                    onDraggingChange={setOrderDragging}
-                  />
-                </View>
-              ) : (
-                <View>
-                  {workout && workout.exercises.length === 0 ? (
-                    <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
-                  ) : null}
-                  {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
-                  {workout?.exercises.map((exercise) => (
+              {workout && workout.exercises.length === 0 ? (
+                <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
+              ) : null}
+              {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
+              {workout && workout.exercises.length > 0 ? (
+                <SortableList
+                  items={workout.exercises}
+                  keyOf={exerciseKey}
+                  onDraggingChange={setDragging}
+                  onReorder={handleReorder}
+                  renderItem={(exercise, handle) => (
                     <ExerciseBlock
                       drafts={drafts}
                       exercise={exercise}
-                      key={exercise.id}
                       onAddSet={pressAddSet}
+                      onApplyPrevious={handleApplyPrevious}
                       onChangeAttachment={handleChangeAttachment}
-                      onChangeSetup={handleChangeSetup}
-                      setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
                       onChangeNotes={handleChangeNotes}
-                      onChangeRest={handleChangeRest}
-                      onChangeWarmupMultiplier={setWarmupMultiplier}
                       onChangeReps={handleChangeReps}
+                      onChangeRest={handleChangeRest}
                       onChangeRpe={handleChangeRpe}
+                      onChangeSetup={handleChangeSetup}
+                      onChangeWarmupMultiplier={setWarmupMultiplier}
                       onChangeWeight={handleChangeWeight}
                       onDeleteSet={handleDeleteSet}
-                      onHold={beginReorder}
+                      onMove={handleMove}
                       onRemove={handleRemove}
                       onSwap={handleSwap}
                       onToggleComplete={handleToggleComplete}
                       onToggleWarmup={handleToggleWarmup}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
+                      setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
+                      sortHandle={handle}
                       unit={unit}
                       warmupMultiplier={warmupMultiplier}
                     />
-                  ))}
-                  {workout && workout.exercises.length > 0 ? (
-                    <Text style={styles.holdHint}>Hold an exercise to reorder.</Text>
-                  ) : null}
-                  {workout && workout.exercises.length > 0 ? (
-                    <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" />
-                  ) : null}
-                  {workout && workout.exercises.length > 0 && !editing ? <QuickAdd compact onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
-                </View>
-              )}
+                  )}
+                />
+              ) : null}
+              {workout && workout.exercises.length > 0 ? <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" /> : null}
+              {workout && workout.exercises.length > 0 && !editing ? <QuickAdd compact onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
             </View>
           </ScrollView>
         )}

@@ -37,6 +37,7 @@ interface SetRowProps {
   onChangeRpe: (setId: string, value: string) => void;
   onToggleComplete: (setId: string) => void;
   onToggleWarmup: (setId: string) => void;
+  onApplyPrevious: (setId: string) => void;
   onDelete: (setId: string) => void;
 }
 
@@ -53,6 +54,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   onChangeRpe,
   onToggleComplete,
   onToggleWarmup,
+  onApplyPrevious,
   onDelete,
 }) {
   const handleWeight = useCallback(
@@ -83,6 +85,12 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   const handleDelete = useCallback(() => {
     onDelete(set.id);
   }, [onDelete, set.id]);
+  const handleApplyPrevious = useCallback(() => {
+    onApplyPrevious(set.id);
+  }, [onApplyPrevious, set.id]);
+  const previousText = previous
+    ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined)
+    : '—';
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.wrap} testID="set-row">
@@ -95,9 +103,16 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
             </Text>
           ) : null}
         </Pressable>
-        <Text numberOfLines={1} style={styles.previous}>
-          {previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined) : '—'}
-        </Text>
+        <Pressable
+          accessibilityLabel={previous ? `Apply previous ${previousText}` : undefined}
+          disabled={!previous}
+          onPress={handleApplyPrevious}
+          style={styles.previousHit}
+        >
+          <Text numberOfLines={1} style={styles.previous}>
+            {previousText}
+          </Text>
+        </Pressable>
         <TextInput
           accessibilityLabel="Weight"
           inputAccessoryViewID={keyboardDoneId}
@@ -173,9 +188,13 @@ const styles = StyleSheet.create({
   },
   previous: {
     color: colors.muted,
-    flex: 1,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
+  },
+  previousHit: {
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 36,
     minWidth: 52,
   },
   reps: {

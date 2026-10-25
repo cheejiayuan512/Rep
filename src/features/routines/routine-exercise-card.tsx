@@ -15,6 +15,7 @@ import { formatLoggedLoad } from '../../domain/format';
 import type { MachineSetupOption } from '../../domain/machine-setup';
 import type { PreviousSet, RoutineExercise, RoutineSet, WeightUnit } from '../../domain/types';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
+import { previousForSet } from '../../domain/workout-edits';
 import { colors } from '../../theme/colors';
 
 const column = {
@@ -139,7 +140,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             onChangeWeight={onChangeWeight}
             onDelete={onDeleteSet}
             onToggleWarmup={onToggleWarmup}
-            previous={exercise.previousSets[index] ?? null}
+            previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             set={set}
             showSetup={showSetup}
             unit={unit}

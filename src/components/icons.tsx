@@ -74,6 +74,22 @@ export const ChevronDownIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   );
 };
 
+export const SwapIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M7 7h11l-3-3M17 17H6l3 3" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
+
+export const CloseIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M7 7l10 10M17 7L7 17" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
+
 export const KeyboardHideIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   return (
     <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
