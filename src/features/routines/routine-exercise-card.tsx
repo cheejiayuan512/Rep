@@ -3,15 +3,17 @@
  * Drag the three dots to reorder. Swipe the card left to remove the exercise,
  * or swipe a set left to delete that set. Tap a set number to mark a warmup.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent, type GestureResponderHandlers } from 'react-native';
 
 import { keyboardDoneId } from '../../components/keyboard-done-bar';
 import { SwipeToDelete } from '../../components/swipe-to-delete';
 import type { DraftMap, SetDraft } from '../../domain/drafts';
 import { draftFromSet } from '../../domain/drafts';
+import { MachineSetupChoices } from '../../components/machine-setup-choices';
 import { formatLoggedLoad } from '../../domain/format';
 import type { PreviousSet, RoutineExercise, RoutineSet, WeightUnit } from '../../domain/types';
+import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { colors } from '../../theme/colors';
 
 const column = {
@@ -34,6 +36,8 @@ interface RoutineExerciseCardProps {
   onChangeReps: (setId: string, value: string) => void;
   onToggleWarmup: (setId: string) => void;
   onDeleteSet: (setId: string) => void;
+  onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
+  setupExtras?: string[];
 }
 
 const moveActions = [
@@ -54,6 +58,8 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onChangeReps,
   onToggleWarmup,
   onDeleteSet,
+  onChangeSetup,
+  setupExtras,
 }) {
   const handleRemove = useCallback(() => {
     onRemove(exercise.id);
@@ -61,6 +67,18 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   const handleAdd = useCallback(() => {
     onAddSet(exercise.id);
   }, [exercise.id, onAddSet]);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const toggleSetup = useCallback(() => {
+    setSetupOpen((open) => !open);
+  }, []);
+  const handleSetup = useCallback(
+    (setup: string | null) => {
+      onChangeSetup(exercise.id, setup);
+      setSetupOpen(false);
+    },
+    [exercise.id, onChangeSetup],
+  );
+  const showSetup = usesMachineSetup(exercise.equipment);
   const handleMoveAction = useCallback(
     (event: AccessibilityActionEvent) => {
       onMove(exercise.id, event.nativeEvent.actionName === 'up' ? -1 : 1);
@@ -93,6 +111,18 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             <View style={styles.dot} />
           </View>
         </View>
+        {showSetup ? (
+          <Pressable
+            accessibilityLabel={`Machine setup ${formatMachineSetup(exercise.machineSetup)}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: setupOpen }}
+            onPress={toggleSetup}
+            style={[styles.setupChip, setupOpen && styles.setupChipOpen]}
+          >
+            <Text style={styles.setupChipText}>{formatMachineSetup(exercise.machineSetup)} ▾</Text>
+          </Pressable>
+        ) : null}
+        {setupOpen ? <MachineSetupChoices extras={setupExtras} onChange={handleSetup} value={exercise.machineSetup} /> : null}
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>
@@ -110,6 +140,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             onToggleWarmup={onToggleWarmup}
             previous={exercise.previousSets[index] ?? null}
             set={set}
+            showSetup={showSetup}
             unit={unit}
           />
         ))}
@@ -130,13 +161,14 @@ interface RoutineSetRowProps {
   draft: SetDraft;
   previous: PreviousSet | null;
   unit: WeightUnit;
+  showSetup?: boolean;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onToggleWarmup: (setId: string) => void;
   onDelete: (setId: string) => void;
 }
 
-const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, onChangeWeight, onChangeReps, onToggleWarmup, onDelete }) {
+const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, onChangeWeight, onChangeReps, onToggleWarmup, onDelete }) {
   const handleWeight = useCallback(
     (value: string) => {
       onChangeWeight(set.id, value);
@@ -156,8 +188,8 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     onDelete(set.id);
   }, [onDelete, set.id]);
   const previousText = useMemo(
-    () => (previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup') : '—'),
-    [previous, unit],
+    () => (previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined) : '—'),
+    [previous, showSetup, unit],
   );
   const warmup = set.setType === 'warmup';
 
@@ -317,6 +349,24 @@ const styles = StyleSheet.create({
   },
   setWrap: {
     marginTop: 4,
+  },
+  setupChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  setupChipOpen: {
+    borderColor: colors.accent,
+  },
+  setupChipText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
   },
   swipe: {
     marginBottom: 12,

@@ -3,6 +3,7 @@
  */
 import './drafts.test';
 import './exercise-families.test';
+import './exercise-finder.test';
 import './format.test';
 import './fuzzy-search.test';
 import './hevy-import.test';

@@ -3,6 +3,7 @@
  * not a warmup, and has at least one rep. The first set is saved but not announced.
  */
 import type { ChartMetric, LoggedSet, SetType } from './types';
+import { sameMachineSetup } from './types';
 import type { WeightUnit } from './types';
 import { formatLoggedLoad } from './format';
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from './units';
@@ -185,6 +186,11 @@ export function oneRepMaxRecordFlags(sets: ScoredSet[]): boolean[] {
   });
 }
 
+/** Sets logged on the same stack. Null matches other unknown stacks. */
+export function filterSetsBySetup(sets: LoggedSet[], setup: string | null): LoggedSet[] {
+  return sets.filter((set) => sameMachineSetup(set.machineSetup, setup));
+}
+
 export function latestSessionSets(sets: LoggedSet[]): LoggedSet[] {
   const completed = sets.filter((set) => set.completed);
   const first = completed[0];
@@ -294,8 +300,9 @@ export function toLoggedSet(input: {
   weightKg: number | null;
   reps: number | null;
   completed: boolean;
+  machineSetup?: string | null;
 }): LoggedSet {
-  return input;
+  return { ...input, machineSetup: input.machineSetup ?? null };
 }
 
 function card(label: string, value: string | null, detail: string, achievedAt: number | null): RecordCard {

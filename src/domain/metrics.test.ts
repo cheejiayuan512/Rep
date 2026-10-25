@@ -1,7 +1,7 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsBySetup, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import type { LoggedSet } from './types';
 
@@ -13,6 +13,7 @@ function logged(overrides: Partial<LoggedSet>): LoggedSet {
     position: 0,
     reps: 5,
     setType: 'normal',
+    machineSetup: null,
     weightKg: 100,
     workoutId: 'workout-1',
     ...overrides,
@@ -134,6 +135,19 @@ test('record cards use the best estimated max', () => {
   const estimated = cards.find((card) => card.label === 'Est. 1RM');
   assertTrue(estimated != null, 'missing estimated max card');
   assertEqual(estimated.value, '107.7 kg');
+});
+
+test('previous and records stay on the same stack', () => {
+  const precor = logged({ machineSetup: 'Precor', performedAt: 1, weightKg: 25, workoutId: 'a' });
+  const life = logged({ machineSetup: 'Life Fitness', performedAt: 2, weightKg: 18, workoutId: 'b' });
+  assertEqual(filterSetsBySetup([precor, life], 'Life Fitness').map((set) => set.weightKg), [18]);
+  assertEqual(latestSessionSets(filterSetsBySetup([precor, life], 'Precor'))[0]?.weightKg, 25);
+  const current = scoreLoggedSet(logged({ machineSetup: 'Life Fitness', performedAt: 3, weightKg: 20, workoutId: 'c' }));
+  assertTrue(current != null, 'expected a scored set');
+  const lifePrior = [scoreLoggedSet(life)].filter((set): set is ScoredSet => set != null);
+  const mixedPrior = [scoreLoggedSet(precor), scoreLoggedSet(life)].filter((set): set is ScoredSet => set != null);
+  assertEqual(detectRecord(current, lifePrior, 'kg')?.kind, 'oneRepMax');
+  assertEqual(detectRecord(current, mixedPrior, 'kg'), null);
 });
 
 test('record counting skips the first set and ties', () => {

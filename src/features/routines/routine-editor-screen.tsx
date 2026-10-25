@@ -27,6 +27,7 @@ import {
   saveRoutinePositions,
   saveRoutineSetPositions,
   startWorkoutFromRoutine,
+  updateRoutineExerciseSetup,
   updateRoutineSet,
 } from '../../data/repository';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
@@ -444,6 +445,20 @@ export const RoutineEditorScreen: React.FC = () => {
     });
   }, [dispatch, navigation]);
 
+  const handleChangeSetup = useCallback((routineExerciseId: string, setup: string | null) => {
+    const current = routineRef.current;
+    if (!current) {
+      return;
+    }
+    applyRoutine({
+      ...current,
+      exercises: current.exercises.map((exercise) => (exercise.id === routineExerciseId ? { ...exercise, machineSetup: setup } : exercise)),
+    });
+    void updateRoutineExerciseSetup(routineExerciseId, setup).then(() => {
+      void load();
+    });
+  }, [applyRoutine, load]);
+
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   const renderExercise = useCallback(
@@ -454,6 +469,7 @@ export const RoutineEditorScreen: React.FC = () => {
         exercise={exercise}
         onAddSet={pressAddSet}
         onChangeReps={handleChangeReps}
+        onChangeSetup={handleChangeSetup}
         onChangeWeight={handleChangeWeight}
         onDeleteSet={handleDeleteSet}
         onMove={handleMove}
@@ -463,7 +479,7 @@ export const RoutineEditorScreen: React.FC = () => {
         unit={unit}
       />
     ),
-    [drafts, handleChangeReps, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleWarmup, pressAddSet, unit],
+    [drafts, handleChangeReps, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleWarmup, pressAddSet, unit],
   );
 
   const exercises = routine?.exercises ?? [];

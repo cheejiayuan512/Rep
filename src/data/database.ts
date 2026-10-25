@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
-import { isBodySex, isCableAttachment, isWeightUnit } from '../domain/types';
+import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, usesMachineSetup } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
 /**
@@ -24,6 +24,8 @@ export interface StoredExercise {
   isCustom: boolean;
   /** Default cable attachment, or null. */
   attachment: CableAttachment | null;
+  /** Default stack brand, or null when unknown or for free weights. */
+  machineSetup: string | null;
 }
 
 export interface StoredRoutine {
@@ -37,6 +39,7 @@ export interface StoredRoutineExercise {
   routineId: string;
   exerciseId: string;
   position: number;
+  machineSetup: string | null;
 }
 
 /** A planned set on a routine exercise. Copied into the workout when the routine starts. */
@@ -66,6 +69,7 @@ export interface StoredWorkoutExercise {
   /** Rest after a set of this exercise. Null uses the exercise's default (src/domain/rest.ts). */
   restSeconds: number | null;
   attachment: CableAttachment | null;
+  machineSetup: string | null;
 }
 
 export interface StoredSet {
@@ -251,6 +255,11 @@ function normalizeStored(db: DatabaseShape): boolean {
       exercise.attachment = null;
       changed = true;
     }
+    const setup = usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(exercise.machineSetup) : null;
+    if (exercise.machineSetup !== setup) {
+      exercise.machineSetup = setup;
+      changed = true;
+    }
   }
   if (!isWarmupMultiplier(db.settings.warmupRestMultiplier)) {
     db.settings.warmupRestMultiplier = DEFAULT_WARMUP_MULTIPLIER;
@@ -270,6 +279,11 @@ function normalizeStored(db: DatabaseShape): boolean {
       exercise.attachment = null;
       changed = true;
     }
+    const setup = normalizeMachineSetup(exercise.machineSetup);
+    if (exercise.machineSetup !== setup) {
+      exercise.machineSetup = setup;
+      changed = true;
+    }
     if (typeof exercise.notes !== 'string') {
       exercise.notes = '';
       changed = true;
@@ -277,6 +291,13 @@ function normalizeStored(db: DatabaseShape): boolean {
     const rest = typeof exercise.restSeconds === 'number' && Number.isFinite(exercise.restSeconds) ? exercise.restSeconds : null;
     if (exercise.restSeconds !== rest) {
       exercise.restSeconds = rest;
+      changed = true;
+    }
+  }
+  for (const exercise of db.routineExercises) {
+    const setup = normalizeMachineSetup(exercise.machineSetup);
+    if (exercise.machineSetup !== setup) {
+      exercise.machineSetup = setup;
       changed = true;
     }
   }
@@ -321,6 +342,7 @@ function ensureSeed(db: DatabaseShape): boolean {
     db.exercises.push({
       attachment: exercise.attachment ?? null,
       equipment: exercise.equipment,
+      machineSetup: null,
       id: exercise.id,
       isCustom: false,
       muscleGroup: exercise.muscleGroup,

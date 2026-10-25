@@ -63,6 +63,8 @@ export interface Exercise {
   isCustom: boolean;
   /** The attachment a new workout starts with. Null for none or for non-cable exercises. */
   attachment: CableAttachment | null;
+  /** The stack a new workout starts with. Null when unknown or for free weights. */
+  machineSetup: string | null;
 }
 
 export interface SetRecord {
@@ -81,6 +83,8 @@ export interface PreviousSet {
   weightKg: number | null;
   reps: number | null;
   setType: SetType;
+  /** Set when this previous row came from a machine or cable. Null means Unknown. */
+  machineSetup?: string | null;
 }
 
 export interface WorkoutExercise {
@@ -96,6 +100,8 @@ export interface WorkoutExercise {
   restSeconds: number | null;
   /** The cable attachment used in this workout. */
   attachment: CableAttachment | null;
+  /** The stack used in this workout. Null when unknown or for free weights. */
+  machineSetup: string | null;
   sets: SetRecord[];
   previousSets: PreviousSet[];
 }
@@ -153,6 +159,8 @@ export interface RoutineExercise {
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   position: number;
+  /** The stack this plan is for. Null when unknown or for free weights. */
+  machineSetup: string | null;
   sets: RoutineSet[];
   /** The latest finished session of this exercise, for the Previous column. */
   previousSets: PreviousSet[];
@@ -186,6 +194,8 @@ export interface LoggedSet {
   weightKg: number | null;
   reps: number | null;
   completed: boolean;
+  /** The stack this set was logged on. Null when unknown or for free weights. */
+  machineSetup: string | null;
 }
 
 export function isMuscleGroup(value: string): value is MuscleGroup {
@@ -198,6 +208,51 @@ export function isEquipment(value: string): value is Equipment {
 
 export function isCableAttachment(value: unknown): value is CableAttachment {
   return typeof value === 'string' && (cableAttachments as readonly string[]).includes(value);
+}
+
+/** Common stack brands. A typed name is also allowed. */
+export const machineBrands = ['Precor', 'Life Fitness', 'Hammer Strength', 'Generic'] as const;
+
+/** Machine and cable stacks differ by brand; free weights do not. */
+export function usesMachineSetup(equipment: Equipment): boolean {
+  return equipment === 'Machine' || equipment === 'Cable';
+}
+
+const MACHINE_SETUP_MAX = 40;
+
+/** Trimmed brand or custom name, or null when the stack is unknown. */
+export function normalizeMachineSetup(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.length > MACHINE_SETUP_MAX ? trimmed.slice(0, MACHINE_SETUP_MAX).trim() : trimmed;
+}
+
+export function sameMachineSetup(left: string | null | undefined, right: string | null | undefined): boolean {
+  return (left ?? null) === (right ?? null);
+}
+
+export function formatMachineSetup(value: string | null | undefined): string {
+  return value ?? 'Unknown';
+}
+
+/** Custom stack names already used, not including the built-in brands. */
+export function extraMachineSetups(values: Array<string | null | undefined>): string[] {
+  const brands = new Set<string>(machineBrands);
+  const seen = new Set<string>();
+  const extras: string[] = [];
+  for (const value of values) {
+    if (!value || brands.has(value) || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    extras.push(value);
+  }
+  return extras;
 }
 
 export function isWeightUnit(value: string): value is WeightUnit {

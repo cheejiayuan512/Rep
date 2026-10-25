@@ -6,7 +6,7 @@ import { assertEqual, test } from './test-support';
 import type { Exercise } from './types';
 
 function exercise(id: string, name: string): Exercise {
-  return { attachment: null, equipment: 'Barbell', id, isCustom: false, muscleGroup: 'Chest', name };
+  return { attachment: null, equipment: 'Barbell', id, isCustom: false, machineSetup: null, muscleGroup: 'Chest', name };
 }
 
 const library = [

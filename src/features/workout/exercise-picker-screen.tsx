@@ -23,6 +23,7 @@ import {
   swapWorkoutExercise,
 } from '../../data/repository';
 import { groupExercises, type ExerciseListItem } from '../../domain/exercise-families';
+import { ExerciseFinderPanel } from './exercise-finder-panel';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
 import { equipmentTypes, muscleGroups } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
@@ -56,6 +57,7 @@ export const ExercisePickerScreen: React.FC = () => {
     () => new Set(listTargetExerciseIds.now(route.params.mode === 'routine' ? { routineId: route.params.routineId } : { workoutId: route.params.workoutId }) ?? []),
   );
   const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
+  const [finderLibrary, setFinderLibrary] = useState<Exercise[] | null>(null);
   const items = useMemo(() => groupExercises(exercises, expandedFamilies, query.trim().length > 0), [exercises, expandedFamilies, query]);
 
   const load = useCallback(async (nextQuery: string, nextMuscle: MuscleGroup | null) => {
@@ -240,6 +242,19 @@ export const ExercisePickerScreen: React.FC = () => {
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
   const openCreate = useCallback(() => setCreating(true), []);
+  const openFinder = useCallback(() => {
+    setCreating(false);
+    setError(null);
+    setFinderLibrary(listExercises.now('', null) ?? []);
+    void listExercises('', null).then(setFinderLibrary);
+  }, []);
+  const closeFinder = useCallback(() => setFinderLibrary(null), []);
+  const pressFinderResult = useCallback(
+    (exerciseId: string) => {
+      void handleSelect(exerciseId);
+    },
+    [handleSelect],
+  );
   const pressCreate = useCallback(() => {
     void handleCreate();
   }, [handleCreate]);
@@ -250,6 +265,21 @@ export const ExercisePickerScreen: React.FC = () => {
         right={swapping ? <TextButton label="Cancel" onPress={navigation.goBack} /> : <TextButton label="Done" onPress={handleDone} tone="accent" />}
         title={swapping ? 'Swap exercise' : 'Exercises'}
       />
+      {finderLibrary ? (
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <ExerciseFinderPanel
+            addedIds={addedIds}
+            currentExerciseId={swapping?.currentExerciseId ?? null}
+            exercises={finderLibrary}
+            onClose={closeFinder}
+            onSelect={pressFinderResult}
+            pendingId={pendingId}
+            swapping={swapping != null}
+          />
+        </>
+      ) : (
+        <>
       <View style={styles.searchWrap}>
         <TextInput accessibilityLabel="Search exercises" autoCorrect={false} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
       </View>
@@ -291,6 +321,8 @@ export const ExercisePickerScreen: React.FC = () => {
         renderItem={renderExercise}
         windowSize={8}
       />
+        </>
+      )}
     </Screen>
   );
 };

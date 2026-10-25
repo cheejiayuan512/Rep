@@ -2,6 +2,7 @@
  * Turns stored numbers into the words on screen: "80 × 8", "Today · 9:35 AM", "2 min".
  */
 import type { WeightUnit } from './types';
+import { formatMachineSetup } from './types';
 import { formatWeight, kgToDisplay } from './units';
 
 export function formatLoggedLoad(
@@ -9,6 +10,8 @@ export function formatLoggedLoad(
   reps: number | null,
   unit: WeightUnit,
   warmup = false,
+  /** Pass null or a name to append the stack; omit for free weights. */
+  setup?: string | null,
 ): string {
   if (weightKg == null && reps == null) {
     return '—';
@@ -17,7 +20,8 @@ export function formatLoggedLoad(
   const load = weightKg == null ? '—' : weightKg === 0 ? 'BW' : formatWeight(kgToDisplay(weightKg, unit));
   const repText = reps == null ? '—' : String(reps);
   const text = `${load} × ${repText}`;
-  return warmup ? `W ${text}` : text;
+  const labeled = warmup ? `W ${text}` : text;
+  return setup === undefined ? labeled : `${labeled} · ${formatMachineSetup(setup)}`;
 }
 
 export function formatClock(totalSeconds: number): string {

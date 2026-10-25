@@ -27,8 +27,9 @@ import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../
 import { Screen } from '../../components/screen';
 import { QuickAdd } from '../../components/quick-add';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
-import { detectRecords, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
-import type { CableAttachment, LoggedSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
+import { detectRecords, filterSetsBySetup, latestSessionSets, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
+import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
+import { extraMachineSetups, usesMachineSetup } from '../../domain/types';
 import { findNextSet, findSet, orderByIds, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
@@ -52,6 +53,7 @@ import {
   updateWorkoutExerciseAttachment,
   updateWorkoutExerciseNotes,
   updateWorkoutExerciseRest,
+  updateWorkoutExerciseSetup,
 } from '../../data/repository';
 import {
   activityPropsFor,
@@ -93,10 +95,25 @@ function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set:
       position: set.position,
       reps: set.reps,
       setType: set.setType,
+      machineSetup: exercise.machineSetup,
       weightKg: set.weightKg,
       workoutId: workout.id,
     }),
   );
+}
+
+function previousFromHistory(history: LoggedSet[], equipment: WorkoutExercise['equipment'], setup: string | null): PreviousSet[] {
+  const sets = usesMachineSetup(equipment) ? filterSetsBySetup(history, setup) : history;
+  return latestSessionSets(sets).map((set) => ({
+    machineSetup: usesMachineSetup(equipment) ? (set.machineSetup ?? null) : undefined,
+    reps: set.reps,
+    setType: set.setType,
+    weightKg: set.weightKg,
+  }));
+}
+
+function matchingHistory(history: LoggedSet[], exercise: WorkoutExercise): LoggedSet[] {
+  return usesMachineSetup(exercise.equipment) ? filterSetsBySetup(history, exercise.machineSetup) : history;
 }
 
 export const ActiveWorkoutScreen: React.FC = () => {
@@ -239,7 +256,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
       return map;
     }
     for (const exercise of workout.exercises) {
-      const history = (historyByExercise[exercise.exerciseId] ?? []).map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
+      const history = matchingHistory(historyByExercise[exercise.exerciseId] ?? [], exercise).map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
       const ids = recordSetIds(
         exercise.sets.map((set) => ({ id: set.id, scored: scoreWorkoutSet(workout, exercise, set, workout.startedAt + set.position + 1) })),
         history,
@@ -506,7 +523,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
         return;
       }
       const prior = [
-        ...(historyRef.current[located.exercise.exerciseId] ?? []).map(scoreLoggedSet),
+        ...matchingHistory(historyRef.current[located.exercise.exerciseId] ?? [], located.exercise).map(scoreLoggedSet),
         ...located.exercise.sets
           .filter((set) => set.id !== setId && set.completed)
           .map((set) => scoreWorkoutSet(current, located.exercise, set, current.startedAt + set.position)),
@@ -849,6 +866,22 @@ export const ActiveWorkoutScreen: React.FC = () => {
     );
     void updateWorkoutExerciseAttachment(workoutExerciseId, attachment);
   }, []);
+
+  const handleChangeSetup = useCallback((workoutExerciseId: string, setup: string | null) => {
+    setWorkout((current) =>
+      current
+        ? {
+            ...current,
+            exercises: current.exercises.map((exercise) =>
+              exercise.id === workoutExerciseId
+                ? { ...exercise, machineSetup: setup, previousSets: previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup) }
+                : exercise,
+            ),
+          }
+        : current,
+    );
+    void updateWorkoutExerciseSetup(workoutExerciseId, setup);
+  }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   return (
@@ -918,6 +951,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       key={exercise.id}
                       onAddSet={pressAddSet}
                       onChangeAttachment={handleChangeAttachment}
+                      onChangeSetup={handleChangeSetup}
+                      setupExtras={extraMachineSetups((historyByExercise[exercise.exerciseId] ?? []).map((set) => set.machineSetup))}
                       onChangeNotes={handleChangeNotes}
                       onChangeRest={handleChangeRest}
                       onChangeWarmupMultiplier={setWarmupMultiplier}

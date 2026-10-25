@@ -13,6 +13,7 @@ function exercise(id: string, position: number, sets: SetRecord[]): WorkoutExerc
   return {
     attachment: null,
     equipment: 'Barbell',
+    machineSetup: null,
     exerciseId: 'barbell-bench-press',
     id,
     muscleGroup: 'Chest',

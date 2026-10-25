@@ -18,7 +18,7 @@ import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domai
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
 import { estimateFromSets } from '../../domain/one-rep-max';
-import type { SetRecord, WeightUnit, WorkoutDetail, WorkoutExercise } from '../../domain/types';
+import { formatMachineSetup, usesMachineSetup, type SetRecord, type WeightUnit, type WorkoutDetail, type WorkoutExercise } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -160,6 +160,7 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
       <Text style={styles.meta}>
         {exercise.muscleGroup} · {exercise.equipment}
         {exercise.attachment ? ` · ${exercise.attachment}` : ''}
+        {usesMachineSetup(exercise.equipment) ? ` · ${formatMachineSetup(exercise.machineSetup)}` : ''}
       </Text>
       {exercise.notes.trim() ? (
         <View style={styles.notesWrap}>

@@ -28,6 +28,8 @@ interface SetRowProps {
   draft: SetDraft;
   previous: PreviousSet | null;
   unit: WeightUnit;
+  /** Append the stack name on machine and cable rows. */
+  showSetup?: boolean;
   /** True when this completed set beat a previous best. */
   isRecord: boolean;
   onChangeWeight: (setId: string, value: string) => void;
@@ -44,6 +46,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   draft,
   previous,
   unit,
+  showSetup = false,
   isRecord,
   onChangeWeight,
   onChangeReps,
@@ -93,7 +96,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
           ) : null}
         </Pressable>
         <Text numberOfLines={1} style={styles.previous}>
-          {previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup') : '—'}
+          {previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined) : '—'}
         </Text>
         <TextInput
           accessibilityLabel="Weight"

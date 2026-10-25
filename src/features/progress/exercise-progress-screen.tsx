@@ -12,9 +12,10 @@ import { Header, TextButton } from '../../components/header';
 import { LineChart } from '../../components/line-chart';
 import { Screen } from '../../components/screen';
 import { getExercise, getExerciseLog } from '../../data/repository';
+import { Chip } from '../../components/chip';
 import { formatDay, formatLoggedLoad } from '../../domain/format';
-import { buildSessionStats, chartValues, formatMetricValue, metricValue, recordCardsFromSets } from '../../domain/metrics';
-import type { ChartMetric, Exercise, LoggedSet } from '../../domain/types';
+import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, metricValue, recordCardsFromSets } from '../../domain/metrics';
+import { extraMachineSetups, formatMachineSetup, machineBrands, usesMachineSetup, type ChartMetric, type Exercise, type LoggedSet } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -33,9 +34,19 @@ export const ExerciseProgressScreen: React.FC = () => {
   const exercise = useStored(getExercise, route.params.exerciseId);
   const sets = useStored(getExerciseLog, route.params.exerciseId) ?? NO_SETS;
   const [metric, setMetric] = useState<ChartMetric>('oneRepMax');
+  const [setup, setSetup] = useState<string | null>(() => exercise?.machineSetup ?? null);
+  const setups = useMemo(() => {
+    const used = extraMachineSetups(sets.map((set) => set.machineSetup));
+    const named = [...machineBrands.filter((brand) => sets.some((set) => set.machineSetup === brand)), ...used];
+    return named;
+  }, [sets]);
+  const visibleSets = useMemo(
+    () => (exercise && usesMachineSetup(exercise.equipment) ? filterSetsBySetup(sets, setup) : sets),
+    [exercise, sets, setup],
+  );
 
-  const sessions = useMemo(() => buildSessionStats(sets), [sets]);
-  const cards = useMemo(() => recordCardsFromSets(sets, unit), [sets, unit]);
+  const sessions = useMemo(() => buildSessionStats(visibleSets), [visibleSets]);
+  const cards = useMemo(() => recordCardsFromSets(visibleSets, unit), [unit, visibleSets]);
   const points = useMemo(() => chartValues(sessions, metric, unit), [metric, sessions, unit]);
   const delta = points.length >= 2 ? (points[points.length - 1]?.value ?? 0) - (points[points.length - 2]?.value ?? 0) : null;
 
@@ -50,6 +61,14 @@ export const ExerciseProgressScreen: React.FC = () => {
           <Text style={styles.meta}>
             {exercise.muscleGroup} · {exercise.equipment}
           </Text>
+          {usesMachineSetup(exercise.equipment) ? (
+            <View style={styles.setups}>
+              <Chip label={formatMachineSetup(null)} onSelect={setSetup} selected={setup == null} value={null} />
+              {setups.map((name) => (
+                <Chip key={name} label={name} onSelect={setSetup} selected={setup === name} value={name} />
+              ))}
+            </View>
+          ) : null}
           <View style={styles.grid}>
             {cards.map((card) => (
               <View key={card.label} style={styles.card}>
@@ -70,7 +89,9 @@ export const ExerciseProgressScreen: React.FC = () => {
             <View key={session.workoutId} style={styles.session}>
               <View>
                 <Text style={styles.sessionDate}>{formatDay(session.performedAt)}</Text>
-                <Text style={styles.sessionSet}>{formatLoggedLoad(session.highlightKg, session.highlightReps, unit)}</Text>
+                <Text style={styles.sessionSet}>
+                  {formatLoggedLoad(session.highlightKg, session.highlightReps, unit, false, usesMachineSetup(exercise.equipment) ? setup : undefined)}
+                </Text>
               </View>
               <Text style={styles.sessionValue}>{formatMetricValue(metricValue(session, metric, unit), unit, metric)}</Text>
             </View>
@@ -194,6 +215,12 @@ const styles = StyleSheet.create({
   },
   metricTextSelected: {
     color: colors.accentInk,
+  },
+  setups: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 12,
   },
   session: {
     alignItems: 'center',

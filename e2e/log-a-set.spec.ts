@@ -202,6 +202,9 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'Attachment Rope' }).click();
   await page.getByRole('button', { name: 'V-bar' }).click();
   await expect(page.getByRole('button', { name: 'Attachment V-bar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Machine setup Unknown' }).click();
+  await page.getByRole('button', { name: 'Life Fitness', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Machine setup Life Fitness' })).toBeVisible();
 });
 
 test('add set copies a small-plate weight exactly', async ({ page }) => {

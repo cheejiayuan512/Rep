@@ -8,6 +8,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Drag to reorder routines.** The three dots on a card replace Up / Down.
 - **Swipe a routine card left to remove it,** with Undo for 5 seconds.
 - **Small plates are exact.** Weights keep two decimals, so 8.75 kg stays 8.75 when saved and when **Add set** copies it (it used to become 8.8). Estimated 1RMs still show one decimal.
+- **Machine setup.** Machine and cable cards have a stack chip (Precor, Life Fitness, Hammer Strength, Generic, or a name you type). Previous shows `20 × 12 · Life Fitness`. PRs and the exercise chart only compare the same stack. Older sets stay **Unknown** until you name them.
 
 ## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
 

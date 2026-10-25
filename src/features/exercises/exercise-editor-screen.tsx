@@ -14,7 +14,8 @@ import { Screen } from '../../components/screen';
 import { createExercise, deleteCustomExercise, getExercise, getExerciseUsage, updateExercise } from '../../data/repository';
 import { formatClock } from '../../domain/format';
 import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../../domain/rest';
-import { cableAttachments, equipmentTypes, muscleGroups, type CableAttachment, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
+import { MachineSetupChoices } from '../../components/machine-setup-choices';
+import { cableAttachments, equipmentTypes, muscleGroups, usesMachineSetup, type CableAttachment, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { colors } from '../../theme/colors';
@@ -30,6 +31,7 @@ export const ExerciseEditorScreen: React.FC = () => {
   const [muscle, setMuscle] = useState<MuscleGroup>(() => exercise?.muscleGroup ?? 'Chest');
   const [equipment, setEquipment] = useState<Equipment>(() => exercise?.equipment ?? 'Barbell');
   const [attachment, setAttachment] = useState<CableAttachment | null>(() => exercise?.attachment ?? null);
+  const [machineSetup, setMachineSetup] = useState<string | null>(() => exercise?.machineSetup ?? null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -49,6 +51,7 @@ export const ExerciseEditorScreen: React.FC = () => {
       setMuscle(loaded.muscleGroup);
       setEquipment(loaded.equipment);
       setAttachment(loaded.attachment);
+      setMachineSetup(loaded.machineSetup);
     });
     return () => {
       cancel = true;
@@ -63,12 +66,12 @@ export const ExerciseEditorScreen: React.FC = () => {
     setError(null);
     try {
       if (exerciseId) {
-        await updateExercise(exerciseId, { attachment, equipment, muscleGroup: muscle, name });
+        await updateExercise(exerciseId, { attachment, equipment, machineSetup, muscleGroup: muscle, name });
       } else {
         if (name.trim().length < 2) {
           throw new Error('Give the exercise a name.');
         }
-        await createExercise({ attachment, equipment, muscleGroup: muscle, name });
+        await createExercise({ attachment, equipment, machineSetup, muscleGroup: muscle, name });
       }
       navigation.goBack();
       dispatch(dataChanged());
@@ -77,7 +80,7 @@ export const ExerciseEditorScreen: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [attachment, dispatch, equipment, exerciseId, muscle, name, navigation, saving]);
+  }, [attachment, dispatch, equipment, exerciseId, machineSetup, muscle, name, navigation, saving]);
 
   const pressSave = useCallback(() => {
     void handleSave();
@@ -152,6 +155,12 @@ export const ExerciseEditorScreen: React.FC = () => {
               ))}
             </View>
             <Text style={styles.hint}>New workouts start with this. Changing it on a workout card updates it too.</Text>
+          </>
+        ) : null}
+        {usesMachineSetup(equipment) ? (
+          <>
+            <Text style={styles.label}>Machine</Text>
+            <MachineSetupChoices onChange={setMachineSetup} value={machineSetup} />
           </>
         ) : null}
         <Text style={styles.hint}>

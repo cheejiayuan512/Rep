@@ -9,9 +9,10 @@ import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
 import { defaultRestFor, formatMultiplier, REST_CLASS_LABELS, restClassFor, WARMUP_MULTIPLIERS } from '../domain/rest';
-import { cableAttachments, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
+import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { colors } from '../theme/colors';
 import { keyboardDoneId } from './keyboard-done-bar';
+import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
 
 const restChoices = [30, 60, 90, 120, 150, 180, 240, 300];
@@ -27,6 +28,9 @@ interface ExerciseBlockProps {
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
   onChangeWarmupMultiplier: (multiplier: number) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
+  onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
+  /** Custom stack names already used for this exercise. */
+  setupExtras?: string[];
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
@@ -40,7 +44,7 @@ interface ExerciseBlockProps {
   onHold: (workoutExerciseId: string) => void;
 }
 
-type OpenPanel = 'rest' | 'attachment' | null;
+type OpenPanel = 'rest' | 'attachment' | 'setup' | null;
 
 export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function ExerciseBlock({
   exercise,
@@ -51,6 +55,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onChangeRest,
   onChangeWarmupMultiplier,
   onChangeAttachment,
+  onChangeSetup,
+  setupExtras,
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
@@ -102,7 +108,18 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     },
     [exercise.id, onChangeAttachment],
   );
+  const toggleSetup = useCallback(() => {
+    setPanel((open) => (open === 'setup' ? null : 'setup'));
+  }, []);
+  const handleSetup = useCallback(
+    (setup: string | null) => {
+      onChangeSetup(exercise.id, setup);
+      setPanel(null);
+    },
+    [exercise.id, onChangeSetup],
+  );
   const hasRecord = exercise.sets.some((set) => recordIds.has(set.id));
+  const showSetup = usesMachineSetup(exercise.equipment);
   const defaultRest = defaultRestFor(exercise);
   const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
   const isCable = exercise.equipment === 'Cable';
@@ -141,6 +158,17 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             {exercise.restSeconds == null ? ' · default' : ''}
           </Text>
         </Pressable>
+        {showSetup ? (
+          <Pressable
+            accessibilityLabel={`Machine setup ${formatMachineSetup(exercise.machineSetup)}`}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: panel === 'setup' }}
+            onPress={toggleSetup}
+            style={[styles.chip, panel === 'setup' && styles.chipOpen]}
+          >
+            <Text style={styles.chipText}>{formatMachineSetup(exercise.machineSetup)} ▾</Text>
+          </Pressable>
+        ) : null}
         {isCable ? (
           <Pressable
             accessibilityLabel={`Attachment ${exercise.attachment ?? 'none'}`}
@@ -172,6 +200,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           </View>
         </View>
       ) : null}
+      {panel === 'setup' ? <MachineSetupChoices extras={setupExtras} onChange={handleSetup} value={exercise.machineSetup} /> : null}
       {panel === 'attachment' ? (
         <View style={styles.choices}>
           <Choice label="None" onPress={handleAttachment} selected={exercise.attachment == null} value={null} />
@@ -214,6 +243,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onToggleComplete={onToggleComplete}
             onToggleWarmup={onToggleWarmup}
             previous={exercise.previousSets[index] ?? null}
+            showSetup={showSetup}
             set={set}
             unit={unit}
           />
