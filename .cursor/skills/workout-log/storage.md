@@ -8,6 +8,7 @@ Reads and writes are serialized on a promise queue. `writeDatabase` clones, muta
 
 - `exercises`: library, including the seeded slugs in `src/data/seed-exercises.ts`. `attachment` is a cable attachment or `null`
 - `routines` and `routineExercises`
+- `routineSets`: planned sets on a routine exercise. `weightKg` and `reps` (each `null` when blank), `setType`, `position`. Older documents lack the array; `normalizeStored` adds it empty
 - `workouts`: `finishedAt: null` means in progress
 - `workoutExercises`: `notes` is a string, `''` when empty. `restSeconds` is a number or `null` for the exercise's default rest. `attachment` is a cable attachment or `null`
 - `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `setType` (`normal` or `warmup`), `completed`

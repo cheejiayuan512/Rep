@@ -17,6 +17,8 @@ import type {
   MuscleGroup,
   PreviousSet,
   RoutineDetail,
+  RoutineExercise,
+  RoutineSet,
   RoutineSummary,
   SetRecord,
   SetType,
@@ -33,7 +35,7 @@ import { fuzzyFilter } from '../domain/fuzzy-search';
 import { rateLift, STRENGTH_LIFTS, type StrengthRating } from '../domain/strength';
 import type { BodyProfile } from '../domain/types';
 import { isBodySex } from '../domain/types';
-import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 /** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
 export interface Reader<A extends unknown[], R> {
@@ -234,7 +236,7 @@ export async function deleteCustomExercise(exerciseId: string): Promise<'deleted
   return 'deleted';
 }
 
-// Routines: a named list of exercises you can start again later.
+// Routines: a named list of exercises and planned sets you can start again later.
 
 export const listRoutines = reader((db): RoutineSummary[] =>
   [...db.routines]
@@ -251,8 +253,14 @@ export const getRoutine = reader((db, routineId: string): RoutineDetail | null =
   if (!routine) {
     return null;
   }
+  const rows = routineExerciseRows(db, routine.id);
+  const history = historyFor(
+    db,
+    rows.map((row) => row.exerciseId),
+    '',
+  );
   return {
-    exercises: routineExerciseRows(db, routine.id).map((exercise) => {
+    exercises: rows.map((exercise) => {
       const details = requireExercise(db, exercise.exerciseId);
       return {
         equipment: details.equipment,
@@ -261,6 +269,8 @@ export const getRoutine = reader((db, routineId: string): RoutineDetail | null =
         muscleGroup: details.muscleGroup,
         name: details.name,
         position: exercise.position,
+        previousSets: latestSessionSets(history[exercise.exerciseId] ?? []).map(toPrevious),
+        sets: routineSetRows(db, exercise.id).map(mapRoutineSet),
       };
     }),
     id: routine.id,
@@ -287,11 +297,14 @@ export async function renameRoutine(routineId: string, name: string): Promise<vo
 
 export async function deleteRoutine(routineId: string): Promise<void> {
   await writeDatabase((db) => {
+    const rowIds = new Set(db.routineExercises.filter((exercise) => exercise.routineId === routineId).map((exercise) => exercise.id));
+    db.routineSets = db.routineSets.filter((set) => !rowIds.has(set.routineExerciseId));
     db.routineExercises = db.routineExercises.filter((exercise) => exercise.routineId !== routineId);
     db.routines = db.routines.filter((routine) => routine.id !== routineId);
   });
 }
 
+/** Adds an exercise with its last session's sets as the plan, or one blank set. */
 export async function addExerciseToRoutine(routineId: string, exerciseId: string): Promise<void> {
   await writeDatabase((db) => {
     const rows = db.routineExercises.filter((exercise) => exercise.routineId === routineId);
@@ -299,13 +312,98 @@ export async function addExerciseToRoutine(routineId: string, exerciseId: string
       return;
     }
     const position = nextPosition(rows);
-    db.routineExercises.push({ exerciseId, id: createId(), position, routineId });
+    const routineExerciseId = createId();
+    db.routineExercises.push({ exerciseId, id: routineExerciseId, position, routineId });
+    const previous = latestSessionSets(historyFor(db, [exerciseId], '')[exerciseId] ?? []);
+    const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
+    templates.forEach((template, index) => {
+      db.routineSets.push({
+        id: createId(),
+        position: index,
+        reps: template?.reps ?? null,
+        routineExerciseId,
+        setType: template?.setType ?? 'normal',
+        weightKg: template?.weightKg ?? null,
+      });
+    });
   });
 }
 
 export async function removeRoutineExercise(routineExerciseId: string): Promise<void> {
   await writeDatabase((db) => {
+    db.routineSets = db.routineSets.filter((set) => set.routineExerciseId !== routineExerciseId);
     db.routineExercises = db.routineExercises.filter((exercise) => exercise.id !== routineExerciseId);
+  });
+}
+
+/** Puts a removed routine exercise and its sets back at `index`. */
+export async function restoreRoutineExercise(routineId: string, exercise: RoutineExercise, index: number): Promise<void> {
+  await writeDatabase((db) => {
+    if (!db.routines.some((routine) => routine.id === routineId) || db.routineExercises.some((item) => item.id === exercise.id)) {
+      return;
+    }
+    const rows = routineExerciseRows(db, routineId);
+    const restored = { exerciseId: exercise.exerciseId, id: exercise.id, position: 0, routineId };
+    rows.splice(Math.min(index, rows.length), 0, restored);
+    rows.forEach((row, position) => {
+      row.position = position;
+    });
+    db.routineExercises.push(restored);
+    exercise.sets.forEach((set, position) => {
+      db.routineSets.push({ ...set, position, routineExerciseId: exercise.id });
+    });
+  });
+}
+
+export async function addRoutineSet(routineExerciseId: string, input: { weightKg: number | null; reps: number | null }): Promise<RoutineSet> {
+  const created: StoredRoutineSet = { id: createId(), position: 0, reps: input.reps, routineExerciseId, setType: 'normal', weightKg: input.weightKg };
+  await writeDatabase((db) => {
+    created.position = nextPosition(db.routineSets.filter((set) => set.routineExerciseId === routineExerciseId));
+    db.routineSets.push({ ...created });
+  });
+  return mapRoutineSet(created);
+}
+
+export async function updateRoutineSet(setId: string, patch: Partial<Pick<RoutineSet, 'weightKg' | 'reps' | 'setType' | 'position'>>): Promise<void> {
+  await writeDatabase((db) => {
+    const set = db.routineSets.find((item) => item.id === setId);
+    if (set) {
+      Object.assign(set, patch);
+    }
+  });
+}
+
+export async function saveRoutineSetPositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+  await writeDatabase((db) => {
+    const positions = new Map(rows.map((row) => [row.id, row.position]));
+    for (const set of db.routineSets) {
+      const position = positions.get(set.id);
+      if (position != null) {
+        set.position = position;
+      }
+    }
+  });
+}
+
+export async function deleteRoutineSet(setId: string): Promise<void> {
+  await writeDatabase((db) => {
+    db.routineSets = db.routineSets.filter((set) => set.id !== setId);
+  });
+}
+
+/** Puts a deleted routine set back at `index` among its exercise's sets. */
+export async function restoreRoutineSet(routineExerciseId: string, set: RoutineSet, index: number): Promise<void> {
+  await writeDatabase((db) => {
+    if (!db.routineExercises.some((exercise) => exercise.id === routineExerciseId) || db.routineSets.some((item) => item.id === set.id)) {
+      return;
+    }
+    const siblings = routineSetRows(db, routineExerciseId);
+    const restored: StoredRoutineSet = { ...set, routineExerciseId };
+    siblings.splice(Math.min(index, siblings.length), 0, restored);
+    siblings.forEach((item, position) => {
+      item.position = position;
+    });
+    db.routineSets.push(restored);
   });
 }
 
@@ -372,7 +470,14 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
         restSeconds: lastRestFor(db, exercise.exerciseId),
         workoutId,
       });
-      addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? []));
+      const planned = routineSetRows(db, exercise.id);
+      if (planned.length === 0) {
+        addTemplateSets(db, workoutExerciseId, latestSessionSets(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? []));
+        return;
+      }
+      planned.forEach((set, position) => {
+        db.sets.push({ completed: false, id: createId(), position, reps: set.reps, rpe: null, setType: set.setType, weightKg: set.weightKg, workoutExerciseId });
+      });
     });
   });
   if (!found) {
@@ -546,7 +651,9 @@ export async function removeExerciseFromWorkout(workoutId: string, exerciseId: s
 
 export async function removeExerciseFromRoutine(routineId: string, exerciseId: string): Promise<void> {
   await writeDatabase((db) => {
-    db.routineExercises = db.routineExercises.filter((exercise) => exercise.routineId !== routineId || exercise.exerciseId !== exerciseId);
+    const rowIds = new Set(db.routineExercises.filter((exercise) => exercise.routineId === routineId && exercise.exerciseId === exerciseId).map((exercise) => exercise.id));
+    db.routineSets = db.routineSets.filter((set) => !rowIds.has(set.routineExerciseId));
+    db.routineExercises = db.routineExercises.filter((exercise) => !rowIds.has(exercise.id));
   });
 }
 
@@ -1268,6 +1375,20 @@ function workingSets(db: DatabaseShape, workoutId: string): StoredSet[] {
 
 function routineExerciseRows(db: DatabaseShape, routineId: string) {
   return db.routineExercises.filter((exercise) => exercise.routineId === routineId).sort((left, right) => left.position - right.position);
+}
+
+function routineSetRows(db: DatabaseShape, routineExerciseId: string): StoredRoutineSet[] {
+  return db.routineSets.filter((set) => set.routineExerciseId === routineExerciseId).sort((left, right) => left.position - right.position);
+}
+
+function mapRoutineSet(set: StoredRoutineSet): RoutineSet {
+  return {
+    id: set.id,
+    position: set.position,
+    reps: set.reps,
+    setType: set.setType === 'warmup' ? 'warmup' : 'normal',
+    weightKg: set.weightKg,
+  };
 }
 
 function workoutExerciseRows(db: DatabaseShape, workoutId: string): StoredWorkoutExercise[] {

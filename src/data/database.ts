@@ -39,6 +39,16 @@ export interface StoredRoutineExercise {
   position: number;
 }
 
+/** A planned set on a routine exercise. Copied into the workout when the routine starts. */
+export interface StoredRoutineSet {
+  id: string;
+  routineExerciseId: string;
+  position: number;
+  setType: SetType;
+  weightKg: number | null;
+  reps: number | null;
+}
+
 export interface StoredWorkout {
   id: string;
   name: string;
@@ -73,6 +83,7 @@ export interface DatabaseShape {
   exercises: StoredExercise[];
   routines: StoredRoutine[];
   routineExercises: StoredRoutineExercise[];
+  routineSets: StoredRoutineSet[];
   workouts: StoredWorkout[];
   workoutExercises: StoredWorkoutExercise[];
   sets: StoredSet[];
@@ -227,6 +238,10 @@ function isDatabaseShape(value: unknown): value is DatabaseShape {
 
 function normalizeStored(db: DatabaseShape): boolean {
   let changed = false;
+  if (!Array.isArray(db.routineSets)) {
+    db.routineSets = [];
+    changed = true;
+  }
   const seedAttachments = new Map(seedExercises.map((exercise) => [exercise.id, exercise.attachment ?? null]));
   for (const exercise of db.exercises) {
     if (exercise.attachment === undefined) {
@@ -287,6 +302,7 @@ function emptyDatabase(): DatabaseShape {
   return {
     exercises: [],
     routineExercises: [],
+    routineSets: [],
     routines: [],
     sets: [],
     settings: defaultSettings(),
@@ -328,6 +344,7 @@ function copy(db: DatabaseShape): DatabaseShape {
   return {
     exercises: db.exercises.map((row) => ({ ...row })),
     routineExercises: db.routineExercises.map((row) => ({ ...row })),
+    routineSets: db.routineSets.map((row) => ({ ...row })),
     routines: db.routines.map((row) => ({ ...row })),
     sets: db.sets.map((row) => ({ ...row })),
     settings: { ...db.settings },

@@ -137,6 +137,15 @@ export interface ActiveWorkoutSummary {
   exerciseCount: number;
 }
 
+/** A planned set: weight in kilograms and reps, both optional. */
+export interface RoutineSet {
+  id: string;
+  position: number;
+  setType: SetType;
+  weightKg: number | null;
+  reps: number | null;
+}
+
 export interface RoutineExercise {
   id: string;
   exerciseId: string;
@@ -144,6 +153,9 @@ export interface RoutineExercise {
   muscleGroup: MuscleGroup;
   equipment: Equipment;
   position: number;
+  sets: RoutineSet[];
+  /** The latest finished session of this exercise, for the Previous column. */
+  previousSets: PreviousSet[];
 }
 
 export interface RoutineDetail {

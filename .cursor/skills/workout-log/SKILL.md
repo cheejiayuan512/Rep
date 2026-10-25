@@ -15,7 +15,7 @@ Rep is local-only. There is no account, feed, or server.
 One exercise is one card (`src/components/exercise-block.tsx`).
 
 - Notes: multiline text on the exercise, max 500 characters.
-- Each set row: previous load, weight, reps, RPE, complete. Swipe the row left to delete it (`src/components/set-row.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action.
+- Each set row: previous load, weight, reps, RPE, complete. Swipe the row left to delete it (`src/components/set-row.tsx` wraps `src/components/swipe-to-delete.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action.
 - Tap the set number to toggle warmup.
 - A blank workout shows Quick add chips (`src/components/quick-add.tsx`, `listQuickAddExercises`): exercises weighted by how recently and often they were trained, then `STARTER_EXERCISES`, up to 8, minus those already in the workout.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
@@ -39,6 +39,14 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - History detail has Edit and Duplicate. Edit opens the finished workout in the same workout screen with Done instead of Finish/Discard, no rest timer, and no PR toast; stars compare only against earlier workouts. Duplicate starts a new workout with the same exercises, notes, rest, and set weight/reps, nothing checked off, RPE empty.
 - The picker only adds and removes. Renaming, recategorizing, and deleting exercises happen in the Exercises tab. Only unused custom exercises can be deleted; built-ins never.
 - History detail numbers working sets 1..n and marks warmups `W`, so warmups do not shift the count.
+
+## Routines
+
+- The routine editor (`src/features/routines/routine-editor-screen.tsx`) looks like a workout: one card per exercise (`routine-exercise-card.tsx`) with planned sets. Each set has weight and reps (both optional) and can be a warmup. No RPE, notes, or check-off.
+- Drag the three dots on a card to reorder (`src/components/sortable-list.tsx`, cards of any height). Screen readers get Move up / Move down actions on the handle.
+- Swipe a card left to remove the exercise; swipe a set left to delete the set. Both delete right away and show Undo for 5 seconds.
+- Adding an exercise to a routine copies its last session's sets as the plan, or one blank set.
+- Starting a routine copies its planned sets into the workout, unchecked, RPE empty. An exercise with no planned sets (routines from before sets existed) falls back to its last session.
 
 ## Storage speed
 
