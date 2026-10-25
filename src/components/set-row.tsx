@@ -30,6 +30,8 @@ interface SetRowProps {
   unit: WeightUnit;
   /** Append the stack name on machine and cable rows. */
   showSetup?: boolean;
+  /** When false, the RPE field is omitted. */
+  showRpe?: boolean;
   /** True when this completed set beat a previous best. */
   isRecord: boolean;
   onChangeWeight: (setId: string, value: string) => void;
@@ -48,6 +50,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   previous,
   unit,
   showSetup = false,
+  showRpe = true,
   isRecord,
   onChangeWeight,
   onChangeReps,
@@ -135,17 +138,19 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
           style={[styles.input, styles.reps]}
           value={draft.repsText}
         />
-        <TextInput
-          accessibilityLabel="RPE"
-          inputAccessoryViewID={keyboardDoneId}
-          keyboardType="decimal-pad"
-          onChangeText={handleRpe}
-          placeholder="—"
-          placeholderTextColor={colors.faint}
-          selectTextOnFocus
-          style={[styles.input, styles.rpe]}
-          value={draft.rpeText}
-        />
+        {showRpe ? (
+          <TextInput
+            accessibilityLabel="RPE"
+            inputAccessoryViewID={keyboardDoneId}
+            keyboardType="decimal-pad"
+            onChangeText={handleRpe}
+            placeholder="—"
+            placeholderTextColor={colors.faint}
+            selectTextOnFocus
+            style={[styles.input, styles.rpe]}
+            value={draft.rpeText}
+          />
+        ) : null}
         <Pressable accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'} accessibilityRole="button" onPress={handleComplete} style={[styles.check, set.completed && styles.checkDone]}>
           <Text style={[styles.checkText, set.completed && styles.checkTextDone]}>{set.completed ? '✓' : ''}</Text>
         </Pressable>

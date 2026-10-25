@@ -1,5 +1,5 @@
 /**
- * The Routines tab: a list of saved exercise lists. Tap one to edit it.
+ * Saved exercise lists. Opens from Home. Tap one to edit it.
  */
 import React, { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View, type ListRenderItemInfo } from 'react-native';
@@ -10,11 +10,12 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } fro
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { EmptyState } from '../../components/empty-state';
+import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { createRoutine, startWorkoutFromRoutine } from '../../data/repository';
 import { summarizeNames } from '../../domain/format';
 import type { RoutineSummary } from '../../domain/types';
-import type { AppNavigation } from '../../navigation/types';
+import type { StackNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
 function routineKey(routine: RoutineSummary): string {
@@ -22,7 +23,7 @@ function routineKey(routine: RoutineSummary): string {
 }
 
 export const RoutinesScreen: React.FC = () => {
-  const navigation = useNavigation<AppNavigation<'Routines'>>();
+  const navigation = useNavigation<StackNavigation>();
   const dispatch = useAppDispatch();
   const routines = useRoutines();
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
@@ -82,10 +83,7 @@ export const RoutinesScreen: React.FC = () => {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.title}>Routines</Text>
-        <Text style={styles.subtitle}>Templates you can start again.</Text>
-      </View>
+      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} title="Routines" />
       <FlatList
         style={styles.fill}
         contentContainerStyle={routines.length === 0 ? styles.emptyList : styles.list}
@@ -148,10 +146,6 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
   list: {
     padding: 20,
   },
@@ -167,15 +161,5 @@ const styles = StyleSheet.create({
   },
   start: {
     marginTop: 14,
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 15,
-    marginTop: 4,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '800',
   },
 });

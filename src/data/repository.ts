@@ -66,6 +66,9 @@ export interface HevyImportSummary {
 export interface AppSettings extends BodyProfile {
   weightUnit: WeightUnit;
   warmupRestMultiplier: number;
+  showRpe: boolean;
+  /** True once any set in the log has an RPE. */
+  loggedRpe: boolean;
 }
 
 export interface NewSetInput {
@@ -77,11 +80,16 @@ export interface NewSetInput {
 
 // Settings: kg/lb and how long warmups rest.
 
-export const getSettings = reader((db): AppSettings => ({
-  ...bodyProfileOf(db),
-  warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
-  weightUnit: db.settings.weightUnit,
-}));
+export const getSettings = reader((db): AppSettings => {
+  const loggedRpe = db.sets.some((set) => set.rpe != null);
+  return {
+    ...bodyProfileOf(db),
+    loggedRpe,
+    showRpe: db.settings.showRpe === true || loggedRpe,
+    warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
+    weightUnit: db.settings.weightUnit,
+  };
+});
 
 function bodyProfileOf(db: DatabaseShape): BodyProfile {
   const bodyweight = db.settings.bodyweightKg;
@@ -111,6 +119,12 @@ export async function saveWarmupRestMultiplier(multiplier: number): Promise<void
   }
   await writeDatabase((db) => {
     db.settings.warmupRestMultiplier = multiplier;
+  });
+}
+
+export async function saveShowRpe(showRpe: boolean): Promise<void> {
+  await writeDatabase((db) => {
+    db.settings.showRpe = showRpe;
   });
 }
 

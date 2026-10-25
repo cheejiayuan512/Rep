@@ -13,11 +13,9 @@ import { colors } from '../theme/colors';
 interface QuickAddProps {
   workoutId: string;
   onAdd: (exerciseId: string) => Promise<void>;
-  /** Smaller heading, for under the cards. */
-  compact?: boolean;
 }
 
-export const QuickAdd: React.FC<QuickAddProps> = ({ compact = false, onAdd, workoutId }) => {
+export const QuickAdd: React.FC<QuickAddProps> = ({ onAdd, workoutId }) => {
   const suggestions = useStored(listQuickAddExercises, workoutId);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -36,8 +34,8 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ compact = false, onAdd, work
     return null;
   }
   return (
-    <View style={compact ? styles.compact : styles.wrap}>
-      <Text style={compact ? styles.labelCompact : styles.label}>Quick add</Text>
+    <View style={styles.wrap}>
+      <Text style={styles.label}>Quick add</Text>
       <View style={styles.chips}>
         {suggestions.map((exercise) => (
           <QuickChip exercise={exercise} key={exercise.id} onAdd={handleAdd} pending={pendingId === exercise.id} />
@@ -88,22 +86,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  compact: {
-    marginTop: 18,
-  },
   label: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     marginBottom: 10,
-  },
-  labelCompact: {
-    color: colors.faint,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-    textTransform: 'uppercase',
   },
   plus: {
     color: colors.accent,

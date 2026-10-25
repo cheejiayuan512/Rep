@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
+import { useShowRpe, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
 import { SortableList } from '../../components/sortable-list';
@@ -126,7 +126,8 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { unit } = useWeightUnit();
-  const { warmupMultiplier, setWarmupMultiplier } = useWarmupRestMultiplier();
+  const { showRpe } = useShowRpe();
+  const { warmupMultiplier } = useWarmupRestMultiplier();
   const workoutId = route.params.workoutId;
   // The log is already in memory, so the first frame shows the cards instead of an empty page.
   const [initial] = useState(() => {
@@ -988,7 +989,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   ) : (
                     <Text style={styles.elapsed}>0:00</Text>
                   )}
-                  {editing ? null : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
                 </View>
                 {banner ? <Text style={styles.banner}>{banner}</Text> : null}
               </View>
@@ -1015,7 +1015,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onChangeRest={handleChangeRest}
                       onChangeRpe={handleChangeRpe}
                       onChangeSetup={handleChangeSetup}
-                      onChangeWarmupMultiplier={setWarmupMultiplier}
                       onChangeWeight={handleChangeWeight}
                       onDeleteSet={handleDeleteSet}
                       onMove={handleMove}
@@ -1025,15 +1024,15 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onToggleWarmup={handleToggleWarmup}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
                       setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
+                      showRpe={showRpe}
                       sortHandle={handle}
                       unit={unit}
-                      warmupMultiplier={warmupMultiplier}
                     />
                   )}
                 />
               ) : null}
               {workout && workout.exercises.length > 0 ? <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" /> : null}
-              {workout && workout.exercises.length > 0 && !editing ? <QuickAdd compact onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
+              {workout && !editing ? <TextButton label="Discard" onPress={handleDiscard} tone="danger" /> : null}
             </View>
           </ScrollView>
         )}
@@ -1042,7 +1041,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
         <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + insets.bottom }]}>
           {recordBanner ? (
             <Pressable accessibilityLiveRegion="polite" accessibilityRole="alert" onPress={dismissRecord} style={styles.record}>
-              <Text style={styles.recordTitle}>★ New PR · {recordBanner.exerciseName}</Text>
+              <Text style={styles.recordTitle}>New PR · {recordBanner.exerciseName}</Text>
               {recordBanner.lines.map((line) => (
                 <Text key={line} style={styles.recordText}>
                   {line}

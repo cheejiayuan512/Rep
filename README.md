@@ -24,13 +24,12 @@ If the app looks stuck on an old version, stop the server and start it again wit
 
 ## What the app does
 
-- **Workout** starts an empty session or resumes the one already in progress. Only one workout can be open at a time. A blank workout offers quick-add chips, and finishing shows a recap with XP and new badges.
-- **Routines** are planned like a workout: exercise cards with sets, weight, and reps. Drag a card's three dots to reorder, and swipe a card left to remove it. Starting one copies those sets into a new workout.
+- **Workout** starts an empty session or resumes the one already in progress. Only one workout can be open at a time. A blank workout offers quick-add chips. Routines start from this tab.
 - **History** lists finished workouts. Open one to see each exercise, its notes, and its sets, or to edit or duplicate it.
 - **Progress** shows personal records and a chart for each exercise you have trained, plus Analysis, a 1RM calculator, and strength levels against other lifters at your bodyweight.
-- **Exercises** is the library: add, rename, set cable attachments, and delete unused custom exercises.
-- **Profile** shows your level (out of 20), weekly chart, and badges (tap one for what it counts). Its Settings hold kg/lb, warmup rest, and bodyweight.
-- Each exercise is one card. The card holds the sets (weight, reps, RPE), a notes box for the whole exercise, its rest, and Swap.
+- **Profile** shows your level (out of 20), weekly chart, and earned badges (tap one for what it counts). Its Settings hold kg/lb, warmup rest, Show RPE, and bodyweight. The exercise library is here too.
+- **Routines** are planned like a workout: exercise cards with sets, weight, and reps. Drag a card's three dots to reorder, and swipe a card left to remove it. Starting one copies those sets into a new workout.
+- Each exercise is one card. The card holds the sets (weight, reps, and RPE once you use it), notes you open when you need them, its rest, and Swap.
 - While a workout is open, the Lock Screen (iOS Live Activity) or a notification (Android) shows the next set, the rest countdown, and a Done button.
 - Swipe a set left to delete it.
 - The kg/lb switch in Profile changes what you see. The saved number is always kilograms.

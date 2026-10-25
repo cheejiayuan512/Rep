@@ -159,7 +159,7 @@ const HistoryCard: React.FC<HistoryCardProps> = React.memo(function HistoryCard(
         </View>
         {workout.recordCount > 0 ? (
           <Text style={styles.prBadge}>
-            ★ {workout.recordCount} {workout.recordCount === 1 ? 'PR' : 'PRs'}
+            {workout.recordCount} {workout.recordCount === 1 ? 'PR' : 'PRs'}
           </Text>
         ) : null}
       </View>

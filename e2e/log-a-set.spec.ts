@@ -29,10 +29,10 @@ test('a logged set shows up in history', async ({ page }) => {
   await expect(page.getByText('Added')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
 
+  await page.getByRole('button', { name: 'Notes' }).click();
   await page.getByRole('textbox', { name: 'Exercise notes' }).fill('Felt steady.');
   await page.getByRole('textbox', { name: 'Weight' }).fill('100');
   await page.getByRole('textbox', { name: 'Reps' }).fill('5');
-  await page.getByRole('textbox', { name: 'RPE' }).fill('8');
   await page.getByRole('button', { name: 'Complete set' }).click();
   await page.getByRole('button', { name: 'Finish' }).click();
 
@@ -69,7 +69,7 @@ test('variants fold, a heavier set is starred, and deletes can be undone', async
   await page.getByRole('button', { name: 'Add set' }).click();
   await page.getByRole('textbox', { name: 'Weight' }).nth(1).fill('110');
   await page.getByRole('button', { name: 'Complete set' }).click();
-  await expect(page.getByText('★ New PR · Barbell Bench Press')).toBeVisible();
+  await expect(page.getByText('New PR · Barbell Bench Press')).toBeVisible();
   await expect(page.getByLabel('Personal record')).toHaveCount(1);
 
   await swipeLeft(page, page.getByTestId('set-row').nth(1));
@@ -133,7 +133,8 @@ test('exercises can be edited from their tab, and the calculators open', async (
   });
   await page.goto('/');
 
-  await page.getByRole('tab', { name: 'Exercises' }).click();
+  await page.getByRole('tab', { name: 'Profile' }).click();
+  await page.getByRole('button', { name: 'Exercise library' }).click();
   await page.getByRole('textbox', { name: 'Search the library' }).fill('Back Squat');
   await page.getByRole('button', { name: 'Back Squat', exact: true }).click();
   await page.getByRole('textbox', { name: 'Exercise name' }).fill('Back Squat (High Bar)');
@@ -141,6 +142,7 @@ test('exercises can be edited from their tab, and the calculators open', async (
   await page.getByRole('textbox', { name: 'Search the library' }).fill('High Bar');
   await expect(page.getByRole('button', { name: 'Back Squat (High Bar)' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
   await page.getByRole('tab', { name: 'Workout' }).click();
   await page.getByRole('button', { name: 'Start workout' }).click();
   await page.getByRole('button', { name: 'Add exercise' }).click();
@@ -193,7 +195,7 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'Front Squat', exact: true }).click();
   await expect(page.getByText('Front Squat', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Swap Back Squat' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Quick add Back Squat' })).toBeVisible();
+  await expect(page.getByText('Back Squat', { exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Add exercise' }).click();
   await page.getByRole('textbox', { name: 'Search exercises' }).fill('Triceps Pushdown');

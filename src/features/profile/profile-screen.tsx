@@ -29,7 +29,7 @@ import { STRENGTH_LEVELS } from '../../domain/strength';
 import { formatDecimal, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
-import { useBodyProfile, useProfile, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
+import { useBodyProfile, useProfile, useShowRpe, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
 interface ProfileScreenProps {
@@ -57,13 +57,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     [navigation],
   );
   const openStrength = useCallback(() => navigation.navigate('StrengthLevels'), [navigation]);
+  const openLibrary = useCallback(() => navigation.navigate('Exercises'), [navigation]);
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.header}>Profile</Text>
         {profile ? (
-          <ProfileBody metric={metric} onMetric={setMetric} onOpenRecent={openRecent} onOpenStrength={openStrength} profile={profile} unit={unit} />
+          <ProfileBody metric={metric} onMetric={setMetric} onOpenLibrary={openLibrary} onOpenRecent={openRecent} onOpenStrength={openStrength} profile={profile} unit={unit} />
         ) : null}
         <Settings />
       </ScrollView>
@@ -76,11 +77,12 @@ interface ProfileBodyProps {
   unit: WeightUnit;
   metric: ProfileChartMetric;
   onMetric: (metric: ProfileChartMetric) => void;
+  onOpenLibrary: () => void;
   onOpenRecent: (workoutId: string) => void;
   onOpenStrength: () => void;
 }
 
-const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecent, onOpenStrength, profile, unit }) => {
+const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibrary, onOpenRecent, onOpenStrength, profile, unit }) => {
   const weekLabel = profile.thisWeekMinutes < 60 ? `${profile.thisWeekMinutes} min` : formatHours(profile.thisWeekMinutes);
   const earned = profile.badges.filter((badge) => badge.tier !== 'locked').length;
   const [showAllBadges, setShowAllBadges] = useState(false);
@@ -89,7 +91,8 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
     () => [...profile.badges].sort((left, right) => TIER_RANK[right.tier] - TIER_RANK[left.tier] || right.ring - left.ring),
     [profile.badges],
   );
-  const visibleBadges = showAllBadges ? ordered : ordered.slice(0, COLLAPSED_BADGES);
+  const earnedBadges = ordered.filter((badge) => badge.tier !== 'locked');
+  const visibleBadges = showAllBadges ? earnedBadges : earnedBadges.slice(0, COLLAPSED_BADGES);
   const selected = openBadge ? (profile.badges.find((badge) => badge.id === openBadge) ?? null) : null;
   const toggleBadges = useCallback(() => setShowAllBadges((open) => !open), []);
   const closeBadge = useCallback(() => setOpenBadge(null), []);
@@ -105,6 +108,14 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
       <LevelBlock level={profile.level} />
 
       <StrengthSummary onOpen={onOpenStrength} unit={unit} />
+      <Pressable accessibilityLabel="Exercise library" accessibilityRole="button" onPress={onOpenLibrary} style={styles.strength}>
+        <View style={styles.flex}>
+          <Text style={styles.strengthKicker}>Library</Text>
+          <Text style={styles.strengthTitle}>Exercise library</Text>
+          <Text style={styles.muted}>Rename, recategorize, or add a custom exercise.</Text>
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
 
       <View style={styles.sectionHead}>
         <Text style={styles.weekLine}>
@@ -120,21 +131,26 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenRecen
         ))}
       </View>
 
-      <View style={styles.sectionHead}>
-        <Text style={[styles.section, styles.sectionInline]}>Badges</Text>
-        <Text style={styles.range}>
-          {earned} of {profile.badges.length} earned
-        </Text>
-      </View>
-      <Text style={styles.hint}>Tap a badge to see what it counts and how to level it up.</Text>
-      <View style={styles.badges}>
-        {visibleBadges.map((badge) => (
-          <BadgeView badge={badge} key={badge.id} onOpen={setOpenBadge} unit={unit} />
-        ))}
-      </View>
-      <Pressable accessibilityRole="button" onPress={toggleBadges} style={styles.more}>
-        <Text style={styles.moreText}>{showAllBadges ? 'Show fewer' : `Show all ${profile.badges.length} badges`}</Text>
-      </Pressable>
+      {earned > 0 ? (
+        <View>
+          <View style={styles.sectionHead}>
+            <Text style={[styles.section, styles.sectionInline]}>Badges</Text>
+            <Text style={styles.range}>
+              {earned} of {profile.badges.length} earned
+            </Text>
+          </View>
+          <View style={styles.badges}>
+            {visibleBadges.map((badge) => (
+              <BadgeView badge={badge} key={badge.id} onOpen={setOpenBadge} unit={unit} />
+            ))}
+          </View>
+          {earnedBadges.length > COLLAPSED_BADGES ? (
+            <Pressable accessibilityRole="button" onPress={toggleBadges} style={styles.more}>
+              <Text style={styles.moreText}>{showAllBadges ? 'Show fewer' : `Show all ${earnedBadges.length} badges`}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       <Text style={styles.section}>Number of contributions</Text>
       {profile.contributions.map((item) => (
@@ -223,8 +239,10 @@ const StrengthSummary: React.FC<{ onOpen: () => void; unit: WeightUnit }> = ({ o
 const Settings: React.FC = () => {
   const { setUnit, unit } = useWeightUnit();
   const { setWarmupMultiplier, warmupMultiplier } = useWarmupRestMultiplier();
+  const { loggedRpe, setShowRpe, showRpe } = useShowRpe();
   const { body, setBody } = useBodyProfile();
   const selectMultiplier = useCallback((value: string) => setWarmupMultiplier(Number(value)), [setWarmupMultiplier]);
+  const selectRpe = useCallback((value: string) => setShowRpe(value === 'on'), [setShowRpe]);
   return (
     <View>
       <Text style={styles.section}>Settings</Text>
@@ -232,6 +250,15 @@ const Settings: React.FC = () => {
         <Text style={styles.contributionLabel}>Weight unit</Text>
         <UnitToggle onChange={setUnit} unit={unit} />
       </View>
+      {loggedRpe ? null : (
+        <View style={styles.settingRow}>
+          <Text style={styles.contributionLabel}>Show RPE</Text>
+          <View style={styles.multipliers}>
+            <Chip label="Off" onSelect={selectRpe} selected={!showRpe} value="off" />
+            <Chip label="On" onSelect={selectRpe} selected={showRpe} value="on" />
+          </View>
+        </View>
+      )}
       <View style={styles.settingBlock}>
         <Text style={styles.contributionLabel}>Warmup rest</Text>
         <Text style={styles.hint}>A light warmup rests this share of the exercise&apos;s rest. Heavier warmups rest longer, up to the full rest.</Text>

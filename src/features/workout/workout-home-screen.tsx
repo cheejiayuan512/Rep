@@ -1,6 +1,6 @@
 /**
  * The Workout tab. Start an empty session, resume the one in progress,
- * start a saved routine, or open the last finished workout.
+ * or start a saved routine. The Routines heading opens the full list.
  */
 import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,7 +11,7 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } fro
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { Screen } from '../../components/screen';
-import { formatClock, formatWorkoutWhen, summarizeNames } from '../../domain/format';
+import { formatClock, summarizeNames } from '../../domain/format';
 import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
 import type { RoutineSummary, WeightUnit } from '../../domain/types';
@@ -86,12 +86,6 @@ export const WorkoutHomeScreen: React.FC = () => {
     navigation.navigate('Routines');
   }, [navigation]);
 
-  const handleOpenLast = useCallback(() => {
-    if (home?.lastWorkout) {
-      navigation.navigate('WorkoutDetail', { workoutId: home.lastWorkout.id });
-    }
-  }, [home?.lastWorkout, navigation]);
-
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const pressCreateRoutine = useCallback(() => {
     void handleCreateRoutine();
@@ -101,12 +95,12 @@ export const WorkoutHomeScreen: React.FC = () => {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
         <Text style={styles.wordmark}>Rep</Text>
-        <Text style={styles.tagline}>Log the sets. Keep the numbers that move.</Text>
         {home?.active ? <ResumeCard elapsed={formatClock((now - home.active.startedAt) / 1000)} exerciseCount={home.active.exerciseCount} name={home.active.name} onPress={openWorkout} workoutId={home.active.id} /> : null}
         <Button label="Start workout" onPress={handleStartEmpty} />
         <View style={styles.sectionHead}>
-          <Text style={styles.section}>Routines</Text>
-          <TextButtonLike label="See all" onPress={handleOpenRoutines} />
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={handleOpenRoutines}>
+            <Text style={styles.section}>Routines</Text>
+          </Pressable>
         </View>
         {home && home.routines.length > 0 ? (
           <ScrollView contentContainerStyle={styles.routineRow} horizontal showsHorizontalScrollIndicator={false}>
@@ -120,10 +114,7 @@ export const WorkoutHomeScreen: React.FC = () => {
             <Button label="Create a routine" onPress={pressCreateRoutine} style={styles.createRoutine} variant="secondary" />
           </View>
         )}
-        <View style={styles.sectionHead}>
-          <Text style={styles.section}>This week</Text>
-          {home?.lastWorkout ? <TextButtonLike label={`Last: ${formatWorkoutWhen(home.lastWorkout.finishedAt)}`} onPress={handleOpenLast} /> : null}
-        </View>
+        <Text style={styles.weekHeading}>This week</Text>
         {home ? <WeekStats stats={home.stats} unit={unit} /> : null}
       </ScrollView>
       <ConfirmDialog
@@ -144,40 +135,16 @@ interface WeekStatsProps {
 }
 
 const WeekStats: React.FC<WeekStatsProps> = React.memo(function WeekStats({ stats, unit }) {
-  const { lastWeek, streakWeeks, thisWeek } = stats;
-  return (
-    <View style={styles.statGrid}>
-      <StatTile label="Workouts" trend={compare(thisWeek.workouts, lastWeek.workouts, String)} value={String(thisWeek.workouts)} />
-      <StatTile
-        label={`Volume (${unit})`}
-        trend={compare(thisWeek.volumeKg, lastWeek.volumeKg, (value) => formatVolume(kgToDisplay(value, unit)))}
-        value={formatVolume(kgToDisplay(thisWeek.volumeKg, unit))}
-      />
-      <StatTile label="Time" trend={compare(thisWeek.minutes, lastWeek.minutes, formatMinutes)} value={formatMinutes(thisWeek.minutes)} />
-      <StatTile label="Sets" trend={compare(thisWeek.sets, lastWeek.sets, String)} value={String(thisWeek.sets)} />
-      <StatTile label="Week streak" trend={streakWeeks > 0 ? 'Keep it going' : 'Train this week to start one'} value={String(streakWeeks)} wide />
-    </View>
-  );
+  const { streakWeeks, thisWeek } = stats;
+  const line = [
+    `${thisWeek.workouts} ${thisWeek.workouts === 1 ? 'workout' : 'workouts'}`,
+    `${formatVolume(kgToDisplay(thisWeek.volumeKg, unit))} ${unit}`,
+    formatMinutes(thisWeek.minutes),
+    `${thisWeek.sets} ${thisWeek.sets === 1 ? 'set' : 'sets'}`,
+    `${streakWeeks} wk streak`,
+  ].join(' · ');
+  return <Text style={styles.weekLine}>{line}</Text>;
 });
-
-const StatTile: React.FC<{ label: string; value: string; trend: string; wide?: boolean }> = ({ label, trend, value, wide = false }) => {
-  return (
-    <View accessibilityLabel={`${label} ${value}, ${trend}`} style={[styles.statTile, wide && styles.statTileWide]}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text numberOfLines={1} style={styles.statTrend}>
-        {trend}
-      </Text>
-    </View>
-  );
-};
-
-function compare(current: number, previous: number, format: (value: number) => string): string {
-  if (previous === 0) {
-    return current === 0 ? 'Nothing yet' : 'Up from 0 last week';
-  }
-  return `${format(previous)} last week`;
-}
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) {
@@ -235,19 +202,6 @@ const RoutineStartCard: React.FC<RoutineStartCardProps> = React.memo(function Ro
   );
 });
 
-interface TextButtonLikeProps {
-  label: string;
-  onPress: () => void;
-}
-
-const TextButtonLike: React.FC<TextButtonLikeProps> = ({ label, onPress }) => {
-  return (
-    <Pressable hitSlop={8} onPress={onPress}>
-      <Text style={styles.link}>{label}</Text>
-    </Pressable>
-  );
-};
-
 const styles = StyleSheet.create({
   body: {
     color: colors.muted,
@@ -272,48 +226,8 @@ const styles = StyleSheet.create({
   createRoutine: {
     marginTop: 12,
   },
-  link: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
   noRoutines: {
     paddingTop: 4,
-  },
-  statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 10,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  statTile: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexBasis: '47%',
-    flexGrow: 1,
-    padding: 14,
-  },
-  statTileWide: {
-    flexBasis: '100%',
-  },
-  statTrend: {
-    color: colors.faint,
-    fontSize: 12,
-    marginTop: 6,
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 24,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
   },
   resume: {
     backgroundColor: colors.accent,
@@ -377,22 +291,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   sectionHead: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 26,
   },
-  tagline: {
+  weekHeading: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 26,
+  },
+  weekLine: {
     color: colors.muted,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
-    marginBottom: 22,
-    marginTop: 6,
+    marginTop: 8,
   },
   wordmark: {
     color: colors.text,
     fontSize: 40,
     fontWeight: '800',
     letterSpacing: -1,
+    marginBottom: 22,
   },
 });

@@ -2,6 +2,14 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## Unreleased
+
+- **Four tabs.** Workout, History, Progress, Profile. Routines open from the Home heading. The exercise library is on Profile.
+- **Less logging chrome.** Notes stay shut until you open them. Quick add only on an empty workout. Warmup rest lives in Profile only. Discard sits under the cards. The swipe-to-delete caption is gone.
+- **Home starts.** No slogan. This week is one line. No extra History or Routines links.
+- **Finish is Done.** Undo finish and View workout are quiet text. No confetti.
+- **Less inventory.** Locked badges stay off Profile. A PR star is on the set only. The RPE column waits until you turn it on in Settings, or until you have logged one.
+
 ## 1.3.0 · Android 13 / iOS 20
 
 - **More built-in exercises.** About 65 gym staples are in the library now: pec deck, T-bar and Pendlay rows, shrugs, EZ-bar curls, Nordic curl, kettlebell swing, farmer carry, core holds, Olympic lifts, and the usual machine variants. They show up on the next open without wiping custom exercises.

@@ -16,6 +16,7 @@ import {
   listTrainedExercises,
   listWorkoutSummaries,
   saveBodyProfile,
+  saveShowRpe,
   saveWarmupRestMultiplier,
   saveWeightUnit,
   type Reader,
@@ -73,6 +74,18 @@ export function useWeightUnit(): { unit: WeightUnit; setUnit: (unit: WeightUnit)
     [dispatch],
   );
   return { setUnit, unit };
+}
+
+export function useShowRpe(): { showRpe: boolean; loggedRpe: boolean; setShowRpe: (show: boolean) => void } {
+  const settings = useStored(getSettings);
+  const dispatch = useAppDispatch();
+  const setShowRpe = useCallback(
+    (show: boolean) => {
+      void saveShowRpe(show).then(() => dispatch(dataChanged()));
+    },
+    [dispatch],
+  );
+  return { loggedRpe: settings?.loggedRpe ?? false, setShowRpe, showRpe: settings?.showRpe ?? false };
 }
 
 export function useWarmupRestMultiplier(): { warmupMultiplier: number; setWarmupMultiplier: (multiplier: number) => void } {

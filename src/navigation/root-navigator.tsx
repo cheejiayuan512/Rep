@@ -11,7 +11,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { bootFailed, bootstrapped, useAppDispatch, useAppSelector } from '../state/store';
-import { ExercisesIcon, HistoryIcon, ProfileIcon, ProgressIcon, RoutinesIcon, WorkoutIcon } from '../components/icons';
+import { HistoryIcon, ProfileIcon, ProgressIcon, WorkoutIcon } from '../components/icons';
 import { getInProgressWorkoutId, getSettings, getWorkout } from '../data/repository';
 import { flushDatabase, initDatabase } from '../data/database';
 import { endWorkoutActivity, showWorkoutActivity } from '../components/workout-live-activity';
@@ -42,20 +42,12 @@ function renderWorkoutIcon({ color, size }: { color: string; size: number }) {
   return <WorkoutIcon color={color} size={size} />;
 }
 
-function renderRoutinesIcon({ color, size }: { color: string; size: number }) {
-  return <RoutinesIcon color={color} size={size} />;
-}
-
 function renderHistoryIcon({ color, size }: { color: string; size: number }) {
   return <HistoryIcon color={color} size={size} />;
 }
 
 function renderProgressIcon({ color, size }: { color: string; size: number }) {
   return <ProgressIcon color={color} size={size} />;
-}
-
-function renderExercisesIcon({ color, size }: { color: string; size: number }) {
-  return <ExercisesIcon color={color} size={size} />;
 }
 
 function renderProfileIcon({ color, size }: { color: string; size: number }) {
@@ -77,10 +69,8 @@ const Tabs: React.FC = () => {
       }}
     >
       <Tab.Screen component={WorkoutHomeScreen} name="Workout" options={{ tabBarIcon: renderWorkoutIcon }} />
-      <Tab.Screen component={RoutinesScreen} name="Routines" options={{ tabBarIcon: renderRoutinesIcon }} />
       <Tab.Screen component={HistoryScreen} name="History" options={{ tabBarIcon: renderHistoryIcon }} />
       <Tab.Screen component={ProgressScreen} name="Progress" options={{ tabBarIcon: renderProgressIcon }} />
-      <Tab.Screen component={ExercisesScreen} name="Exercises" options={{ tabBarIcon: renderExercisesIcon }} />
       <Tab.Screen component={ProfileScreen} name="Profile" options={{ tabBarIcon: renderProfileIcon }} />
     </Tab.Navigator>
   );
@@ -174,6 +164,8 @@ export const RootNavigator: React.FC = () => {
           name="ActiveWorkout"
           options={{ animation: 'slide_from_bottom', gestureEnabled: true, presentation: 'fullScreenModal' }}
         />
+        <Stack.Screen component={RoutinesScreen} name="Routines" />
+        <Stack.Screen component={ExercisesScreen} name="Exercises" />
         <Stack.Screen component={ExercisePickerScreen} name="ExercisePicker" />
         <Stack.Screen component={RoutineEditorScreen} name="RoutineEditor" />
         <Stack.Screen component={WorkoutDetailScreen} name="WorkoutDetail" />

@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionE
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
-import { defaultRestFor, formatMultiplier, REST_CLASS_LABELS, restClassFor, WARMUP_MULTIPLIERS } from '../domain/rest';
+import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../domain/rest';
 import type { MachineSetupOption } from '../domain/machine-setup';
 import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { previousForSet } from '../domain/workout-edits';
@@ -31,10 +31,9 @@ interface ExerciseBlockProps {
   drafts: DraftMap;
   /** Ids of completed sets in this card that beat a previous best. */
   recordIds: ReadonlySet<string>;
-  /** Warmup rest as a fraction of this card's rest. One setting for every exercise. */
-  warmupMultiplier: number;
+  /** When false, the RPE column stays off the row. */
+  showRpe: boolean;
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
-  onChangeWarmupMultiplier: (multiplier: number) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
@@ -60,9 +59,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   unit,
   drafts,
   recordIds,
-  warmupMultiplier,
+  showRpe,
   onChangeRest,
-  onChangeWarmupMultiplier,
   onChangeAttachment,
   onChangeSetup,
   setupOptions,
@@ -102,6 +100,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     [exercise.id, onChangeNotes],
   );
   const [panel, setPanel] = useState<OpenPanel>(null);
+  const [notesOpen, setNotesOpen] = useState(exercise.notes.trim().length > 0);
+  const openNotes = useCallback(() => setNotesOpen(true), []);
   const toggleRest = useCallback(() => {
     setPanel((open) => (open === 'rest' ? null : 'rest'));
   }, []);
@@ -132,7 +132,6 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     },
     [exercise.id, onChangeSetup],
   );
-  const hasRecord = exercise.sets.some((set) => recordIds.has(set.id));
   const showSetup = usesMachineSetup(exercise.equipment);
   const defaultRest = defaultRestFor(exercise);
   const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
@@ -142,10 +141,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     <View style={[styles.card, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
         <View style={styles.titleWrap}>
-          <Text style={styles.name}>
-            {exercise.name}
-            {hasRecord ? <Text style={styles.star}> ★</Text> : null}
-          </Text>
+          <Text style={styles.name}>{exercise.name}</Text>
           <Text style={styles.meta}>{exercise.equipment}</Text>
         </View>
         <View style={styles.headerActions}>
@@ -215,12 +211,6 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           <Text style={styles.choiceNote}>
             Default {formatClock(defaultRest)} for a {REST_CLASS_LABELS[restClassFor(exercise)].toLowerCase()} exercise.
           </Text>
-          <Text style={styles.choiceNote}>Light warmups rest, for every exercise. Heavier warmups rest longer, up to the full rest:</Text>
-          <View style={styles.choices}>
-            {WARMUP_MULTIPLIERS.map((multiplier) => (
-              <Choice key={multiplier} label={formatMultiplier(multiplier)} onPress={onChangeWarmupMultiplier} selected={warmupMultiplier === multiplier} value={multiplier} />
-            ))}
-          </View>
         </View>
       ) : null}
       {panel === 'setup' ? <MachineSetupChoices onChange={handleSetup} options={setupOptions} unit={unit} value={exercise.machineSetup} /> : null}
@@ -232,25 +222,33 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           ))}
         </View>
       ) : null}
-      <Text style={styles.section}>Notes</Text>
-      <TextInput
-        accessibilityLabel="Exercise notes"
-        inputAccessoryViewID={keyboardDoneId}
-        multiline
-        onChangeText={handleNotes}
-        placeholder="How did this exercise feel?"
-        placeholderTextColor={colors.faint}
-        style={styles.notes}
-        textAlignVertical="top"
-        value={exercise.notes}
-      />
+      {notesOpen || exercise.notes.trim().length > 0 ? (
+        <View>
+          <Text style={styles.section}>Notes</Text>
+          <TextInput
+            accessibilityLabel="Exercise notes"
+            inputAccessoryViewID={keyboardDoneId}
+            multiline
+            onChangeText={handleNotes}
+            placeholder="How did this exercise feel?"
+            placeholderTextColor={colors.faint}
+            style={styles.notes}
+            textAlignVertical="top"
+            value={exercise.notes}
+          />
+        </View>
+      ) : (
+        <Pressable accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
+          <Text style={styles.addText}>Notes</Text>
+        </Pressable>
+      )}
       <View style={styles.table}>
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>
           <Text style={[styles.column, styles.weightCol]}>{unit.toUpperCase()}</Text>
           <Text style={[styles.column, styles.repsCol]}>REPS</Text>
-          <Text style={[styles.column, styles.rpeCol]}>RPE</Text>
+          {showRpe ? <Text style={[styles.column, styles.rpeCol]}>RPE</Text> : null}
           <View style={styles.checkSpacer} />
         </View>
         {showSetup && exercise.previousSets.length === 0 ? (
@@ -270,6 +268,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onToggleComplete={onToggleComplete}
             onToggleWarmup={onToggleWarmup}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
+            showRpe={showRpe}
             showSetup={showSetup}
             set={set}
             unit={unit}
@@ -280,7 +279,6 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
           <Text style={styles.addText}>Add set</Text>
         </Pressable>
-        {exercise.sets.length > 0 ? <Text style={styles.swipeHint}>Swipe a set left to delete</Text> : null}
       </View>
     </View>
   );
@@ -312,14 +310,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   footer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginTop: 12,
   },
-  swipeHint: {
-    color: colors.faint,
-    fontSize: 12,
+  notesToggle: {
+    marginTop: 14,
+    paddingVertical: 4,
   },
   addText: {
     color: colors.accent,
@@ -462,14 +457,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 52,
   },
-  remove: {
-    paddingVertical: 2,
-  },
-  removeText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
   repsCol: {
     textAlign: 'center',
     width: setColumn.reps,
@@ -489,9 +476,6 @@ const styles = StyleSheet.create({
   setCol: {
     textAlign: 'center',
     width: setColumn.set,
-  },
-  star: {
-    color: colors.accent,
   },
   table: {
     marginTop: 14,

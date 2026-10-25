@@ -38,7 +38,7 @@ Tapping the check mark calls `updateSetCompleted`. If the set has at least one r
 
 ## 6. Finish
 
-**Finish** sets `finishedAt` to the current time. History and Progress only read workouts that have that timestamp. The down chevron or a downward swipe leaves the workout in progress. Discard deletes it.
+**Finish** sets `finishedAt` to the current time. History and Progress only read workouts that have that timestamp. The down chevron or a downward swipe leaves the workout in progress. Discard, under the cards, deletes it.
 
 ## 7. Looking back
 

@@ -12,10 +12,8 @@ import { colors } from '../theme/colors';
 
 export type TabParamList = {
   Workout: undefined;
-  Routines: undefined;
   History: undefined;
   Progress: undefined;
-  Exercises: undefined;
   Profile: undefined;
 };
 
@@ -28,6 +26,8 @@ export type ExercisePickerParams =
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   ActiveWorkout: { workoutId: string };
+  Routines: undefined;
+  Exercises: undefined;
   ExercisePicker: ExercisePickerParams;
   RoutineEditor: { routineId: string };
   WorkoutDetail: { workoutId: string };

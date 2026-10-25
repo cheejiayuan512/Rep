@@ -1,9 +1,9 @@
 /**
- * The page right after Finish: a burst of confetti, what the session added up
- * to, new records, the XP it earned toward the next level, and any badge it unlocked.
+ * The page right after Finish: what the session added up to, new records,
+ * the XP it earned toward the next level, and any badge it unlocked.
  */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { BadgeGlyph } from '../../components/badge-icons';
@@ -20,8 +20,6 @@ import { useStored, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
 const nativeDriver = Platform.OS !== 'web';
-const CONFETTI_COLORS = [colors.accent, '#FFB86B', '#7EB6FF', '#FF8A8A', '#C084FC', '#5EEAD4', '#F0C14A'];
-const CONFETTI_COUNT = 42;
 
 export const WorkoutCompleteScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
@@ -57,10 +55,13 @@ export const WorkoutCompleteScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content}>
         {recap ? <RecapBody recap={recap} unit={unit} /> : <Text style={styles.muted}>Saving your workout…</Text>}
         <Button label="Done" onPress={handleDone} style={styles.done} />
-        <Button label="Undo finish" onPress={handleUndo} style={styles.view} variant="secondary" />
-        <Button label="View workout" onPress={handleView} style={styles.view} variant="secondary" />
+        <Pressable accessibilityRole="button" onPress={handleUndo} style={styles.quiet}>
+          <Text style={styles.quietText}>Undo finish</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={handleView} style={styles.quiet}>
+          <Text style={styles.quietText}>View workout</Text>
+        </Pressable>
       </ScrollView>
-      <Confetti />
     </Screen>
   );
 };
@@ -88,7 +89,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap,
       {recap.records.length > 0 ? (
         <View style={styles.records}>
           <Text style={styles.recordsTitle}>
-            ★ {recap.records.length} new {recap.records.length === 1 ? 'PR' : 'PRs'}
+            {recap.records.length} new {recap.records.length === 1 ? 'PR' : 'PRs'}
           </Text>
           {recap.records.map((record) => (
             <Text key={record.name} style={styles.recordLine}>
@@ -211,61 +212,6 @@ const Medal: React.FC = () => {
   );
 };
 
-interface Piece {
-  x: number;
-  delay: number;
-  duration: number;
-  drift: number;
-  spin: number;
-  color: string;
-  width: number;
-  height: number;
-}
-
-/** Paper pieces that fall once across the screen, then stop. */
-const Confetti: React.FC = () => {
-  const { height, width } = useWindowDimensions();
-  const pieces = useMemo<Piece[]>(
-    () =>
-      Array.from({ length: CONFETTI_COUNT }, (_, index) => ({
-        color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-        delay: Math.random() * 600,
-        drift: (Math.random() - 0.5) * 120,
-        duration: 2200 + Math.random() * 1600,
-        height: 10 + Math.random() * 8,
-        spin: (Math.random() > 0.5 ? 1 : -1) * (360 + Math.random() * 540),
-        width: 6 + Math.random() * 5,
-        x: Math.random() * width,
-      })),
-    [width],
-  );
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {pieces.map((piece, index) => (
-        <ConfettiPiece fall={height + 60} key={index} piece={piece} />
-      ))}
-    </View>
-  );
-};
-
-const ConfettiPiece: React.FC<{ piece: Piece; fall: number }> = ({ fall, piece }) => {
-  const progress = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(progress, { delay: piece.delay, duration: piece.duration, easing: Easing.in(Easing.quad), toValue: 1, useNativeDriver: nativeDriver }).start();
-  }, [piece.delay, piece.duration, progress]);
-  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [-40, fall] });
-  const translateX = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, piece.drift, piece.drift * 0.4] });
-  const rotate = progress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${piece.spin}deg`] });
-  const opacity = progress.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] });
-  return (
-    <Animated.View
-      style={[
-        styles.piece,
-        { backgroundColor: piece.color, height: piece.height, left: piece.x, opacity, transform: [{ translateY }, { translateX }, { rotate }], width: piece.width },
-      ]}
-    />
-  );
-};
 
 const styles = StyleSheet.create({
   badgeCopy: {
@@ -368,10 +314,15 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontWeight: '800',
   },
-  piece: {
-    borderRadius: 2,
-    position: 'absolute',
-    top: 0,
+  quiet: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  quietText: {
+    color: colors.muted,
+    fontSize: 15,
+    fontWeight: '600',
   },
   recordLine: {
     color: colors.accentInk,
@@ -444,9 +395,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: 999,
     height: 10,
-  },
-  view: {
-    marginTop: 10,
   },
   xpGain: {
     color: colors.accent,

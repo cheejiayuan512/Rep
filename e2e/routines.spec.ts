@@ -43,7 +43,7 @@ test('a routine plans sets, reorders by dragging, and removes by swiping', async
   });
   await page.goto('/');
 
-  await page.getByRole('tab', { name: 'Routines' }).click();
+  await page.getByRole('button', { name: 'Routines' }).click();
   await page.getByRole('button', { name: 'Create a routine' }).click();
   await addExercise(page, 'Back Squat');
   await addExercise(page, 'Barbell Bench Press');

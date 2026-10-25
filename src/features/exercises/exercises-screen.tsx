@@ -1,6 +1,6 @@
 /**
- * The Exercises tab: the whole library. Tap one to rename it, change its muscle
- * group or equipment, or delete a custom one. Adding to a workout happens in the picker.
+ * The exercise library. Opens from Profile. Tap one to rename it, change its
+ * muscle group or equipment, or delete a custom one. Adding to a workout happens in the picker.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
@@ -8,12 +8,12 @@ import { useNavigation } from '@react-navigation/native';
 
 import { Chip } from '../../components/chip';
 import { EmptyState } from '../../components/empty-state';
-import { TextButton } from '../../components/header';
+import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { listExercises } from '../../data/repository';
 import { fuzzyFilter } from '../../domain/fuzzy-search';
 import { muscleGroups, type Exercise, type MuscleGroup } from '../../domain/types';
-import type { AppNavigation } from '../../navigation/types';
+import type { StackNavigation } from '../../navigation/types';
 import { useStored } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
@@ -31,7 +31,7 @@ function getRowLayout(_data: ArrayLike<Exercise> | null | undefined, index: numb
 }
 
 export const ExercisesScreen: React.FC = () => {
-  const navigation = useNavigation<AppNavigation<'Exercises'>>();
+  const navigation = useNavigation<StackNavigation>();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>(ALL);
   const library = useStored(listExercises, '', null);
@@ -63,11 +63,8 @@ export const ExercisesScreen: React.FC = () => {
 
   return (
     <Screen>
+      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} right={<TextButton label="New" onPress={handleNew} tone="accent" />} title="Exercises" />
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Exercises</Text>
-          <TextButton label="New" onPress={handleNew} tone="accent" />
-        </View>
         <Text style={styles.subtitle}>
           {exercises.length} in the library · {customCount} custom
         </Text>
@@ -154,7 +151,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
   },
   meta: {
     color: colors.muted,
@@ -193,15 +190,5 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 15,
     marginTop: 4,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '800',
-  },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
 });

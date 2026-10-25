@@ -10,7 +10,7 @@ Read `.cursor/skills/store-release/SKILL.md` before publishing. The Apple key fo
 
 - `index.ts` registers `App.tsx`. This app does not use Expo Router. Do not add `src/app/`.
 - Screens live in `src/features/`. Shared UI lives in `src/components/`.
-- Navigation is React Navigation in `src/navigation/`: tabs Workout, Routines, History, Progress, Profile, plus a native stack.
+- Navigation is React Navigation in `src/navigation/`: tabs Workout, History, Progress, Profile, plus a native stack. Routines open from Home. The exercise library opens from Profile.
 - Redux in `src/state/` holds boot, unit, rest, the active workout id, and a revision counter. Workout rows are loaded from storage, not kept in Redux.
 - Domain math is `src/domain/`. The document store is `src/data/`.
 
