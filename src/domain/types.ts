@@ -83,7 +83,7 @@ export interface PreviousSet {
   weightKg: number | null;
   reps: number | null;
   setType: SetType;
-  /** Set when this previous row came from a machine or cable. Null means Unknown. */
+  /** Set when this previous row came from a machine or cable. Null means Unknown brand. */
   machineSetup?: string | null;
 }
 
@@ -237,7 +237,7 @@ export function sameMachineSetup(left: string | null | undefined, right: string 
 }
 
 export function formatMachineSetup(value: string | null | undefined): string {
-  return value ?? 'Unknown';
+  return value ?? 'Unknown brand';
 }
 
 /** Custom stack names already used, not including the built-in brands. */

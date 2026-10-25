@@ -27,6 +27,20 @@ export const Header: React.FC<HeaderProps> = ({ title, left, right, children }) 
   );
 };
 
+interface IconButtonProps {
+  accessibilityLabel: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}
+
+export const IconButton: React.FC<IconButtonProps> = ({ accessibilityLabel, children, onPress }) => {
+  return (
+    <Pressable accessibilityLabel={accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={onPress} style={styles.iconButton}>
+      {children}
+    </Pressable>
+  );
+};
+
 interface TextButtonProps {
   label: string;
   onPress: () => void;
@@ -60,6 +74,12 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  iconButton: {
+    alignItems: 'center',
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   right: {
     alignItems: 'flex-end',

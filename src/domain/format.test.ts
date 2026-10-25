@@ -17,7 +17,7 @@ test('bodyweight and warmup sets get a prefix', () => {
 
 test('a machine previous names the stack', () => {
   assertEqual(formatLoggedLoad(20, 12, 'kg', false, 'Life Fitness'), '20 × 12 · Life Fitness');
-  assertEqual(formatLoggedLoad(20, 12, 'kg', false, null), '20 × 12 · Unknown');
+  assertEqual(formatLoggedLoad(20, 12, 'kg', false, null), '20 × 12 · Unknown brand');
 });
 
 test('the clock rolls into hours', () => {

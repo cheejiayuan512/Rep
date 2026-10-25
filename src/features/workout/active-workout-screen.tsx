@@ -17,7 +17,8 @@ import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dia
 import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
-import { Header, TextButton } from '../../components/header';
+import { Header, IconButton, TextButton } from '../../components/header';
+import { ChevronDownIcon } from '../../components/icons';
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
@@ -336,12 +337,19 @@ export const ActiveWorkoutScreen: React.FC = () => {
   );
 
   const leave = useCallback(() => {
+    void flushPending();
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
     }
     navigation.navigate('Tabs');
-  }, [navigation]);
+  }, [flushPending, navigation]);
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', () => {
+      void flushPending();
+    });
+  }, [flushPending, navigation]);
 
   const handleRename = useCallback(() => {
     titleFocused.current = false;
@@ -925,7 +933,15 @@ export const ActiveWorkoutScreen: React.FC = () => {
   return (
     <Screen bottomInset={false}>
       <Header
-        left={orderIds ? <TextButton label="Cancel" onPress={cancelReorder} /> : editing ? undefined : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
+        left={
+          orderIds ? (
+            <TextButton label="Cancel" onPress={cancelReorder} />
+          ) : (
+            <IconButton accessibilityLabel="Close workout" onPress={leave}>
+              <ChevronDownIcon color={colors.text} size={26} />
+            </IconButton>
+          )
+        }
         right={
           orderIds ? (
             <TextButton label="Done" onPress={commitReorder} tone="accent" />
@@ -959,6 +975,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
                   ) : (
                     <Text style={styles.elapsed}>0:00</Text>
                   )}
+                  {editing ? null : <TextButton label="Discard" onPress={handleDiscard} tone="danger" />}
                 </View>
                 {banner ? <Text style={styles.banner}>{banner}</Text> : null}
               </View>

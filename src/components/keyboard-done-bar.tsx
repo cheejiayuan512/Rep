@@ -1,16 +1,16 @@
 /**
- * A Done button above the keyboard on iOS and Android. Number pads have no
- * return key, and some Android decimal pads hide theirs. Web has no keyboard
- * chrome, so this renders nothing there.
+ * A hide-keyboard chip above the number pad on iOS and Android. Number pads
+ * have no return key, and some Android decimal pads hide theirs. Web has no
+ * keyboard chrome, so this renders nothing there.
  *
- * Mount once at the app root. iOS overlays the bar on the keyboard; Android
+ * Mount once at the app root. iOS overlays the chip on the keyboard; Android
  * sits it at the bottom of the resized window.
  */
 import React, { useEffect, useState } from 'react';
-import { Keyboard, Platform, StyleSheet, View } from 'react-native';
+import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { colors } from '../theme/colors';
-import { TextButton } from './header';
+import { KeyboardHideIcon } from './icons';
 
 /** Kept so number fields can still point at an accessory. Unused on either platform. */
 export const keyboardDoneId: string | undefined = undefined;
@@ -48,19 +48,21 @@ export const KeyboardDoneBar: React.FC = () => {
     return null;
   }
 
-  const bar = (
-    <View style={styles.bar}>
-      <TextButton label="Done" onPress={dismiss} tone="accent" />
+  const chip = (
+    <View style={styles.row}>
+      <Pressable accessibilityLabel="Hide keyboard" accessibilityRole="button" onPress={dismiss} style={styles.chip}>
+        <KeyboardHideIcon color={colors.accentInk} size={22} />
+      </Pressable>
     </View>
   );
 
   if (Platform.OS === 'android') {
-    return bar;
+    return chip;
   }
 
   return (
     <View pointerEvents="box-none" style={styles.overlay}>
-      <View style={[styles.anchor, { bottom: height }]}>{bar}</View>
+      <View style={[styles.anchor, { bottom: height }]}>{chip}</View>
     </View>
   );
 };
@@ -71,16 +73,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
   },
-  bar: {
-    alignItems: 'flex-end',
-    backgroundColor: colors.surfaceRaised,
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  chip: {
+    alignItems: 'center',
+    backgroundColor: '#F4F7FB',
+    borderRadius: 10,
+    elevation: 4,
+    height: 40,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { height: 1, width: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    width: 52,
   },
   overlay: {
     ...StyleSheet.absoluteFill,
     zIndex: 20,
+  },
+  row: {
+    alignItems: 'flex-end',
+    paddingBottom: 6,
+    paddingHorizontal: 12,
   },
 });

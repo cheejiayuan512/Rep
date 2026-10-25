@@ -169,7 +169,11 @@ export const RootNavigator: React.FC = () => {
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
         <Stack.Screen component={Tabs} name="Tabs" />
-        <Stack.Screen component={ActiveWorkoutScreen} name="ActiveWorkout" />
+        <Stack.Screen
+          component={ActiveWorkoutScreen}
+          name="ActiveWorkout"
+          options={{ animation: 'slide_from_bottom', gestureEnabled: true, presentation: 'fullScreenModal' }}
+        />
         <Stack.Screen component={ExercisePickerScreen} name="ExercisePicker" />
         <Stack.Screen component={RoutineEditorScreen} name="RoutineEditor" />
         <Stack.Screen component={WorkoutDetailScreen} name="WorkoutDetail" />

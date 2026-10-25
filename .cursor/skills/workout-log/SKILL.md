@@ -23,12 +23,13 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Hold an exercise name to reorder. The workout becomes a drag list, then Done saves the order.
 - The Rest chip sets `WorkoutExercise.restSeconds`. Null uses the exercise's default from `src/domain/rest.ts`: heavy compound 3:00, compound 2:00, isolation 1:30, calves/core 1:00, classed by seed id, then name keywords and equipment. A new workout copies the last rest picked for that exercise.
 - Warmup sets rest `exercise rest × (m + (1 − m) × ratio²)`, where `m` is `settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½) and `ratio` is `warmupLoadRatio`: the warmup's kg over the heaviest working set on the card, or last session's when none is entered. Rounded to 5 s, at least 15 s. The multiplier is one app-wide setting, changed from Profile or any card's rest picker.
+- The workout opens as a full-screen modal. The down chevron or a downward swipe leaves it in progress. **Discard** sits next to the clock and deletes the session.
 - Finish replaces the workout screen with `WorkoutComplete` (`src/features/workout/workout-complete-screen.tsx`), built from `getWorkoutRecap`: stats, PRs, XP before and after, badges whose tier went up, and each exercise's session 1RM.
 - -15 / +15 on the rest bar change only the running rest, never `restSeconds` or a default.
 - Warmups stay above working sets: toggling W reorders the card and saves positions. Working sets are numbered without warmups.
 - Swap (card header) opens the picker in `mode: 'swap'` and calls `swapWorkoutExercise`. Rest and attachment reset to the new exercise's; untouched sets are refilled from its last session, and checked-off sets stay.
 - Cable exercises carry an attachment (`cableAttachments` in `types.ts`). `Exercise.attachment` is the default for a new workout; `WorkoutExercise.attachment` is this session's. Changing it on a card updates both.
-- Machine and cable cards carry a setup (`machineSetup`): Precor, Life Fitness, Hammer Strength, Generic, a typed brand, or Unknown (null). `Exercise.machineSetup` is the default for a new workout or routine; the card's value is this session's. Changing it updates both. Previous, PRs, and the exercise chart only compare the same setup. Free weights have no chip. Old sets stay Unknown until named. Previous reads `20 × 12 · Life Fitness`.
+- Machine and cable cards carry a setup (`machineSetup`): Precor, Life Fitness, Hammer Strength, Generic, a typed brand, or Unknown brand (null). `Exercise.machineSetup` is the default for a new workout or routine; the card's value is this session's. Changing it updates both. Previous, PRs, and the exercise chart only compare the same setup. Free weights have no chip. Old sets stay Unknown brand until named. Previous reads `20 × 12 · Life Fitness`.
 - The setup panel (`machineSetupOptions` in `src/domain/machine-setup.ts`) lists used stacks first with their last load. Tapping one calls `switchWorkoutExerciseSetup`: unchecked sets refill from that stack's last session (or one blank set); checked-off sets stay. Undo for 5 seconds restores the previous stack and numbers.
 - When the rest timer starts, a local notification is scheduled for its end (`src/components/rest-notification.ts`). Skip, finish, and discard cancel it.
 - While a workout is open, it is shown outside the app the whole time, not only during rest (`src/components/workout-live-activity.ts`): next set, rest countdown or elapsed time, and Done. `src/features/workout/workout-activity-sync.ts` builds the props, keeps the running rest (so the rest bar survives leaving the screen), and handles Done when the workout screen is closed by checking off the next set (`findNextSet`), starting its rest, and saving now. With the screen open, the screen handles Done.
@@ -90,6 +91,6 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
 | What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` |
-| Keyboard Done bar | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx` |
+| Keyboard hide chip | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx` |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

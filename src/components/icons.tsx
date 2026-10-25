@@ -65,3 +65,21 @@ export const ProgressIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
     </Svg>
   );
 };
+
+export const ChevronDownIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M6 9l6 6 6-6" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
+    </Svg>
+  );
+};
+
+export const KeyboardHideIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Rect height="10" rx="1.6" stroke={color} strokeWidth="1.7" width="16" x="4" y="5" />
+      <Path d="M7 8h.01M10.5 8h.01M14 8h.01M17 8h.01M7 11h.01M10.5 11h.01M14 11h.01M17 11h.01" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
+      <Path d="M8 17.5l4 3 4-3" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
