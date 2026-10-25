@@ -203,8 +203,9 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'V-bar' }).click();
   await expect(page.getByRole('button', { name: 'Attachment V-bar' })).toBeVisible();
   await page.getByRole('button', { name: 'Machine setup Unknown' }).click();
-  await page.getByRole('button', { name: 'Life Fitness', exact: true }).click();
+  await page.getByRole('button', { name: 'Life Fitness, last —' }).click();
   await expect(page.getByRole('button', { name: 'Machine setup Life Fitness' })).toBeVisible();
+  await expect(page.getByText('No session on Life Fitness yet')).toBeVisible();
 });
 
 test('add set copies a small-plate weight exactly', async ({ page }) => {

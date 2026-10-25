@@ -15,7 +15,9 @@ import { createExercise, deleteCustomExercise, getExercise, getExerciseUsage, up
 import { formatClock } from '../../domain/format';
 import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../../domain/rest';
 import { MachineSetupChoices } from '../../components/machine-setup-choices';
+import { machineSetupOptions } from '../../domain/machine-setup';
 import { cableAttachments, equipmentTypes, muscleGroups, usesMachineSetup, type CableAttachment, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
+import { useWeightUnit } from '../../state/hooks';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { colors } from '../../theme/colors';
@@ -24,6 +26,7 @@ export const ExerciseEditorScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'ExerciseEditor'>>();
   const dispatch = useAppDispatch();
+  const { unit } = useWeightUnit();
   const exerciseId = route.params.exerciseId;
   const [exercise, setExercise] = useState<Exercise | null>(() => (exerciseId ? getExercise.now(exerciseId) : null));
   const [usage, setUsage] = useState<{ workouts: number; routines: number } | null>(() => (exerciseId ? getExerciseUsage.now(exerciseId) : null));
@@ -160,7 +163,7 @@ export const ExerciseEditorScreen: React.FC = () => {
         {usesMachineSetup(equipment) ? (
           <>
             <Text style={styles.label}>Machine</Text>
-            <MachineSetupChoices onChange={setMachineSetup} value={machineSetup} />
+            <MachineSetupChoices onChange={setMachineSetup} options={machineSetupOptions([])} unit={unit} value={machineSetup} />
           </>
         ) : null}
         <Text style={styles.hint}>

@@ -29,7 +29,8 @@ import { QuickAdd } from '../../components/quick-add';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { detectRecords, filterSetsBySetup, latestSessionSets, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
 import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
-import { extraMachineSetups, usesMachineSetup } from '../../domain/types';
+import { machineSetupOptions } from '../../domain/machine-setup';
+import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { findNextSet, findSet, orderByIds, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
 import { parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
@@ -50,6 +51,8 @@ import {
   updateSetCompleted,
   updateSetNumbers,
   updateSetType,
+  replaceWorkoutExerciseSets,
+  switchWorkoutExerciseSetup,
   updateWorkoutExerciseAttachment,
   updateWorkoutExerciseNotes,
   updateWorkoutExerciseRest,
@@ -868,20 +871,56 @@ export const ActiveWorkoutScreen: React.FC = () => {
   }, []);
 
   const handleChangeSetup = useCallback((workoutExerciseId: string, setup: string | null) => {
-    setWorkout((current) =>
-      current
-        ? {
-            ...current,
-            exercises: current.exercises.map((exercise) =>
-              exercise.id === workoutExerciseId
-                ? { ...exercise, machineSetup: setup, previousSets: previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup) }
-                : exercise,
-            ),
-          }
-        : current,
-    );
-    void updateWorkoutExerciseSetup(workoutExerciseId, setup);
-  }, []);
+    const current = workoutRef.current;
+    const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+    if (!current || !exercise || exercise.machineSetup === setup) {
+      return;
+    }
+    const snapshot = {
+      machineSetup: exercise.machineSetup,
+      previousSets: exercise.previousSets,
+      sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })),
+    };
+    snapshot.sets.forEach((set) => clearPending(set.id));
+    void (async () => {
+      const sets = await switchWorkoutExerciseSetup(workoutExerciseId, setup);
+      const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup);
+      setWorkout((workout) =>
+        workout
+          ? {
+              ...workout,
+              exercises: workout.exercises.map((item) => (item.id === workoutExerciseId ? { ...item, machineSetup: setup, previousSets, sets } : item)),
+            }
+          : workout,
+      );
+      setDrafts((previous) => {
+        const next = { ...previous };
+        snapshot.sets.forEach((set) => {
+          delete next[set.id];
+        });
+        return mergeDrafts(next, sets, unitRef.current);
+      });
+      setUndo({
+        message: `Switched to ${formatMachineSetup(setup)}`,
+        restore: () => {
+          snapshot.sets.forEach((set) => clearPending(set.id));
+          setWorkout((workout) =>
+            workout
+              ? {
+                  ...workout,
+                  exercises: workout.exercises.map((item) =>
+                    item.id === workoutExerciseId ? { ...item, machineSetup: snapshot.machineSetup, previousSets: snapshot.previousSets, sets: snapshot.sets } : item,
+                  ),
+                }
+              : workout,
+          );
+          setDrafts((previous) => mergeDrafts(previous, snapshot.sets, unitRef.current));
+          void updateWorkoutExerciseSetup(workoutExerciseId, snapshot.machineSetup);
+          void replaceWorkoutExerciseSets(workoutExerciseId, snapshot.sets);
+        },
+      });
+    })();
+  }, [clearPending, readSetNumbers]);
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   return (
@@ -952,7 +991,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onAddSet={pressAddSet}
                       onChangeAttachment={handleChangeAttachment}
                       onChangeSetup={handleChangeSetup}
-                      setupExtras={extraMachineSetups((historyByExercise[exercise.exerciseId] ?? []).map((set) => set.machineSetup))}
+                      setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
                       onChangeNotes={handleChangeNotes}
                       onChangeRest={handleChangeRest}
                       onChangeWarmupMultiplier={setWarmupMultiplier}

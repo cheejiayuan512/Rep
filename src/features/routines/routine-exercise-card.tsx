@@ -12,6 +12,7 @@ import type { DraftMap, SetDraft } from '../../domain/drafts';
 import { draftFromSet } from '../../domain/drafts';
 import { MachineSetupChoices } from '../../components/machine-setup-choices';
 import { formatLoggedLoad } from '../../domain/format';
+import type { MachineSetupOption } from '../../domain/machine-setup';
 import type { PreviousSet, RoutineExercise, RoutineSet, WeightUnit } from '../../domain/types';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { colors } from '../../theme/colors';
@@ -37,7 +38,7 @@ interface RoutineExerciseCardProps {
   onToggleWarmup: (setId: string) => void;
   onDeleteSet: (setId: string) => void;
   onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
-  setupExtras?: string[];
+  setupOptions: MachineSetupOption[];
 }
 
 const moveActions = [
@@ -59,7 +60,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onToggleWarmup,
   onDeleteSet,
   onChangeSetup,
-  setupExtras,
+  setupOptions,
 }) {
   const handleRemove = useCallback(() => {
     onRemove(exercise.id);
@@ -122,7 +123,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             <Text style={styles.setupChipText}>{formatMachineSetup(exercise.machineSetup)} ▾</Text>
           </Pressable>
         ) : null}
-        {setupOpen ? <MachineSetupChoices extras={setupExtras} onChange={handleSetup} value={exercise.machineSetup} /> : null}
+        {setupOpen ? <MachineSetupChoices onChange={handleSetup} options={setupOptions} unit={unit} value={exercise.machineSetup} /> : null}
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>

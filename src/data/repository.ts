@@ -36,7 +36,7 @@ import { fuzzyFilter } from '../domain/fuzzy-search';
 import { rateLift, STRENGTH_LIFTS, type StrengthRating } from '../domain/strength';
 import type { BodyProfile } from '../domain/types';
 import { isBodySex } from '../domain/types';
-import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 /** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
 export interface Reader<A extends unknown[], R> {
@@ -822,32 +822,113 @@ export async function updateWorkoutExerciseAttachment(workoutExerciseId: string,
 /** Sets the stack for this workout and makes it the exercise's default for the next one. */
 export async function updateWorkoutExerciseSetup(workoutExerciseId: string, machineSetup: string | null): Promise<void> {
   await writeDatabase((db) => {
-    const row = db.workoutExercises.find((item) => item.id === workoutExerciseId);
+    applyWorkoutSetup(db, workoutExerciseId, machineSetup);
+  });
+}
+
+/**
+ * Changes the stack. Unchecked sets are refilled from that stack's last session
+ * (or one blank set). Once a set is checked off, the numbers stay.
+ */
+export async function switchWorkoutExerciseSetup(workoutExerciseId: string, machineSetup: string | null): Promise<SetRecord[]> {
+  let next: SetRecord[] = [];
+  await writeDatabase((db) => {
+    const row = applyWorkoutSetup(db, workoutExerciseId, machineSetup);
     if (!row) {
       return;
     }
-    const exercise = db.exercises.find((item) => item.id === row.exerciseId);
-    const setup = exercise && usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(machineSetup) : null;
-    row.machineSetup = setup;
-    if (exercise && usesMachineSetup(exercise.equipment)) {
-      exercise.machineSetup = setup;
+    const current = setsOf(db, row.id);
+    if (current.some((set) => set.completed)) {
+      next = current.map(mapSet);
+      return;
     }
+    db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
+    addTemplateSets(db, row.id, latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], row.workoutId)[row.exerciseId] ?? [], requireExercise(db, row.exerciseId).equipment, row.machineSetup)));
+    next = setsOf(db, row.id).map(mapSet);
   });
+  return next;
+}
+
+/** Puts a card's sets back after switching stack, for Undo. */
+export async function replaceWorkoutExerciseSets(workoutExerciseId: string, sets: SetRecord[]): Promise<void> {
+  await writeDatabase((db) => {
+    if (!db.workoutExercises.some((exercise) => exercise.id === workoutExerciseId)) {
+      return;
+    }
+    db.sets = db.sets.filter((set) => set.workoutExerciseId !== workoutExerciseId);
+    sets.forEach((set, position) => {
+      db.sets.push({
+        completed: set.completed,
+        id: set.id,
+        position,
+        reps: set.reps,
+        rpe: set.rpe,
+        setType: set.setType,
+        weightKg: set.weightKg,
+        workoutExerciseId,
+      });
+    });
+  });
+}
+
+function applyWorkoutSetup(db: DatabaseShape, workoutExerciseId: string, machineSetup: string | null): StoredWorkoutExercise | null {
+  const row = db.workoutExercises.find((item) => item.id === workoutExerciseId);
+  if (!row) {
+    return null;
+  }
+  const exercise = db.exercises.find((item) => item.id === row.exerciseId);
+  const setup = exercise && usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(machineSetup) : null;
+  row.machineSetup = setup;
+  if (exercise && usesMachineSetup(exercise.equipment)) {
+    exercise.machineSetup = setup;
+  }
+  return row;
 }
 
 export async function updateRoutineExerciseSetup(routineExerciseId: string, machineSetup: string | null): Promise<void> {
   await writeDatabase((db) => {
-    const row = db.routineExercises.find((item) => item.id === routineExerciseId);
+    applyRoutineSetup(db, routineExerciseId, machineSetup);
+  });
+}
+
+/** Changes a routine's stack and replaces its planned sets with that stack's last session. */
+export async function switchRoutineExerciseSetup(routineExerciseId: string, machineSetup: string | null): Promise<RoutineSet[]> {
+  let next: RoutineSet[] = [];
+  await writeDatabase((db) => {
+    const row = applyRoutineSetup(db, routineExerciseId, machineSetup);
     if (!row) {
       return;
     }
-    const exercise = db.exercises.find((item) => item.id === row.exerciseId);
-    const setup = exercise && usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(machineSetup) : null;
-    row.machineSetup = setup;
-    if (exercise && usesMachineSetup(exercise.equipment)) {
-      exercise.machineSetup = setup;
-    }
+    db.routineSets = db.routineSets.filter((set) => set.routineExerciseId !== row.id);
+    const previous = latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? [], requireExercise(db, row.exerciseId).equipment, row.machineSetup));
+    const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
+    templates.forEach((template, index) => {
+      db.routineSets.push({
+        id: createId(),
+        position: index,
+        reps: template?.reps ?? null,
+        routineExerciseId: row.id,
+        setType: template?.setType ?? 'normal',
+        weightKg: template?.weightKg ?? null,
+      });
+    });
+    next = routineSetRows(db, row.id).map(mapRoutineSet);
   });
+  return next;
+}
+
+function applyRoutineSetup(db: DatabaseShape, routineExerciseId: string, machineSetup: string | null): StoredRoutineExercise | null {
+  const row = db.routineExercises.find((item) => item.id === routineExerciseId);
+  if (!row) {
+    return null;
+  }
+  const exercise = db.exercises.find((item) => item.id === row.exerciseId);
+  const setup = exercise && usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(machineSetup) : null;
+  row.machineSetup = setup;
+  if (exercise && usesMachineSetup(exercise.equipment)) {
+    exercise.machineSetup = setup;
+  }
+  return row;
 }
 
 /**

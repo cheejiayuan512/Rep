@@ -26,11 +26,13 @@ import {
   restoreRoutineSet,
   saveRoutinePositions,
   saveRoutineSetPositions,
+  getExerciseLog,
   startWorkoutFromRoutine,
-  updateRoutineExerciseSetup,
+  switchRoutineExerciseSetup,
   updateRoutineSet,
 } from '../../data/repository';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
+import { machineSetupOptions } from '../../domain/machine-setup';
 import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { parseDecimal, repsTextToNumber, weightTextToKg } from '../../domain/units';
 import { moveById } from '../../domain/workout-edits';
@@ -447,17 +449,14 @@ export const RoutineEditorScreen: React.FC = () => {
 
   const handleChangeSetup = useCallback((routineExerciseId: string, setup: string | null) => {
     const current = routineRef.current;
-    if (!current) {
+    const exercise = current?.exercises.find((item) => item.id === routineExerciseId);
+    if (!current || !exercise || exercise.machineSetup === setup) {
       return;
     }
-    applyRoutine({
-      ...current,
-      exercises: current.exercises.map((exercise) => (exercise.id === routineExerciseId ? { ...exercise, machineSetup: setup } : exercise)),
-    });
-    void updateRoutineExerciseSetup(routineExerciseId, setup).then(() => {
+    void switchRoutineExerciseSetup(routineExerciseId, setup).then(() => {
       void load();
     });
-  }, [applyRoutine, load]);
+  }, [load]);
 
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
@@ -470,6 +469,7 @@ export const RoutineEditorScreen: React.FC = () => {
         onAddSet={pressAddSet}
         onChangeReps={handleChangeReps}
         onChangeSetup={handleChangeSetup}
+        setupOptions={machineSetupOptions(getExerciseLog.now(exercise.exerciseId) ?? [])}
         onChangeWeight={handleChangeWeight}
         onDeleteSet={handleDeleteSet}
         onMove={handleMove}

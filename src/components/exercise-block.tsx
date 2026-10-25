@@ -9,6 +9,7 @@ import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
 import { defaultRestFor, formatMultiplier, REST_CLASS_LABELS, restClassFor, WARMUP_MULTIPLIERS } from '../domain/rest';
+import type { MachineSetupOption } from '../domain/machine-setup';
 import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { colors } from '../theme/colors';
 import { keyboardDoneId } from './keyboard-done-bar';
@@ -29,8 +30,7 @@ interface ExerciseBlockProps {
   onChangeWarmupMultiplier: (multiplier: number) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
-  /** Custom stack names already used for this exercise. */
-  setupExtras?: string[];
+  setupOptions: MachineSetupOption[];
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
@@ -56,7 +56,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onChangeWarmupMultiplier,
   onChangeAttachment,
   onChangeSetup,
-  setupExtras,
+  setupOptions,
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
@@ -200,7 +200,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           </View>
         </View>
       ) : null}
-      {panel === 'setup' ? <MachineSetupChoices extras={setupExtras} onChange={handleSetup} value={exercise.machineSetup} /> : null}
+      {panel === 'setup' ? <MachineSetupChoices onChange={handleSetup} options={setupOptions} unit={unit} value={exercise.machineSetup} /> : null}
       {panel === 'attachment' ? (
         <View style={styles.choices}>
           <Choice label="None" onPress={handleAttachment} selected={exercise.attachment == null} value={null} />
@@ -230,6 +230,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           <Text style={[styles.column, styles.rpeCol]}>RPE</Text>
           <View style={styles.checkSpacer} />
         </View>
+        {showSetup && exercise.previousSets.length === 0 ? (
+          <Text style={styles.emptySetup}>No session on {formatMachineSetup(exercise.machineSetup)} yet</Text>
+        ) : null}
         {exercise.sets.map((set, index) => (
           <SetRow
             draft={drafts[set.id] ?? draftFromSet(set, unit)}
@@ -345,6 +348,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+    marginTop: 8,
+  },
+  emptySetup: {
+    color: colors.faint,
+    fontSize: 12,
     marginTop: 8,
   },
   column: {
