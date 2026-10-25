@@ -2,7 +2,7 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
-## 1.2.0
+## 1.2.0 · Android 11 / iOS 18
 
 - **Routines look like a workout.** Each exercise is a card with planned sets, weight, and reps. Add set, swipe a set left to delete it, and tap a set number to mark a warmup. Starting the routine copies those sets in.
 - **Drag to reorder routines.** The three dots on a card replace Up / Down.
