@@ -38,13 +38,17 @@ export interface RestSubject {
 /** Built-in exercises whose name alone would land in the wrong class. */
 const SEED_CLASSES: Record<string, RestClass> = {
   'barbell-bench-press': 'heavy',
+  'back-extension': 'compound',
   'chest-supported-row': 'compound',
   'close-grip-bench-press': 'compound',
   deadlift: 'heavy',
   'decline-barbell-bench-press': 'heavy',
   'face-pull': 'isolation',
+  'farmer-carry': 'compound',
   'good-morning': 'compound',
   'incline-barbell-bench-press': 'heavy',
+  'kettlebell-swing': 'compound',
+  'nordic-curl': 'compound',
   'overhead-press': 'heavy',
   'romanian-deadlift': 'heavy',
   'skull-crusher': 'isolation',

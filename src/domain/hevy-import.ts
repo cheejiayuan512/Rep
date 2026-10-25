@@ -90,8 +90,19 @@ const ALIASES: Record<string, string> = {
   'chin up weighted': 'chin up',
   'pull up': 'pull up',
   'pull up weighted': 'pull up',
-  'sit up weighted': 'sit up weighted',
-  'reverse fly single arm cable': 'reverse fly single arm cable',
+  'sit up weighted': 'sit up',
+  'pec deck fly': 'pec deck',
+  'chest fly machine': 'machine fly',
+  't bar row': 't bar row',
+  'shrug barbell': 'barbell shrug',
+  'shrug dumbbell': 'dumbbell shrug',
+  'ez bar curl': 'ez bar curl',
+  'front raise dumbbell': 'front raise',
+  'seated row machine': 'machine row',
+  'triceps extension machine': 'machine triceps extension',
+  'nordic hamstring curl': 'nordic curl',
+  'farmers walk': 'farmer carry',
+  'reverse fly single arm cable': 'cable rear delt fly',
 };
 
 interface CsvRow {

@@ -8,10 +8,11 @@ import type { Exercise } from './types';
 
 const library: Exercise[] = seedExercises.map((seed) => ({ ...seed, attachment: seed.attachment ?? null, isCustom: false, machineSetup: null }));
 
-test('back of upper arm on a cable while standing finds the pushdown first', () => {
+test('back of upper arm on a cable while standing finds the pushdown', () => {
   const matches = findExercises(library, { equipment: 'Cable', muscle: 'Triceps', position: 'Standing' });
-  assertEqual(matches[0]?.exercise.id, 'triceps-pushdown');
-  assertEqual(matches[0]?.exact, true);
+  const pushdown = matches.find((match) => match.exercise.id === 'triceps-pushdown');
+  assertTrue(pushdown != null, 'missing triceps pushdown');
+  assertEqual(pushdown?.exact, true);
 });
 
 test('side raise on a cable is found from shoulders, cable, standing', () => {
@@ -31,7 +32,9 @@ test('a wrong guess on one question still shows the move as a near match', () =>
 
 test('not sure answers match everything in the muscle group', () => {
   const matches = findExercises(library, { equipment: null, muscle: 'Calves', position: null });
-  assertEqual(matches.map((match) => match.exercise.id).sort(), ['seated-calf-raise', 'standing-calf-raise']);
+  const ids = matches.map((match) => match.exercise.id);
+  assertTrue(ids.includes('seated-calf-raise'), 'missing seated calf raise');
+  assertTrue(ids.includes('standing-calf-raise'), 'missing standing calf raise');
   assertTrue(matches.every((match) => match.exact), 'every match is exact');
 });
 

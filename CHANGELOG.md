@@ -2,6 +2,17 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## 1.3.0 · Android 13 / iOS 20
+
+- **More built-in exercises.** About 65 gym staples are in the library now: pec deck, T-bar and Pendlay rows, shrugs, EZ-bar curls, Nordic curl, kettlebell swing, farmer carry, core holds, Olympic lifts, and the usual machine variants. They show up on the next open without wiping custom exercises.
+- **Hide-keyboard chip** on iOS and Android, for every field — a keyboard-down button above the pad, not a Done word.
+- **Leave a workout by swiping down** or tapping the down chevron. The session stays in progress. **Discard** is next to the clock.
+- **Warmups stay above working sets** on load, and Previous lines up warmup with warmup.
+- **Tap Previous** to copy that session's weight and reps into the current set.
+- **Undo finish** on the complete screen reopens the workout.
+- **Less card clutter.** Muscle group is gone. Swap and Remove are icons. Rest is just `1:00`. Drag ⋮ to reorder, same as a routine.
+- **RPE PR.** The same (or harder) load at a lower RPE is a personal record.
+
 ## 1.2.0 · Android 12 / iOS 19
 
 - **Routines look like a workout.** Each exercise is a card with planned sets, weight, and reps. Add set, swipe a set left to delete it, and tap a set number to mark a warmup. Starting the routine copies those sets in.
@@ -10,13 +21,6 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Small plates are exact.** Weights keep two decimals, so 8.75 kg stays 8.75 when saved and when **Add set** copies it (it used to become 8.8). Estimated 1RMs still show one decimal.
 - **Machine setup.** Machine and cable cards have a stack chip (Precor, Life Fitness, Hammer Strength, Generic, or a name you type). Previous shows `20 × 12 · Life Fitness`. PRs and the exercise chart only compare the same stack. Older sets stay **Unknown brand** until you name them.
 - **Switch stack, load that stack's last session.** The setup list shows `last 20 × 12` on stacks you have used. Tapping Precor refills unchecked sets from your last Precor session (or blanks them). Checked-off sets stay. Undo for 5 seconds.
-- **Hide-keyboard chip** on iOS and Android, for every field — a keyboard-down button above the pad, not a Done word.
-- **Leave a workout by swiping down** or tapping the down chevron. The session stays in progress. **Discard** is next to the clock.
-- **Warmups stay above working sets** on load, and Previous lines up warmup with warmup.
-- **Tap Previous** to copy that session's weight and reps into the current set.
-- **Undo finish** on the complete screen reopens the workout.
-- **Less card clutter.** Muscle group is gone. Swap and Remove are icons. Rest is just `1:00`. Drag ⋮ to reorder, same as a routine.
-- **RPE PR.** The same (or harder) load at a lower RPE is a personal record.
 
 ## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
 
