@@ -10,7 +10,6 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { BadgeGlyph } from '../../components/badge-icons';
 import { BodyProfileForm } from '../../components/body-profile-form';
 import { Chip } from '../../components/chip';
-import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
 import { formatDay, formatDuration, formatWorkoutWhen } from '../../domain/format';
@@ -68,7 +67,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         ) : null}
         <Settings />
       </ScrollView>
-      <KeyboardDoneBar />
     </Screen>
   );
 };

@@ -18,7 +18,6 @@ import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
-import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
@@ -1045,7 +1044,6 @@ export const ActiveWorkoutScreen: React.FC = () => {
         </View>
       ) : null}
       {restEndsAt ? <RestBar endsAt={restEndsAt} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
-      <KeyboardDoneBar />
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
         destructive={confirm?.destructive}

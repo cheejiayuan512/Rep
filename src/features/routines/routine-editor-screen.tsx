@@ -12,7 +12,6 @@ import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { hapticLight } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
-import { KeyboardDoneBar } from '../../components/keyboard-done-bar';
 import { Screen } from '../../components/screen';
 import { SortableList, type SortHandle } from '../../components/sortable-list';
 import {
@@ -513,7 +512,6 @@ export const RoutineEditorScreen: React.FC = () => {
           </View>
         </View>
       ) : null}
-      <KeyboardDoneBar />
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
         destructive={confirm?.destructive}

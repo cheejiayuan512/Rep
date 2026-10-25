@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { Chip } from '../../components/chip';
 import { Header, TextButton } from '../../components/header';
-import { KeyboardDoneBar, keyboardDoneId } from '../../components/keyboard-done-bar';
+import { keyboardDoneId } from '../../components/keyboard-done-bar';
 import { Screen } from '../../components/screen';
 import { getLatestSession } from '../../data/repository';
 import { formatWorkoutWhen } from '../../domain/format';
@@ -63,7 +63,6 @@ export const OneRepMaxScreen: React.FC = () => {
         </View>
         {mode === 'single' ? <SingleSet unit={unit} /> : <WholeSession unit={unit} />}
       </ScrollView>
-      <KeyboardDoneBar />
     </Screen>
   );
 };

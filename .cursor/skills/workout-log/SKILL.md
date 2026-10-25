@@ -90,5 +90,6 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
 | What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` |
+| Keyboard Done bar | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx` |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

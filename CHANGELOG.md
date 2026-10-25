@@ -10,6 +10,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Small plates are exact.** Weights keep two decimals, so 8.75 kg stays 8.75 when saved and when **Add set** copies it (it used to become 8.8). Estimated 1RMs still show one decimal.
 - **Machine setup.** Machine and cable cards have a stack chip (Precor, Life Fitness, Hammer Strength, Generic, or a name you type). Previous shows `20 × 12 · Life Fitness`. PRs and the exercise chart only compare the same stack. Older sets stay **Unknown** until you name them.
 - **Switch stack, load that stack's last session.** The setup list shows `last 20 × 12` on stacks you have used. Tapping Precor refills unchecked sets from your last Precor session (or blanks them). Checked-off sets stay. Undo for 5 seconds.
+- **Done above the keyboard** on iOS and Android, for every field — weights, reps, notes, titles, and search. Tap it to close the keyboard.
 
 ## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
 
