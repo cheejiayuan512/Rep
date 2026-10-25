@@ -2,7 +2,7 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
-## Unreleased
+## 1.4.0 · Android 14 / iOS 21
 
 - **Warmups sort by weight.** Lightest warmup rises to the top after you pause typing, or as soon as you mark W. Blank warmups stay last. Working sets do not move.
 - **Four tabs.** Workout, History, Progress, Profile. Routines open from the Home heading. The exercise library is on Profile.
