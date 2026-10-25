@@ -204,6 +204,24 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await expect(page.getByRole('button', { name: 'Attachment V-bar' })).toBeVisible();
 });
 
+test('add set copies a small-plate weight exactly', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Cable Lateral Raise');
+  await page.getByRole('button', { name: 'Cable Lateral Raise', exact: true }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+
+  await page.getByRole('textbox', { name: 'Weight' }).fill('8.75');
+  await page.getByRole('textbox', { name: 'Reps' }).fill('12');
+  await page.getByRole('button', { name: 'Add set' }).click();
+  await expect(page.getByRole('textbox', { name: 'Weight' }).nth(1)).toHaveValue('8.75');
+});
+
 test('the 1RM calculator blends a whole session', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();

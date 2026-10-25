@@ -12,7 +12,7 @@ import { Screen } from '../../components/screen';
 import { getWorkoutRecap, type WorkoutRecap } from '../../data/repository';
 import { formatDuration, formatLoggedLoad } from '../../domain/format';
 import type { ProfileBadge } from '../../domain/profile';
-import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { useStored, useWeightUnit } from '../../state/hooks';
@@ -79,7 +79,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap,
           </Text>
           {recap.records.map((record) => (
             <Text key={record.name} style={styles.recordLine}>
-              {record.name} · est. 1RM {formatWeight(kgToDisplay(record.oneRepMaxKg, unit))} {unit}
+              {record.name} · est. 1RM {formatEstimate(kgToDisplay(record.oneRepMaxKg, unit))} {unit}
             </Text>
           ))}
         </View>
@@ -128,7 +128,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap,
           </View>
           {exercise.sessionKg != null ? (
             <View style={styles.oneRm}>
-              <Text style={styles.oneRmValue}>{formatWeight(kgToDisplay(exercise.sessionKg, unit))}</Text>
+              <Text style={styles.oneRmValue}>{formatEstimate(kgToDisplay(exercise.sessionKg, unit))}</Text>
               <Text style={styles.oneRmLabel}>session 1RM</Text>
             </View>
           ) : null}

@@ -12,7 +12,7 @@ import { EmptyState } from '../../components/empty-state';
 import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import type { Analysis, RepRange } from '../../domain/stats';
-import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import { formatDecimal, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { StackNavigation } from '../../navigation/types';
 import { useAnalysis, useWeightUnit } from '../../state/hooks';
@@ -66,10 +66,10 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
       <View style={styles.grid}>
-        <Tile change={analysis.workoutsChange} label="Workouts" sub={`${formatWeight(analysis.perWeek)} per week`} value={String(analysis.workouts)} />
+        <Tile change={analysis.workoutsChange} label="Workouts" sub={`${formatDecimal(analysis.perWeek, 1)} per week`} value={String(analysis.workouts)} />
         <Tile change={analysis.volumeChange} label={`Volume (${unit})`} sub={`vs the ${period} before`} value={formatVolume(kgToDisplay(analysis.volumeKg, unit))} />
         <Tile label="Avg session" sub="from start to finish" value={`${analysis.averageMinutes} min`} />
-        <Tile label="Avg sets" sub="working sets per workout" value={formatWeight(analysis.averageSets)} />
+        <Tile label="Avg sets" sub="working sets per workout" value={formatDecimal(analysis.averageSets, 1)} />
       </View>
 
       <Text style={styles.section}>Muscle groups</Text>
@@ -102,7 +102,7 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
 
       <Text style={styles.section}>Effort</Text>
       <View style={[styles.card, styles.effort]}>
-        <Text style={styles.effortValue}>{analysis.averageRpe == null ? '—' : formatWeight(analysis.averageRpe)}</Text>
+        <Text style={styles.effortValue}>{analysis.averageRpe == null ? '—' : formatDecimal(analysis.averageRpe, 1)}</Text>
         <View style={styles.effortCopy}>
           <Text style={styles.effortLabel}>Average RPE</Text>
           <Text style={styles.caption}>

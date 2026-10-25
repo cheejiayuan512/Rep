@@ -7,6 +7,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Routines look like a workout.** Each exercise is a card with planned sets, weight, and reps. Add set, swipe a set left to delete it, and tap a set number to mark a warmup. Starting the routine copies those sets in.
 - **Drag to reorder routines.** The three dots on a card replace Up / Down.
 - **Swipe a routine card left to remove it,** with Undo for 5 seconds.
+- **Small plates are exact.** Weights keep two decimals, so 8.75 kg stays 8.75 when saved and when **Add set** copies it (it used to become 8.8). Estimated 1RMs still show one decimal.
 
 ## 1.1.0 · Android 10 / iOS 17 (2026-10-24)
 

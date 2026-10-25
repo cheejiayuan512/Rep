@@ -65,6 +65,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 ## Numbers
 
 - Canonical weight is kilograms on `SetRecord.weightKg`.
+- Typed weights keep two decimals (`parseDecimal`) so 8.75 or 1.25 kg plates survive saving and Add set. `formatWeight` shows up to two decimals for logged loads; `formatEstimate` shows one for calculated values like e1RM. Chart ticks and averages use `formatDecimal(value, 1)`.
 - RPE is `number | null` on the set. Parse with `parseRpe` (0–10, one decimal). Blank clears it.
 - Bodyweight is `0` kg. It counts reps and does not produce an estimated 1RM.
 - Estimated 1RM is Epley: `weight * (1 + reps / 30)`. One rep equals the weight.

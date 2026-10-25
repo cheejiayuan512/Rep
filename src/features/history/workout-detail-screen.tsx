@@ -15,7 +15,7 @@ import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { deleteWorkout, duplicateWorkout, getWorkout } from '../../data/repository';
 import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
-import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
 import { estimateFromSets } from '../../domain/one-rep-max';
 import type { SetRecord, WeightUnit, WorkoutDetail, WorkoutExercise } from '../../domain/types';
@@ -185,7 +185,7 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
             <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup]}>{warmup ? 'W' : set.completed ? workingNumber : '–'}</Text>
             <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>{formatLoggedLoad(set.weightKg, set.reps, unit)}</Text>
             <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>
-            <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatWeight(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
+            <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
           </View>
         );
       })}
@@ -195,13 +195,13 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
         </Text>
         {bestOneRepMax > 0 ? (
           <Text style={styles.footerStrong}>
-            Best e1RM {formatWeight(kgToDisplay(bestOneRepMax, unit))} {unit}
+            Best e1RM {formatEstimate(kgToDisplay(bestOneRepMax, unit))} {unit}
           </Text>
         ) : null}
       </View>
       {session && session.used > 1 ? (
         <Text style={styles.sessionLine}>
-          Session 1RM {formatWeight(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
+          Session 1RM {formatEstimate(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
         </Text>
       ) : null}
     </View>

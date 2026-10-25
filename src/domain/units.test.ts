@@ -4,9 +4,17 @@
 import { assertClose, assertEqual, test } from './test-support';
 import { formatChartTick, formatWeight, kgToDisplay, parseDecimal, parseReps, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from './units';
 
-test('100 kg is about 220.5 lb on screen', () => {
+test('100 kg is about 220.46 lb on screen', () => {
   assertClose(kgToDisplay(100, 'lb'), 220.46226218);
-  assertEqual(formatWeight(kgToDisplay(100, 'lb')), '220.5');
+  assertEqual(formatWeight(kgToDisplay(100, 'lb')), '220.46');
+});
+
+test('small plates keep two decimals through save and display', () => {
+  assertEqual(weightTextToKg('8.75', 'kg', null), 8.75);
+  assertEqual(formatWeight(8.75), '8.75');
+  assertEqual(formatWeight(81.25), '81.25');
+  assertEqual(formatWeight(82.5), '82.5');
+  assertEqual(formatWeight(kgToDisplay(weightTextToKg('17.5', 'lb', null) ?? 0, 'lb')), '17.5');
 });
 
 test('225 lb saved as kilograms converts back', () => {

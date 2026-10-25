@@ -27,7 +27,7 @@ import {
 } from '../../domain/profile';
 import { formatMultiplier, WARMUP_MULTIPLIERS } from '../../domain/rest';
 import { STRENGTH_LEVELS } from '../../domain/strength';
-import { formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import { formatDecimal, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
 import { useBodyProfile, useProfile, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
@@ -422,7 +422,7 @@ function formatBadgeAmount(badge: ProfileBadge, amount: number, unit: WeightUnit
 }
 
 function formatStep(value: number): string {
-  return value >= 1000 ? `${formatWeight(value / 1000)}k` : String(Math.round(value));
+  return value >= 1000 ? `${formatDecimal(value / 1000, 1)}k` : String(Math.round(value));
 }
 
 const RecentRow: React.FC<{

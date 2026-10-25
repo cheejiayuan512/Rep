@@ -5,7 +5,7 @@
 import type { ChartMetric, LoggedSet, SetType } from './types';
 import type { WeightUnit } from './types';
 import { formatLoggedLoad } from './format';
-import { formatVolume, formatWeight, kgToDisplay } from './units';
+import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from './units';
 
 const WEIGHT_EPSILON_KG = 0.05;
 const VOLUME_EPSILON_KG = 0.5;
@@ -116,7 +116,7 @@ export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: Weig
     hits.push({
       detail: formatLoggedLoad(current.weightKg, current.reps, unit),
       kind: 'oneRepMax',
-      title: `Estimated 1RM PR · ${formatWeight(kgToDisplay(current.oneRepMaxKg, unit))} ${unit}`,
+      title: `Estimated 1RM PR · ${formatEstimate(kgToDisplay(current.oneRepMaxKg, unit))} ${unit}`,
     });
   }
   if (current.weightKg > 0 && best.heaviest != null && current.weightKg > best.heaviest.weightKg + WEIGHT_EPSILON_KG) {
@@ -271,14 +271,14 @@ export function formatMetricValue(value: number | null, unit: WeightUnit, metric
     return `${formatVolume(value)} ${unit}`;
   }
 
-  return `${formatWeight(value)} ${unit}`;
+  return `${metric === 'oneRepMax' ? formatEstimate(value) : formatWeight(value)} ${unit}`;
 }
 
 export function recordCardsFromSets(sets: LoggedSet[], unit: WeightUnit): RecordCard[] {
   const scored = sets.map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
   const best = bestsFromScored(scored);
   return [
-    card('Est. 1RM', best.oneRepMax?.oneRepMaxKg == null ? null : `${formatWeight(kgToDisplay(best.oneRepMax.oneRepMaxKg, unit))} ${unit}`, best.oneRepMax ? `from ${formatLoggedLoad(best.oneRepMax.weightKg, best.oneRepMax.reps, unit)}` : 'No weighted set yet', best.oneRepMax?.achievedAt ?? null),
+    card('Est. 1RM', best.oneRepMax?.oneRepMaxKg == null ? null : `${formatEstimate(kgToDisplay(best.oneRepMax.oneRepMaxKg, unit))} ${unit}`, best.oneRepMax ? `from ${formatLoggedLoad(best.oneRepMax.weightKg, best.oneRepMax.reps, unit)}` : 'No weighted set yet', best.oneRepMax?.achievedAt ?? null),
     card('Heaviest', best.heaviest ? `${formatWeight(kgToDisplay(best.heaviest.weightKg, unit))} ${unit}` : null, best.heaviest ? `${best.heaviest.reps} reps` : 'No weighted set yet', best.heaviest?.achievedAt ?? null),
     card('Best volume', best.volume ? `${formatVolume(kgToDisplay(best.volume.volumeKg, unit))} ${unit}` : null, best.volume ? formatLoggedLoad(best.volume.weightKg, best.volume.reps, unit) : 'No weighted set yet', best.volume?.achievedAt ?? null),
     card('Most reps', best.reps ? String(best.reps.reps) : null, best.reps ? (best.reps.weightKg > 0 ? `at ${formatWeight(kgToDisplay(best.reps.weightKg, unit))} ${unit}` : 'bodyweight') : 'No completed set yet', best.reps?.achievedAt ?? null),

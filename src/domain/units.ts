@@ -15,13 +15,27 @@ export function kgToDisplay(value: number, unit: WeightUnit): number {
   return unit === 'kg' ? value : value * POUNDS_PER_KILOGRAM;
 }
 
-export function formatWeight(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
-  if (Object.is(rounded, -0) || Number.isInteger(rounded)) {
-    return String(Math.round(rounded));
+/** Weights keep two decimals so small plates (8.75 kg, 1.25 kg) survive a save and a reload. */
+const WEIGHT_STEPS = 100;
+
+/** A number with at most `places` decimals and no trailing zeros: 80, 8.8, 8.75. */
+export function formatDecimal(value: number, places: number): string {
+  const factor = 10 ** places;
+  const rounded = Math.round(value * factor) / factor;
+  if (Object.is(rounded, -0)) {
+    return '0';
   }
 
-  return rounded.toFixed(1);
+  return String(Number(rounded.toFixed(places)));
+}
+
+export function formatWeight(value: number): string {
+  return formatDecimal(value, 2);
+}
+
+/** A calculated weight such as an estimated 1RM. One decimal; more would be false precision. */
+export function formatEstimate(value: number): string {
+  return formatDecimal(value, 1);
 }
 
 export function formatVolume(value: number): string {
@@ -30,10 +44,10 @@ export function formatVolume(value: number): string {
 
 export function formatChartTick(value: number): string {
   if (Math.abs(value) >= 1000) {
-    return `${formatWeight(value / 1000)}k`;
+    return `${formatDecimal(value / 1000, 1)}k`;
   }
 
-  return formatWeight(value);
+  return formatDecimal(value, 1);
 }
 
 export function parseDecimal(value: string): number | null {
@@ -47,7 +61,7 @@ export function parseDecimal(value: string): number | null {
     return null;
   }
 
-  return Math.round(parsed * 10) / 10;
+  return Math.round(parsed * WEIGHT_STEPS) / WEIGHT_STEPS;
 }
 
 export function parseReps(value: string): number | null {
