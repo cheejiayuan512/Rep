@@ -70,9 +70,9 @@ test('a dragged order rewrites positions and keeps unknown rows', () => {
   );
 });
 
-test('warmups move ahead of working sets, keeping their order', () => {
+test('warmups move ahead of working sets, lightest first', () => {
   const sets = [set('a', 0), { ...set('b', 1), setType: 'warmup' as const }, set('c', 2), { ...set('d', 3), setType: 'warmup' as const }];
-  const ordered = warmupsFirst(sets);
+  const ordered = warmupsFirst(sets, true);
   assertEqual(
     ordered?.map((item) => item.id),
     ['b', 'd', 'a', 'c'],
@@ -82,6 +82,29 @@ test('warmups move ahead of working sets, keeping their order', () => {
     [0, 1, 2, 3],
   );
   assertEqual(warmupsFirst(ordered ?? []), null);
+});
+
+test('a heavier warmup typed first moves below a lighter one', () => {
+  const sets = [
+    { ...set('heavy', 0), setType: 'warmup' as const, weightKg: 80 },
+    { ...set('light', 1), setType: 'warmup' as const, weightKg: 40 },
+    { ...set('work', 2), weightKg: 100 },
+  ];
+  const ordered = warmupsFirst(sets, true);
+  assertEqual(
+    ordered?.map((item) => item.id),
+    ['light', 'heavy', 'work'],
+  );
+  assertEqual(
+    warmupsFirst(
+      [
+        { ...set('blank', 0), setType: 'warmup' as const, weightKg: null },
+        { ...set('loaded', 1), setType: 'warmup' as const, weightKg: 40 },
+      ],
+      true,
+    )?.map((item) => item.id),
+    ['loaded', 'blank'],
+  );
 });
 
 test('previous lines up warmup with warmup and working with working', () => {

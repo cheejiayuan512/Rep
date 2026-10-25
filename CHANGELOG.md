@@ -4,6 +4,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 
 ## Unreleased
 
+- **Warmups sort by weight.** Lightest warmup rises to the top after you pause typing, or as soon as you mark W. Blank warmups stay last. Working sets do not move.
 - **Four tabs.** Workout, History, Progress, Profile. Routines open from the Home heading. The exercise library is on Profile.
 - **Less logging chrome.** Notes stay shut until you open them. Quick add only on an empty workout. Warmup rest lives in Profile only. Discard sits under the cards. The swipe-to-delete caption is gone.
 - **Home starts.** No slogan. This week is one line. No extra History or Routines links.

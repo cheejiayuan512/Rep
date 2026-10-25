@@ -1432,7 +1432,8 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
 }
 
 function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous: LoggedSet[]): void {
-  const ordered = [...previous.filter((set) => set.setType === 'warmup'), ...previous.filter((set) => set.setType !== 'warmup')];
+  const tagged = previous.map((set, position) => ({ ...set, id: `previous-${position}`, position }));
+  const ordered = warmupsFirst(tagged, true) ?? tagged;
   const templates = ordered.length > 0 ? ordered.slice(0, 10) : [null];
   templates.forEach((template, index) => {
     db.sets.push({

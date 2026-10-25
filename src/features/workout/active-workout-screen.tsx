@@ -164,6 +164,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const notePendingRef = useRef<Record<string, string>>({});
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const orderTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const restRef = useRef(rest);
   const warmupMultiplierRef = useRef(warmupMultiplier);
 
@@ -214,6 +215,46 @@ export const ActiveWorkoutScreen: React.FC = () => {
       }
     }, 300);
   }, []);
+
+  const applyWarmupOrder = useCallback((workoutExerciseId: string) => {
+    const current = workoutRef.current;
+    const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+    if (!current || !exercise) {
+      return;
+    }
+    const ordered = warmupsFirst(exercise.sets, true);
+    if (!ordered) {
+      return;
+    }
+    setWorkout({
+      ...current,
+      exercises: current.exercises.map((item) => (item.id === workoutExerciseId ? { ...item, sets: ordered } : item)),
+    });
+    void saveSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+  }, []);
+
+  const scheduleWarmupOrder = useCallback(
+    (workoutExerciseId: string) => {
+      const existing = orderTimersRef.current[workoutExerciseId];
+      if (existing) {
+        clearTimeout(existing);
+      }
+      orderTimersRef.current[workoutExerciseId] = setTimeout(() => {
+        delete orderTimersRef.current[workoutExerciseId];
+        applyWarmupOrder(workoutExerciseId);
+      }, 300);
+    },
+    [applyWarmupOrder],
+  );
+
+  useEffect(() => {
+    if (!workout || workout.finishedAt != null) {
+      return;
+    }
+    for (const exercise of workout.exercises) {
+      applyWarmupOrder(exercise.id);
+    }
+  }, [applyWarmupOrder, workout?.id]);
 
   const clearPending = useCallback((setId: string) => {
     delete pendingRef.current[setId];
@@ -410,8 +451,11 @@ export const ActiveWorkoutScreen: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { weightText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
+      if (located.set.setType === 'warmup') {
+        scheduleWarmupOrder(located.exercise.id);
+      }
     },
-    [queueSave, readSetNumbers],
+    [queueSave, readSetNumbers, scheduleWarmupOrder],
   );
 
   const handleChangeReps = useCallback(
@@ -482,7 +526,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
     }
     const setType: SetType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
     const sets = located.exercise.sets.map((set) => (set.id === setId ? { ...set, setType } : set));
-    const ordered = warmupsFirst(sets);
+    const ordered = warmupsFirst(sets, true);
     setWorkout({
       ...current,
       exercises: current.exercises.map((exercise) => (exercise.id === located.exercise.id ? { ...exercise, sets: ordered ?? sets } : exercise)),
@@ -490,6 +534,11 @@ export const ActiveWorkoutScreen: React.FC = () => {
     void updateSetType(setId, setType);
     if (ordered) {
       void saveSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+    }
+    const pendingOrder = orderTimersRef.current[located.exercise.id];
+    if (pendingOrder) {
+      clearTimeout(pendingOrder);
+      delete orderTimersRef.current[located.exercise.id];
     }
     void hapticLight();
   }, []);
@@ -744,8 +793,18 @@ export const ActiveWorkoutScreen: React.FC = () => {
       const repsText = previous.reps == null ? '' : String(previous.reps);
       setDrafts((drafts) => ({ ...drafts, [setId]: withDraft(drafts[setId], { repsText, weightText }) }));
       const numbers = readSetNumbers(setId, located.set, { repsText, weightText });
-      setWorkout(updateSetInWorkout(current, setId, numbers));
+      const updated = updateSetInWorkout(current, setId, numbers);
+      const after = findSet(updated, setId);
+      const ordered = after?.set.setType === 'warmup' ? warmupsFirst(after.exercise.sets, true) : null;
+      setWorkout(
+        ordered && after
+          ? { ...updated, exercises: updated.exercises.map((exercise) => (exercise.id === after.exercise.id ? { ...exercise, sets: ordered } : exercise)) }
+          : updated,
+      );
       queueSave(setId, numbers);
+      if (ordered) {
+        void saveSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+      }
       void hapticLight();
     },
     [queueSave, readSetNumbers],

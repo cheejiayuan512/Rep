@@ -34,7 +34,7 @@ import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domai
 import { machineSetupOptions } from '../../domain/machine-setup';
 import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { parseDecimal, repsTextToNumber, weightTextToKg } from '../../domain/units';
-import { moveById } from '../../domain/workout-edits';
+import { moveById, warmupsFirst } from '../../domain/workout-edits';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { RoutineExerciseCard } from './routine-exercise-card';
@@ -93,6 +93,7 @@ export const RoutineEditorScreen: React.FC = () => {
   const unitRef = useRef(unit);
   const pendingRef = useRef<Record<string, PendingSet>>({});
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const orderTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   routineRef.current = routine;
   nameRef.current = name;
   draftsRef.current = drafts;
@@ -102,6 +103,37 @@ export const RoutineEditorScreen: React.FC = () => {
     routineRef.current = next;
     setRoutine(next);
   }, []);
+
+  const applyWarmupOrder = useCallback(
+    (routineExerciseId: string) => {
+      const current = routineRef.current;
+      const exercise = current?.exercises.find((item) => item.id === routineExerciseId);
+      if (!current || !exercise) {
+        return;
+      }
+      const ordered = warmupsFirst(exercise.sets, true);
+      if (!ordered) {
+        return;
+      }
+      applyRoutine(mapSets(current, routineExerciseId, () => ordered));
+      void saveRoutineSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+    },
+    [applyRoutine],
+  );
+
+  const scheduleWarmupOrder = useCallback(
+    (routineExerciseId: string) => {
+      const existing = orderTimersRef.current[routineExerciseId];
+      if (existing) {
+        clearTimeout(existing);
+      }
+      orderTimersRef.current[routineExerciseId] = setTimeout(() => {
+        delete orderTimersRef.current[routineExerciseId];
+        applyWarmupOrder(routineExerciseId);
+      }, 300);
+    },
+    [applyWarmupOrder],
+  );
 
   const flushPending = useCallback(async () => {
     const patches = pendingRef.current;
@@ -216,8 +248,11 @@ export const RoutineEditorScreen: React.FC = () => {
       const numbers = readSetNumbers(located.set, override);
       applyRoutine(mapSets(current, located.exercise.id, (sets) => sets.map((set) => (set.id === setId ? { ...set, ...numbers } : set))));
       queueSave(setId, numbers);
+      if (located.set.setType === 'warmup' && override.weightText != null) {
+        scheduleWarmupOrder(located.exercise.id);
+      }
     },
-    [applyRoutine, queueSave, readSetNumbers],
+    [applyRoutine, queueSave, readSetNumbers, scheduleWarmupOrder],
   );
 
   const handleChangeWeight = useCallback(
@@ -251,10 +286,15 @@ export const RoutineEditorScreen: React.FC = () => {
       }
       const setType: SetType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
       const toggled = located.exercise.sets.map((set): RoutineSet => (set.id === setId ? { ...set, setType } : set));
-      const ordered = [...toggled.filter((set) => set.setType === 'warmup'), ...toggled.filter((set) => set.setType !== 'warmup')].map((set, position) => ({ ...set, position }));
+      const ordered = warmupsFirst(toggled, true) ?? toggled.map((set, position) => ({ ...set, position }));
       applyRoutine(mapSets(current, located.exercise.id, () => ordered));
       void updateRoutineSet(setId, { setType });
       void saveRoutineSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
+      const pendingOrder = orderTimersRef.current[located.exercise.id];
+      if (pendingOrder) {
+        clearTimeout(pendingOrder);
+        delete orderTimersRef.current[located.exercise.id];
+      }
     },
     [applyRoutine],
   );

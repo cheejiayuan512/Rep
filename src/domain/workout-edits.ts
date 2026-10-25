@@ -51,9 +51,27 @@ export function orderByIds<T extends { id: string; position: number }>(items: T[
   return ordered.map((item, position) => ({ ...item, position }));
 }
 
-/** Warmups first, everything else after, each group keeping its order. Null when nothing moves. */
-export function warmupsFirst(sets: SetRecord[]): SetRecord[] | null {
-  const ordered = [...sets.filter((set) => set.setType === 'warmup'), ...sets.filter((set) => set.setType !== 'warmup')];
+type OrderableSet = { id: string; position: number; setType: SetType; weightKg: number | null };
+
+function compareWarmupWeight(left: number | null, right: number | null): number {
+  if (left == null && right == null) {
+    return 0;
+  }
+  if (left == null) {
+    return 1;
+  }
+  if (right == null) {
+    return -1;
+  }
+  return left - right;
+}
+
+/** Warmups first. Pass `true` to also sort those by weight, lightest first (blank last). Working sets keep their order. Null when nothing moves. */
+export function warmupsFirst<T extends OrderableSet>(sets: T[], sortWeight = false): T[] | null {
+  const warmups = sets.filter((set) => set.setType === 'warmup');
+  const ranked = sortWeight ? [...warmups].sort((left, right) => compareWarmupWeight(left.weightKg, right.weightKg)) : warmups;
+  const working = sets.filter((set) => set.setType !== 'warmup');
+  const ordered = [...ranked, ...working];
   if (ordered.every((set, index) => set.id === sets[index]?.id)) {
     return null;
   }
