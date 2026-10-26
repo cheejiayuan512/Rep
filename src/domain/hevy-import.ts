@@ -409,7 +409,7 @@ function readRow(row: string[], index: ReturnType<typeof columnIndex>): CsvRow {
   };
 }
 
-function mapSetType(value: string): SetType | null {
+export function mapSetType(value: string): SetType | null {
   const normalized = value.trim().toLowerCase();
   if (normalized === '' || normalized === 'normal' || normalized === 'failure' || normalized === 'dropset') {
     return 'normal';
@@ -420,7 +420,7 @@ function mapSetType(value: string): SetType | null {
   return null;
 }
 
-function parseOptionalNumber(value: string): number | null {
+export function parseOptionalNumber(value: string): number | null {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
@@ -429,7 +429,7 @@ function parseOptionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseOptionalRpe(value: string): number | null {
+export function parseOptionalRpe(value: string): number | null {
   const parsed = parseOptionalNumber(value);
   if (parsed == null || parsed < 0 || parsed > 10) {
     return null;
@@ -437,7 +437,7 @@ function parseOptionalRpe(value: string): number | null {
   return Math.round(parsed * 10) / 10;
 }
 
-function cleanWorkoutTitle(title: string): string {
+export function cleanWorkoutTitle(title: string): string {
   return title
     .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
     .replace(/[\u2600-\u27BF]/g, '')
@@ -446,11 +446,11 @@ function cleanWorkoutTitle(title: string): string {
     .trim() || 'Workout';
 }
 
-function displayNameForCustom(hevyTitle: string): string {
+export function displayNameForCustom(hevyTitle: string): string {
   return hevyTitle.replace(/\s+/g, ' ').trim();
 }
 
-function guessEquipment(hevyTitle: string): Equipment {
+export function guessEquipment(hevyTitle: string): Equipment {
   const match = hevyTitle.match(/\(([^)]+)\)\s*$/);
   if (match) {
     const inside = match[1].trim();
@@ -486,7 +486,7 @@ function guessEquipment(hevyTitle: string): Equipment {
   return 'Other';
 }
 
-function guessMuscleGroup(hevyTitle: string): MuscleGroup {
+export function guessMuscleGroup(hevyTitle: string): MuscleGroup {
   const lower = hevyTitle.toLowerCase();
   if (lower.includes('bench') || lower.includes('chest') || lower.includes('fly') || lower.includes('dip')) {
     return 'Chest';

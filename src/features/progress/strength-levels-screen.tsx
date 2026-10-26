@@ -1,6 +1,6 @@
 /**
  * Strength levels: each main lift's best estimated 1RM against standards for
- * your bodyweight and sex, from Beginner to Elite, with a rough percentile.
+ * your bodyweight, age, and sex, from Beginner to Elite, with a rough percentile.
  */
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -29,12 +29,12 @@ export const StrengthLevelsScreen: React.FC = () => {
     <Screen bottomInset>
       <Header left={<TextButton label="Back" onPress={navigation.goBack} />} title="Strength levels" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.lead}>Your best estimated 1RM on each main lift, compared with other lifters at your bodyweight.</Text>
+        <Text style={styles.lead}>Your best estimated 1RM on each main lift, compared with other lifters at your bodyweight and age.</Text>
         <View style={styles.card}>
           <BodyProfileForm body={body} onChange={setBody} unit={unit} />
         </View>
         {!ready ? (
-          <Text style={styles.prompt}>Enter your bodyweight and pick a standards table to see where you stand.</Text>
+          <Text style={styles.prompt}>Enter your bodyweight and pick a standards table to see where you stand. Age scales the table; peak is 24–39.</Text>
         ) : !overview || overview.ratings.length === 0 ? (
           <Text style={styles.prompt}>Log a working set of 10 reps or fewer on one of the lifts below to get a level.</Text>
         ) : (
@@ -61,8 +61,8 @@ export const StrengthLevelsScreen: React.FC = () => {
         ) : null}
         <Text style={styles.note}>
           Levels follow common strength standards: Beginner, Novice, Intermediate, Advanced, and Elite sit near the 5th, 20th, 50th, 80th, and 95th percentile of people who
-          lift. Thresholds rise with bodyweight to the ⅔ power. Most people who don&apos;t train would sit below Beginner, so against the general population you rank higher
-          than shown. Estimates use Epley on sets of 10 reps or fewer.
+          lift. Thresholds rise with bodyweight to the ⅔ power and drop for ages outside 24–39. Most people who don&apos;t train would sit below Beginner, so against the
+          general population you rank higher than shown. Estimates use Epley on sets of 10 reps or fewer.
         </Text>
       </ScrollView>
     </Screen>

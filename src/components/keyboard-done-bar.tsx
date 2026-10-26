@@ -1,40 +1,44 @@
 /**
- * A hide-keyboard chip above the number pad on iOS and Android. Number pads
- * have no return key, and some Android decimal pads hide theirs. Web has no
- * keyboard chrome, so this renders nothing there.
+ * A hide-keyboard chip above the number pad. Number pads have no return key.
+ * iOS must use InputAccessoryView — a root overlay sits behind the workout
+ * modal and never appears. Android has no accessory view, so the chip sits
+ * at the bottom of the resized window. Web has no keyboard chrome.
  *
- * Mount once at the app root. iOS overlays the chip on the keyboard; Android
- * sits it at the bottom of the resized window.
+ * Mount once at the app root. Number fields point at `keyboardDoneId`.
  */
 import React, { useEffect, useState } from 'react';
-import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { colors } from '../theme/colors';
 import { KeyboardHideIcon } from './icons';
 
-/** Kept so number fields can still point at an accessory. Unused on either platform. */
-export const keyboardDoneId: string | undefined = undefined;
+export const keyboardDoneId = Platform.OS === 'ios' ? 'rep-hide-keyboard' : undefined;
 
 function dismiss(): void {
   Keyboard.dismiss();
 }
 
+const HideChip: React.FC = () => (
+  <View style={styles.row}>
+    <Pressable accessibilityLabel="Hide keyboard" accessibilityRole="button" onPress={dismiss} style={styles.chip}>
+      <KeyboardHideIcon color={colors.accentInk} size={22} />
+    </Pressable>
+  </View>
+);
+
 export const KeyboardDoneBar: React.FC = () => {
   const [height, setHeight] = useState(0);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS !== 'android') {
       return;
     }
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const changeEvent = Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidChangeFrame';
     const onShow = (event: { endCoordinates: { height: number } }) => {
       setHeight(event.endCoordinates.height);
     };
-    const show = Keyboard.addListener(showEvent, onShow);
-    const change = Keyboard.addListener(changeEvent, onShow);
-    const hide = Keyboard.addListener(hideEvent, () => {
+    const show = Keyboard.addListener('keyboardDidShow', onShow);
+    const change = Keyboard.addListener('keyboardDidChangeFrame', onShow);
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
       setHeight(0);
     });
     return () => {
@@ -44,35 +48,22 @@ export const KeyboardDoneBar: React.FC = () => {
     };
   }, []);
 
-  if (Platform.OS === 'web' || height <= 0) {
+  if (Platform.OS === 'ios' && keyboardDoneId) {
+    return (
+      <InputAccessoryView backgroundColor="transparent" nativeID={keyboardDoneId}>
+        <HideChip />
+      </InputAccessoryView>
+    );
+  }
+
+  if (Platform.OS !== 'android' || height <= 0) {
     return null;
   }
 
-  const chip = (
-    <View style={styles.row}>
-      <Pressable accessibilityLabel="Hide keyboard" accessibilityRole="button" onPress={dismiss} style={styles.chip}>
-        <KeyboardHideIcon color={colors.accentInk} size={22} />
-      </Pressable>
-    </View>
-  );
-
-  if (Platform.OS === 'android') {
-    return chip;
-  }
-
-  return (
-    <View pointerEvents="box-none" style={styles.overlay}>
-      <View style={[styles.anchor, { bottom: height }]}>{chip}</View>
-    </View>
-  );
+  return <HideChip />;
 };
 
 const styles = StyleSheet.create({
-  anchor: {
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
   chip: {
     alignItems: 'center',
     backgroundColor: '#F4F7FB',
@@ -86,13 +77,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     width: 52,
   },
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-  },
   row: {
     alignItems: 'flex-end',
     paddingBottom: 6,
     paddingHorizontal: 12,
+    paddingTop: 4,
   },
 });

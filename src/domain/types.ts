@@ -14,9 +14,24 @@ export function isBodySex(value: unknown): value is BodySex {
   return value === 'male' || value === 'female';
 }
 
-/** Bodyweight and sex for strength levels. Both optional. */
+export const MIN_AGE_YEARS = 14;
+export const MAX_AGE_YEARS = 80;
+
+/** Whole years for strength levels. Blank or out of range is null. */
+export function parseAgeYears(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value.trim()) : NaN;
+  if (!Number.isFinite(n)) {
+    return null;
+  }
+  const age = Math.round(n);
+  return age >= MIN_AGE_YEARS && age <= MAX_AGE_YEARS ? age : null;
+}
+
+/** Bodyweight, age, and sex for strength levels. All optional. */
 export interface BodyProfile {
   bodyweightKg: number | null;
+  /** Whole years. Null until entered. Strength tables peak at 24–39. */
+  ageYears: number | null;
   sex: BodySex | null;
 }
 

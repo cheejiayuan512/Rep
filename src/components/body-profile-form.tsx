@@ -1,12 +1,12 @@
 /**
- * Bodyweight and sex, used only to pick and scale the strength-standards table.
+ * Bodyweight, age, and sex, used only to pick and scale the strength-standards table.
  * Bodyweight is typed in the display unit and saved in kilograms.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatWeight, kgToDisplay, weightTextToKg } from '../domain/units';
-import type { BodyProfile, BodySex, WeightUnit } from '../domain/types';
+import { parseAgeYears, type BodyProfile, type BodySex, type WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
 import { Chip } from './chip';
 import { keyboardDoneId } from './keyboard-done-bar';
@@ -21,23 +21,42 @@ function bodyweightText(body: BodyProfile, unit: WeightUnit): string {
   return body.bodyweightKg == null ? '' : formatWeight(kgToDisplay(body.bodyweightKg, unit));
 }
 
+function ageText(body: BodyProfile): string {
+  return body.ageYears == null ? '' : String(body.ageYears);
+}
+
 export const BodyProfileForm: React.FC<BodyProfileFormProps> = ({ body, onChange, unit }) => {
-  const [text, setText] = useState(() => bodyweightText(body, unit));
+  const [weight, setWeight] = useState(() => bodyweightText(body, unit));
+  const [age, setAge] = useState(() => ageText(body));
 
   useEffect(() => {
-    setText(bodyweightText(body, unit));
+    setWeight(bodyweightText(body, unit));
   }, [body, unit]);
 
-  const commit = useCallback(() => {
-    const kg = weightTextToKg(text, unit, null);
+  useEffect(() => {
+    setAge(ageText(body));
+  }, [body]);
+
+  const commitWeight = useCallback(() => {
+    const kg = weightTextToKg(weight, unit, null);
     const next = kg != null && kg >= 25 && kg <= 350 ? kg : null;
     if (next !== body.bodyweightKg) {
       onChange({ ...body, bodyweightKg: next });
     }
     if (next == null) {
-      setText(text.trim() === '' ? '' : bodyweightText(body, unit));
+      setWeight(weight.trim() === '' ? '' : bodyweightText(body, unit));
     }
-  }, [body, onChange, text, unit]);
+  }, [body, onChange, unit, weight]);
+
+  const commitAge = useCallback(() => {
+    const next = parseAgeYears(age);
+    if (next !== body.ageYears) {
+      onChange({ ...body, ageYears: next });
+    }
+    if (next == null) {
+      setAge(age.trim() === '' ? '' : ageText(body));
+    }
+  }, [age, body, onChange]);
 
   const selectSex = useCallback(
     (sex: BodySex) => {
@@ -55,16 +74,35 @@ export const BodyProfileForm: React.FC<BodyProfileFormProps> = ({ body, onChange
             accessibilityLabel={`Bodyweight in ${unit}`}
             inputAccessoryViewID={keyboardDoneId}
             keyboardType="decimal-pad"
-            onBlur={commit}
-            onChangeText={setText}
-            onSubmitEditing={commit}
+            onBlur={commitWeight}
+            onChangeText={setWeight}
+            onSubmitEditing={commitWeight}
             placeholder="—"
             placeholderTextColor={colors.faint}
             returnKeyType="done"
             style={styles.input}
-            value={text}
+            value={weight}
           />
           <Text style={styles.unit}>{unit}</Text>
+        </View>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Age</Text>
+        <View style={styles.inputWrap}>
+          <TextInput
+            accessibilityLabel="Age in years"
+            inputAccessoryViewID={keyboardDoneId}
+            keyboardType="number-pad"
+            onBlur={commitAge}
+            onChangeText={setAge}
+            onSubmitEditing={commitAge}
+            placeholder="—"
+            placeholderTextColor={colors.faint}
+            returnKeyType="done"
+            style={styles.input}
+            value={age}
+          />
+          <Text style={styles.unit}>yr</Text>
         </View>
       </View>
       <View style={styles.row}>

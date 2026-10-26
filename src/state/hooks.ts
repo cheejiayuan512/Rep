@@ -101,7 +101,7 @@ export function useWarmupRestMultiplier(): { warmupMultiplier: number; setWarmup
   return { setWarmupMultiplier, warmupMultiplier };
 }
 
-/** Bodyweight and sex for strength levels. Saving bumps the revision so ratings refresh. */
+/** Bodyweight, age, and sex for strength levels. Saving bumps the revision so ratings refresh. */
 export function useBodyProfile(): { body: BodyProfile; setBody: (body: BodyProfile) => void } {
   const settings = useStored(getSettings);
   const dispatch = useAppDispatch();
@@ -111,7 +111,10 @@ export function useBodyProfile(): { body: BodyProfile; setBody: (body: BodyProfi
     },
     [dispatch],
   );
-  const body = useMemo<BodyProfile>(() => ({ bodyweightKg: settings?.bodyweightKg ?? null, sex: settings?.sex ?? null }), [settings?.bodyweightKg, settings?.sex]);
+  const body = useMemo<BodyProfile>(
+    () => ({ ageYears: settings?.ageYears ?? null, bodyweightKg: settings?.bodyweightKg ?? null, sex: settings?.sex ?? null }),
+    [settings?.ageYears, settings?.bodyweightKg, settings?.sex],
+  );
   return { body, setBody };
 }
 

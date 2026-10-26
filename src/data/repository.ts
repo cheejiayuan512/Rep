@@ -3,7 +3,7 @@
  * library, routines, and workouts. This file turns the raw saved document
  * into the shapes declared in src/domain/types.ts.
  */
-import { parseHevyCsv } from '../domain/hevy-import';
+import { LOG_EXPORT_LABEL, parseLogCsv, type LogExportKind } from '../domain/log-import';
 import { buildProfile, type ProfileSnapshot, type ProfileWorkout } from '../domain/profile';
 import { estimateOneRepMax, latestSessionSets, oneRepMaxRecordFlags, scoreLoggedSet } from '../domain/metrics';
 import type { AnalysisInput, AnalysisSet } from '../domain/stats';
@@ -36,7 +36,7 @@ import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
 import { fuzzyFilter } from '../domain/fuzzy-search';
 import { rateLift, STRENGTH_LIFTS, type StrengthRating } from '../domain/strength';
 import type { BodyProfile } from '../domain/types';
-import { isBodySex } from '../domain/types';
+import { isBodySex, parseAgeYears } from '../domain/types';
 import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 /** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
@@ -57,6 +57,8 @@ function reader<A extends unknown[], R>(read: (db: DatabaseShape, ...args: A) =>
 }
 
 export interface HevyImportSummary {
+  source: LogExportKind;
+  sourceLabel: string;
   importedWorkouts: number;
   skippedDuplicates: number;
   createdExercises: number;
@@ -94,14 +96,16 @@ export const getSettings = reader((db): AppSettings => {
 function bodyProfileOf(db: DatabaseShape): BodyProfile {
   const bodyweight = db.settings.bodyweightKg;
   return {
+    ageYears: parseAgeYears(db.settings.ageYears),
     bodyweightKg: typeof bodyweight === 'number' && bodyweight > 0 ? bodyweight : null,
     sex: isBodySex(db.settings.sex) ? db.settings.sex : null,
   };
 }
 
-/** Bodyweight in kilograms (null clears it) and sex, for strength levels. */
+/** Bodyweight in kilograms (null clears it), age, and sex, for strength levels. */
 export async function saveBodyProfile(profile: BodyProfile): Promise<void> {
   await writeDatabase((db) => {
+    db.settings.ageYears = parseAgeYears(profile.ageYears);
     db.settings.bodyweightKg = profile.bodyweightKg != null && profile.bodyweightKg > 0 ? Math.round(profile.bodyweightKg * 10) / 10 : null;
     db.settings.sex = profile.sex;
   });
@@ -1098,8 +1102,12 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
 }
 
 export async function importHevyCsv(csvText: string): Promise<HevyImportSummary> {
+  return importWorkoutCsv(csvText);
+}
+
+export async function importWorkoutCsv(csvText: string): Promise<HevyImportSummary> {
   const db = await readDatabase();
-  const parsed = parseHevyCsv(
+  const parsed = parseLogCsv(
     csvText,
     db.exercises.map((exercise) => ({
       equipment: isEquipment(exercise.equipment) ? exercise.equipment : 'Other',
@@ -1198,6 +1206,8 @@ export async function importHevyCsv(csvText: string): Promise<HevyImportSummary>
     importedWorkouts,
     skippedCardioRows: parsed.skippedCardioRows,
     skippedDuplicates,
+    source: parsed.source,
+    sourceLabel: LOG_EXPORT_LABEL[parsed.source],
   };
 }
 
@@ -1273,13 +1283,13 @@ export const getStrengthOverview = reader((db): StrengthOverview => {
 
 /** Null when bodyweight or sex is missing. */
 function strengthRatingsOf(db: DatabaseShape, withoutWorkoutId: string | null): Array<StrengthRating & { achievedAt: number }> | null {
-  const { bodyweightKg, sex } = bodyProfileOf(db);
+  const { ageYears, bodyweightKg, sex } = bodyProfileOf(db);
   if (bodyweightKg == null || sex == null) {
     return null;
   }
   const ratings: Array<StrengthRating & { achievedAt: number }> = [];
   for (const [exerciseId, lift] of bestLifts(db, withoutWorkoutId)) {
-    const rating = rateLift(exerciseId, lift.oneRepMaxKg, bodyweightKg, sex);
+    const rating = rateLift(exerciseId, lift.oneRepMaxKg, bodyweightKg, sex, ageYears);
     if (rating) {
       ratings.push({ ...rating, achievedAt: lift.achievedAt, liftName: exerciseName(db, exerciseId) });
     }

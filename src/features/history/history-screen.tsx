@@ -1,13 +1,13 @@
 /**
  * Finished workouts, grouped by month. Only workouts with a finish time appear here.
- * Import past sessions from a Hevy CSV export.
+ * Import past sessions from a Hevy, Strong, Jefit, or FitNotes CSV export.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { importHevyCsv } from '../../data/repository';
+import { importWorkoutCsv } from '../../data/repository';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { EmptyState } from '../../components/empty-state';
@@ -42,7 +42,7 @@ export const HistoryScreen: React.FC = () => {
     [navigation],
   );
 
-  const handleImportHevy = useCallback(async () => {
+  const handleImportCsv = useCallback(async () => {
     if (importing) {
       return;
     }
@@ -59,7 +59,7 @@ export const HistoryScreen: React.FC = () => {
       setImporting(true);
       const response = await fetch(picked.assets[0].uri);
       const csvText = await response.text();
-      const summary = await importHevyCsv(csvText);
+      const summary = await importWorkoutCsv(csvText);
       dispatch(dataChanged());
 
       const parts = [
@@ -74,10 +74,10 @@ export const HistoryScreen: React.FC = () => {
       if (summary.skippedCardioRows > 0) {
         parts.push(`${summary.skippedCardioRows} cardio rows skipped`);
       }
-      Alert.alert('Hevy import', parts.join('. ') + '.');
+      Alert.alert(`${summary.sourceLabel} import`, parts.join('. ') + '.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not import that file.';
-      Alert.alert('Hevy import failed', message);
+      Alert.alert('Import failed', message);
     } finally {
       setImporting(false);
     }
@@ -95,17 +95,17 @@ export const HistoryScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>History</Text>
-          <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportHevy()} style={styles.importButton}>
-            <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import Hevy'}</Text>
+          <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportCsv()} style={styles.importButton}>
+            <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import CSV'}</Text>
           </Pressable>
         </View>
-        <Text style={styles.subtitle}>Finished sessions stay on this device. Export a CSV from Hevy, then import it here.</Text>
+        <Text style={styles.subtitle}>Finished sessions stay on this device. Export a CSV from Hevy, Strong, Jefit, or FitNotes, then import it here.</Text>
       </View>
       <SectionList
         style={styles.fill}
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
-        ListEmptyComponent={<EmptyState message="Finish a workout or import a Hevy CSV and the sessions will land here." title="No workouts yet" />}
+        ListEmptyComponent={<EmptyState message="Finish a workout or import a CSV and the sessions will land here." title="No workouts yet" />}
         initialNumToRender={6}
         maxToRenderPerBatch={8}
         removeClippedSubviews

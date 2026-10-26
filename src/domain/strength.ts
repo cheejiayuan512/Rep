@@ -3,9 +3,9 @@
  * Each lift has five bodyweight multiples (Beginner to Elite), which sit near
  * the 5th, 20th, 50th, 80th, and 95th percentile of lifters at a reference
  * bodyweight. Strength grows with bodyweight to the 2/3 power, so a heavier
- * lifter's thresholds rise more slowly than their bodyweight.
- * These are rough public standards, not a survey of the whole population;
- * most people who do not train would sit below Beginner.
+ * lifter's thresholds rise more slowly than their bodyweight. Age scales the
+ * table (peak 24–39). These are rough public standards, not a survey of the
+ * whole population; most people who do not train would sit below Beginner.
  */
 import type { BodySex } from './types';
 
@@ -61,12 +61,30 @@ export interface StrengthRating {
   progress: number;
 }
 
-export function rateLift(exerciseId: string, oneRepMaxKg: number, bodyweightKg: number, sex: BodySex): StrengthRating | null {
+/**
+ * Peak ages 24–39 use the raw table. Younger and older expected 1RMs are
+ * lower, so the same lift rates higher. Missing age leaves the table as-is.
+ */
+export function ageFactor(ageYears: number | null | undefined): number {
+  if (ageYears == null || !Number.isFinite(ageYears)) {
+    return 1;
+  }
+  const age = Math.min(80, Math.max(14, Math.round(ageYears)));
+  if (age < 24) {
+    return 1 - (24 - age) * 0.02;
+  }
+  if (age <= 39) {
+    return 1;
+  }
+  return Math.max(0.55, 1 - (age - 39) * 0.012);
+}
+
+export function rateLift(exerciseId: string, oneRepMaxKg: number, bodyweightKg: number, sex: BodySex, ageYears?: number | null): StrengthRating | null {
   const standard = STANDARDS[exerciseId];
   if (!standard || !(bodyweightKg > 0) || !(oneRepMaxKg > 0)) {
     return null;
   }
-  const scale = Math.pow(bodyweightKg, 2 / 3) * Math.cbrt(REFERENCE_KG[sex]);
+  const scale = Math.pow(bodyweightKg, 2 / 3) * Math.cbrt(REFERENCE_KG[sex]) * ageFactor(ageYears);
   const thresholdsKg = standard[sex].map((multiple) => multiple * scale);
   let levelIndex = -1;
   thresholdsKg.forEach((threshold, index) => {

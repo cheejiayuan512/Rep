@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
-import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, usesMachineSetup } from '../domain/types';
+import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, parseAgeYears, usesMachineSetup } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
 /**
@@ -97,6 +97,8 @@ export interface DatabaseShape {
     warmupRestMultiplier: number;
     /** For strength levels. Null until entered on Profile. */
     bodyweightKg: number | null;
+    /** Whole years for strength levels. Null until entered. */
+    ageYears: number | null;
     sex: BodySex | null;
     /** When true, set rows show the RPE column even if none has been logged. */
     showRpe: boolean;
@@ -276,6 +278,11 @@ function normalizeStored(db: DatabaseShape): boolean {
     db.settings.sex = null;
     changed = true;
   }
+  const ageYears = parseAgeYears(db.settings.ageYears);
+  if (db.settings.ageYears !== ageYears) {
+    db.settings.ageYears = ageYears;
+    changed = true;
+  }
   if (typeof db.settings.showRpe !== 'boolean') {
     db.settings.showRpe = db.sets.some((set) => set.rpe != null);
     changed = true;
@@ -364,7 +371,7 @@ function ensureSeed(db: DatabaseShape): boolean {
 }
 
 function defaultSettings(): DatabaseShape['settings'] {
-  return { bodyweightKg: null, sex: null, showRpe: false, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
+  return { ageYears: null, bodyweightKg: null, sex: null, showRpe: false, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
 }
 
 /** Copies every row one level deep. Mutators edit row fields, and readers still hold the old rows. */

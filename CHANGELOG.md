@@ -2,6 +2,12 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## Unreleased
+
+- **Age** on Settings and Strength levels (14–80). The table peaks at 24–39; younger and older expected 1RMs are lower. Missing age leaves the table as-is.
+- **Hide-keyboard chip on iOS** uses the system accessory above the pad, so it shows inside a workout. Android is unchanged.
+- **Import CSV** on History reads Hevy, Strong, Jefit, or FitNotes from the header. Same name matching as Hevy. Real sample files will tighten the last two.
+
 ## 1.4.0 · Android 14 / iOS 21
 
 - **Warmups sort by weight.** Lightest warmup rises to the top after you pause typing, or as soon as you mark W. Blank warmups stay last. Working sets do not move.

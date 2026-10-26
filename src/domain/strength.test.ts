@@ -1,4 +1,4 @@
-import { overallLevel, rateLift } from './strength';
+import { ageFactor, overallLevel, rateLift } from './strength';
 import { assertClose, assertEqual, test } from './test-support';
 
 test('at the reference bodyweight the thresholds are plain multiples', () => {
@@ -30,6 +30,18 @@ test('female standards and unknown lifts', () => {
   assertEqual(rateLift('barbell-bench-press', 50, 65, 'female')?.level, 'Intermediate');
   assertEqual(rateLift('cable-fly', 50, 65, 'female'), null);
   assertEqual(rateLift('back-squat', 100, 0, 'male'), null);
+});
+
+test('age 24–39 matches the raw table; younger and older need less', () => {
+  assertEqual(ageFactor(null), 1);
+  assertEqual(ageFactor(30), 1);
+  assertEqual(ageFactor(16) < 1, true);
+  assertEqual(ageFactor(60) < 1, true);
+  const peak = rateLift('back-squat', 140, 80, 'male', 30);
+  const older = rateLift('back-squat', 140, 80, 'male', 60);
+  assertEqual(peak?.level, 'Intermediate');
+  assertEqual((older?.thresholdsKg[2] ?? 0) < (peak?.thresholdsKg[2] ?? 0), true);
+  assertEqual(older?.level, 'Advanced');
 });
 
 test('the overall level is the best percentile', () => {

@@ -60,10 +60,10 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 
 ## Profile and settings
 
-- kg / lb, warmup rest, Show RPE, bodyweight, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it. Show RPE disappears after any set has an RPE, because the column stays on.
+- kg / lb, warmup rest, Show RPE, bodyweight, age, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it. Show RPE disappears after any set has an RPE, because the column stays on.
 - 20 levels (`LEVEL_FLOORS` in `src/domain/profile.ts`) with titles. Show "Level N of 20", the title, XP in this level, and XP to the next. `XP_RULES` lists how XP is earned and is shown under "How XP works".
 - 20 badges with three tiers each. `BADGE_INFO` holds the title, unit, and description shown when a badge is tapped. Kg badges are formatted in the user's unit; `strong` steps are strength level indexes.
-- Strength levels (`src/domain/strength.ts`, `StrengthLevelsScreen`) need `settings.bodyweightKg` and `settings.sex`. They use the best Epley e1RM from working sets of 10 reps or fewer, bodyweight-multiple standards scaled by bodyweight^⅔, and map Beginner…Elite to the 5th/20th/50th/80th/95th percentile of lifters. Say "lifters", not "everyone": most untrained people sit below Beginner.
+- Strength levels (`src/domain/strength.ts`, `StrengthLevelsScreen`) need `settings.bodyweightKg` and `settings.sex`. `settings.ageYears` (14–80) scales the table: peak 24–39, younger and older expected 1RMs are lower. Missing age leaves the table as-is. They use the best Epley e1RM from working sets of 10 reps or fewer, bodyweight-multiple standards scaled by bodyweight^⅔, and map Beginner…Elite to the 5th/20th/50th/80th/95th percentile of lifters. Say "lifters", not "everyone": most untrained people sit below Beginner.
 
 ## Numbers
 
@@ -84,13 +84,13 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Record or chart math | `src/domain/metrics.ts` and `src/domain/metrics.test.ts` |
 | Active logging UI | `src/features/workout/active-workout-screen.tsx` |
 | Finished session UI | `src/features/history/workout-detail-screen.tsx` |
-| Hevy CSV import | `src/domain/hevy-import.ts`, then `importHevyCsv` in the repository |
+| Workout CSV import | `src/domain/log-import.ts` (detect Hevy / Strong / Jefit / FitNotes), Hevy columns in `hevy-import.ts`, then `importWorkoutCsv` in the repository |
 | Profile level, badges, weekly chart | `src/domain/profile.ts` and `src/features/profile/profile-screen.tsx`; badge art in `src/components/badge-icons.tsx` |
 | Home week stats, Analysis screen | `src/domain/stats.ts`, then `src/features/progress/analysis-screen.tsx` |
 | 1RM calculator formulas | `src/domain/one-rep-max.ts` (Epley, Brzycki, Lombardi; up to 20 reps). `estimateFromSets` is the whole-session blend |
 | Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
 | What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` (opened from Profile) |
-| Keyboard hide chip | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx` |
+| Keyboard hide chip | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx`. iOS is `InputAccessoryView` (a root overlay sits behind the workout modal). Android sits above the resized window. |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.
