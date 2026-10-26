@@ -68,7 +68,7 @@ npx eas-cli@latest build --platform ios --profile production --no-wait
 npx eas-cli@latest submit --platform ios --id BUILD_ID --non-interactive --no-wait
 ```
 
-The iOS submit needs the same API key variables. It uploads to TestFlight and stops.
+The iOS submit needs the same API key variables, and `eas.json` must point at them with `ascApiKeyPath`, `ascApiKeyIssuerId`, and `ascApiKeyId`. Android submit needs `serviceAccountKeyPath` set to `$GOOGLE_SERVICE_ACCOUNT_KEY_PATH`. Set that variable to the Play JSON path before `eas submit`. Without those fields, `--non-interactive` tries to create the keys and fails. The iOS upload lands in TestFlight and stops.
 
 ## Public release stays manual
 
