@@ -17,6 +17,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Notes: multiline text on the exercise, max 500 characters. The box stays shut until the lifter opens it, or when notes already exist. A pencil on the notes row marks the field as editable.
 - Each set row: previous load, weight, reps, complete. RPE is a column only after the lifter turns **Show RPE** on in Profile, or after any set in the log has an RPE. Tap Previous to copy that load into the current weight and reps. Swipe the row left to delete it (`src/components/set-row.tsx` wraps `src/components/swipe-to-delete.tsx`, PanResponder plus Animated; the app has no gesture-handler root). Past half the row width deletes; a shorter swipe reveals the red Delete set button. Screen readers get a `delete` accessibility action. Previous lines up warmup with warmup and working set with working set.
 - Tap the set number to choose Normal, Warm-up, Drop, or Failure. The badge shows the number, W, D, or F. Drop and failure sets count toward volume, charts, and records. Warmups do not. Checking a filled set is still one tap. The check springs in when the set is completed.
+- Weight, reps, and RPE open the logging pad (`src/components/log-pad.tsx`): digits, Next, and a nudge. The RPE key shows 6–10 in half steps and a line about how many reps were left. +/− steps weight by 2.5 kg or 5 lb, reps by 1, and RPE by 0.5. The first key replaces the number. Notes and the routine name still use the system keyboard.
 - A blank workout shows Quick add chips (`src/components/quick-add.tsx`, `listQuickAddExercises`): exercises weighted by how recently and often they were trained, then `STARTER_EXERCISES`, up to 8, minus those already in the workout. Once a card exists, only **Add exercise** adds more.
 - Add set copies the previous row's weight and reps, and leaves RPE empty.
 - Remove exercise deletes that exercise and its sets with no dialog. Deleting a set or an exercise shows an Undo toast for 5 seconds instead.
@@ -92,6 +93,6 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
 | What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` (opened from Profile) |
-| Keyboard hide chip | `src/components/keyboard-done-bar.tsx`, mounted once in `App.tsx`. iOS is `InputAccessoryView` (a root overlay sits behind the workout modal). Android sits above the resized window. |
+| Logging pad | Set weight, reps, and RPE use `src/components/log-pad.tsx`. Notes and other number fields keep the hide chip in `src/components/keyboard-done-bar.tsx`. |
 
 After a domain change, run `npm test` and `npx tsc --noEmit`.

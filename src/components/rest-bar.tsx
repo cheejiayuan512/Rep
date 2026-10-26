@@ -15,9 +15,11 @@ interface RestBarProps {
   onSubtract: () => void;
   onAdd: () => void;
   onSkip: () => void;
+  /** Pixels to sit above a logging pad. Zero keeps the bar on the screen bottom. */
+  lift?: number;
 }
 
-export const RestBar: React.FC<RestBarProps> = ({ endsAt, onSubtract, onAdd, onSkip }) => {
+export const RestBar: React.FC<RestBarProps> = ({ endsAt, onSubtract, onAdd, onSkip, lift = 0 }) => {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(Date.now());
 
@@ -27,7 +29,7 @@ export const RestBar: React.FC<RestBarProps> = ({ endsAt, onSubtract, onAdd, onS
   }, []);
 
   return (
-    <View style={[styles.rest, { paddingBottom: insets.bottom + 12 }]}>
+    <View style={[styles.rest, { bottom: lift, paddingBottom: lift > 0 ? 12 : insets.bottom + 12 }]}>
       <View>
         <Text style={styles.restLabel}>Rest</Text>
         <Text style={styles.restTime}>{formatClock((endsAt - now) / 1000)}</Text>

@@ -19,6 +19,7 @@ import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, IconButton, TextButton } from '../../components/header';
 import { ChevronDownIcon } from '../../components/icons';
+import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pad';
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
@@ -122,11 +123,12 @@ function matchingHistory(history: LoggedSet[], exercise: WorkoutExercise): Logge
   return usesMachineSetup(exercise.equipment) ? filterSetsBySetup(history, exercise.machineSetup) : history;
 }
 
-export const ActiveWorkoutScreen: React.FC = () => {
+const ActiveWorkoutBody: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'ActiveWorkout'>>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const pad = useLogPadLayout();
   const { unit } = useWeightUnit();
   const { showRpe } = useShowRpe();
   const { warmupMultiplier } = useWarmupRestMultiplier();
@@ -1053,10 +1055,13 @@ export const ActiveWorkoutScreen: React.FC = () => {
           <EmptyState actionLabel="Go back" message="This workout is no longer on the device." onAction={leave} title="Workout missing" />
         ) : (
           <ScrollView
-            contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner || undo ? 168 : 48) + insets.bottom }}
+            ref={pad.scrollRef}
+            contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner || undo ? 168 : 48) + (pad.open ? pad.height : insets.bottom) }}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
+            onScroll={pad.onScroll}
             scrollEnabled={!dragging}
+            scrollEventThrottle={16}
             style={styles.fill}
           >
             <View style={styles.intro}>
@@ -1103,11 +1108,12 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onSwap={handleSwap}
                       onToggleComplete={handleToggleComplete}
                       onToggleSuperset={handleToggleSuperset}
+                      orderBase={Math.max(0, workout.exercises.findIndex((item) => item.id === exercise.id)) * 1000}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
                       canLinkSuperset={workout.exercises[workout.exercises.length - 1]?.id !== exercise.id}
                       superset={supersetRole(workout.exercises, exercise.id)}
                       setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
-                      showRpe={showRpe}
+                      showRpe={showRpe || workout.exercises.some((item) => item.sets.some((set) => set.rpe != null))}
                       sortHandle={handle}
                       unit={unit}
                     />
@@ -1120,8 +1126,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
           </ScrollView>
         )}
       </KeyboardAvoidingView>
+      <LogPad />
       {recordBanner || undo ? (
-        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + insets.bottom }]}>
+        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + (pad.open ? pad.height : insets.bottom) }]}>
           {recordBanner ? (
             <Pressable accessibilityLiveRegion="polite" accessibilityRole="alert" onPress={dismissRecord} style={styles.record}>
               <Text style={styles.recordTitle}>New PR · {recordBanner.exerciseName}</Text>
@@ -1142,7 +1149,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
           ) : null}
         </View>
       ) : null}
-      {restEndsAt ? <RestBar endsAt={restEndsAt} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
+      {restEndsAt ? <RestBar endsAt={restEndsAt} lift={pad.open ? pad.height : 0} onAdd={addRest} onSkip={skipRest} onSubtract={subtractRest} /> : null}
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
         destructive={confirm?.destructive}
@@ -1156,6 +1163,12 @@ export const ActiveWorkoutScreen: React.FC = () => {
     </Screen>
   );
 };
+
+export const ActiveWorkoutScreen: React.FC = () => (
+  <LogPadProvider>
+    <ActiveWorkoutBody />
+  </LogPadProvider>
+);
 
 const styles = StyleSheet.create({
   banner: {

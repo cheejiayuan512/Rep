@@ -12,6 +12,7 @@ import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { hapticLight } from '../../components/haptics';
 import { Header, TextButton } from '../../components/header';
+import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pad';
 import { Screen } from '../../components/screen';
 import { SortableList, type SortHandle } from '../../components/sortable-list';
 import {
@@ -77,11 +78,12 @@ function findSet(routine: RoutineDetail | null, setId: string): { exercise: Rout
   return null;
 }
 
-export const RoutineEditorScreen: React.FC = () => {
+const RoutineEditorBody: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
   const route = useRoute<StackRoute<'RoutineEditor'>>();
   const dispatch = useAppDispatch();
   const { unit } = useWeightUnit();
+  const pad = useLogPadLayout();
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
   const [routine, setRoutine] = useState<RoutineDetail | null>(() => getRoutine.now(route.params.routineId));
   const [drafts, setDrafts] = useState<DraftMap>(() => draftsFor(routine, unit));
@@ -535,6 +537,7 @@ export const RoutineEditorScreen: React.FC = () => {
         onMove={handleMove}
         onRemove={handleRemove}
         onToggleSuperset={handleToggleSuperset}
+        orderBase={Math.max(0, (routine?.exercises ?? []).findIndex((item) => item.id === exercise.id)) * 1000}
         panHandlers={handle.panHandlers}
         canLinkSuperset={(routine?.exercises[routine.exercises.length - 1]?.id ?? exercise.id) !== exercise.id}
         superset={supersetRole(routine?.exercises ?? [], exercise.id)}
@@ -551,10 +554,13 @@ export const RoutineEditorScreen: React.FC = () => {
       <Header left={<TextButton label="Back" onPress={navigation.goBack} />} title="Routine" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: undo ? 120 : 40 }]}
+          ref={pad.scrollRef}
+          contentContainerStyle={[styles.content, { paddingBottom: (undo ? 120 : 40) + (pad.open ? pad.height : 0) }]}
           keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
+          onScroll={pad.onScroll}
           scrollEnabled={!dragging}
+          scrollEventThrottle={16}
           style={styles.fill}
         >
           <TextInput accessibilityLabel="Routine name" onChangeText={setName} onEndEditing={handleRename} style={styles.name} value={name} />
@@ -565,8 +571,9 @@ export const RoutineEditorScreen: React.FC = () => {
           <TextButton label="Delete routine" onPress={handleDelete} tone="danger" />
         </ScrollView>
       </KeyboardAvoidingView>
+      <LogPad safeBottom={false} />
       {undo ? (
-        <View pointerEvents="box-none" style={styles.toasts}>
+        <View pointerEvents="box-none" style={[styles.toasts, pad.open ? { bottom: pad.height + 16 } : null]}>
           <View style={styles.undo}>
             <Text numberOfLines={1} style={styles.undoText}>
               {undo.message}
@@ -588,6 +595,12 @@ export const RoutineEditorScreen: React.FC = () => {
     </Screen>
   );
 };
+
+export const RoutineEditorScreen: React.FC = () => (
+  <LogPadProvider>
+    <RoutineEditorBody />
+  </LogPadProvider>
+);
 
 const styles = StyleSheet.create({
   content: {

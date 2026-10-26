@@ -9,6 +9,7 @@ import './fuzzy-search.test';
 import './hevy-import.test';
 import './log-export.test';
 import './log-import.test';
+import './log-pad.test';
 import './machine-setup.test';
 import './metrics.test';
 import './one-rep-max.test';

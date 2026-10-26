@@ -36,6 +36,8 @@ interface ExerciseBlockProps {
   canLinkSuperset: boolean;
   /** When false, the RPE column stays off the row. */
   showRpe: boolean;
+  /** Added to each set's pad order so Next continues onto the next card. */
+  orderBase?: number;
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
@@ -66,6 +68,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   superset,
   canLinkSuperset,
   showRpe,
+  orderBase = 0,
   onChangeRest,
   onChangeAttachment,
   onChangeSetup,
@@ -282,6 +285,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onChangeSetType={onChangeSetType}
             onDelete={onDeleteSet}
             onToggleComplete={onToggleComplete}
+            order={orderBase + index * 10}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             showRpe={showRpe}
             showSetup={showSetup}

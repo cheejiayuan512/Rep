@@ -2,6 +2,10 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## Unreleased
+
+- **Logging pad.** Weight and reps use an in-app keypad with Next, delete, and a nudge (2.5 kg, 5 lb, or 1 rep). RPE opens a 6–10 scale and a line about how many reps were left. Notes still use the system keyboard.
+
 ## 1.5.0 · Android 15 / iOS 22
 
 - **Finish discards an empty workout.** If nothing is checked off, Finish throws the session away instead of blocking.

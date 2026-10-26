@@ -3,14 +3,14 @@
  * Tap the set number to mark it as a warmup. The boxes show text; the parent converts that text to numbers.
  * Swipe the row left to reveal Delete; a long swipe deletes straight away (the card shows Undo).
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatLoggedLoad } from '../domain/format';
 import type { SetDraft } from '../domain/drafts';
 import type { PreviousSet, SetRecord, SetType, WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
-import { keyboardDoneId } from './keyboard-done-bar';
+import { LogValue } from './log-pad';
 import { SetTypeBadge, SetTypeMenu } from './set-type-badge';
 import { SwipeToDelete } from './swipe-to-delete';
 
@@ -33,8 +33,10 @@ interface SetRowProps {
   unit: WeightUnit;
   /** Append the stack name on machine and cable rows. */
   showSetup?: boolean;
-  /** When false, the RPE field is omitted. */
+  /** When false, the RPE field is omitted. The pad can still write one. */
   showRpe?: boolean;
+  /** Weight field order. Reps and RPE follow it, so Next walks the card. */
+  order: number;
   /** True when this completed set beat a previous best. */
   isRecord: boolean;
   onChangeWeight: (setId: string, value: string) => void;
@@ -54,6 +56,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   unit,
   showSetup = false,
   showRpe = true,
+  order,
   isRecord,
   onChangeWeight,
   onChangeReps,
@@ -121,6 +124,14 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   const previousText = previous
     ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined)
     : '—';
+  const links = useMemo(
+    () => ({
+      repsId: `${set.id}:reps`,
+      rpe: { id: `${set.id}:rpe`, onChange: handleRpe, value: draft.rpeText },
+      weightId: `${set.id}:weight`,
+    }),
+    [draft.rpeText, handleRpe, set.id],
+  );
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.wrap} testID="set-row">
@@ -144,40 +155,10 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
             {previousText}
           </Text>
         </Pressable>
-        <TextInput
-          accessibilityLabel="Weight"
-          inputAccessoryViewID={keyboardDoneId}
-          keyboardType="decimal-pad"
-          onChangeText={handleWeight}
-          placeholder="—"
-          placeholderTextColor={colors.faint}
-          selectTextOnFocus
-          style={[styles.input, styles.weight]}
-          value={draft.weightText}
-        />
-        <TextInput
-          accessibilityLabel="Reps"
-          inputAccessoryViewID={keyboardDoneId}
-          keyboardType="number-pad"
-          onChangeText={handleReps}
-          placeholder="—"
-          placeholderTextColor={colors.faint}
-          selectTextOnFocus
-          style={[styles.input, styles.reps]}
-          value={draft.repsText}
-        />
+        <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weight} unit={unit} value={draft.weightText} />
+        <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.reps} unit={unit} value={draft.repsText} />
         {showRpe ? (
-          <TextInput
-            accessibilityLabel="RPE"
-            inputAccessoryViewID={keyboardDoneId}
-            keyboardType="decimal-pad"
-            onChangeText={handleRpe}
-            placeholder="—"
-            placeholderTextColor={colors.faint}
-            selectTextOnFocus
-            style={[styles.input, styles.rpe]}
-            value={draft.rpeText}
-          />
+          <LogValue accessibilityLabel="RPE" id={`${set.id}:rpe`} kind="rpe" links={links} onChange={handleRpe} order={order + 2} style={styles.rpe} unit={unit} value={draft.rpeText} />
         ) : null}
         <Pressable accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'} accessibilityRole="button" onPress={handleComplete} style={[styles.check, set.completed && styles.checkDone]}>
           <Animated.View
@@ -232,16 +213,6 @@ const styles = StyleSheet.create({
   },
   checkTextDone: {
     color: colors.accentInk,
-  },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 10,
-    color: colors.text,
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    height: 40,
-    textAlign: 'center',
   },
   previous: {
     color: colors.muted,

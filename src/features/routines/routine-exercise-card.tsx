@@ -4,9 +4,9 @@
  * or swipe a set left to delete that set. Tap a set number to mark a warmup.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent, type GestureResponderHandlers } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type AccessibilityActionEvent, type GestureResponderHandlers } from 'react-native';
 
-import { keyboardDoneId } from '../../components/keyboard-done-bar';
+import { LogValue } from '../../components/log-pad';
 import { SwipeToDelete } from '../../components/swipe-to-delete';
 import type { DraftMap, SetDraft } from '../../domain/drafts';
 import { draftFromSet } from '../../domain/drafts';
@@ -44,6 +44,8 @@ interface RoutineExerciseCardProps {
   onDeleteSet: (setId: string) => void;
   onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
+  /** Added to each set's pad order so Next continues onto the next card. */
+  orderBase?: number;
 }
 
 const moveActions = [
@@ -69,6 +71,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onDeleteSet,
   onChangeSetup,
   setupOptions,
+  orderBase = 0,
 }) {
   const handleRemove = useCallback(() => {
     onRemove(exercise.id);
@@ -151,6 +154,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             onChangeSetType={onChangeSetType}
             onChangeWeight={onChangeWeight}
             onDelete={onDeleteSet}
+            order={orderBase + index * 10}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             set={set}
             showSetup={showSetup}
@@ -184,9 +188,10 @@ interface RoutineSetRowProps {
   onChangeReps: (setId: string, value: string) => void;
   onChangeSetType: (setId: string, setType: SetType) => void;
   onDelete: (setId: string) => void;
+  order: number;
 }
 
-const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, onChangeWeight, onChangeReps, onChangeSetType, onDelete }) {
+const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, order, onChangeWeight, onChangeReps, onChangeSetType, onDelete }) {
   const handleWeight = useCallback(
     (value: string) => {
       onChangeWeight(set.id, value);
@@ -220,6 +225,14 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     [previous, showSetup, unit],
   );
   const warmup = set.setType === 'warmup';
+  const links = useMemo(
+    () => ({
+      repsId: `${set.id}:reps`,
+      rpe: null,
+      weightId: `${set.id}:weight`,
+    }),
+    [set.id],
+  );
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.setWrap}>
@@ -229,28 +242,8 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
         <Text numberOfLines={1} style={styles.previous}>
           {previousText}
         </Text>
-        <TextInput
-          accessibilityLabel="Weight"
-          inputAccessoryViewID={keyboardDoneId}
-          keyboardType="decimal-pad"
-          onChangeText={handleWeight}
-          placeholder="—"
-          placeholderTextColor={colors.faint}
-          selectTextOnFocus
-          style={[styles.input, styles.weightCol]}
-          value={draft.weightText}
-        />
-        <TextInput
-          accessibilityLabel="Reps"
-          inputAccessoryViewID={keyboardDoneId}
-          keyboardType="number-pad"
-          onChangeText={handleReps}
-          placeholder="—"
-          placeholderTextColor={colors.faint}
-          selectTextOnFocus
-          style={[styles.input, styles.repsCol]}
-          value={draft.repsText}
-        />
+        <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weightCol} unit={unit} value={draft.weightText} />
+        <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.repsCol} unit={unit} value={draft.repsText} />
       </View>
       {typesOpen ? <SetTypeMenu onChange={handleSetType} value={set.setType} /> : null}
       </View>
@@ -322,17 +315,6 @@ const styles = StyleSheet.create({
   hint: {
     color: colors.faint,
     fontSize: 12,
-  },
-  input: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 10,
-    color: colors.text,
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-    height: 40,
-    textAlign: 'center',
-    userSelect: 'text',
   },
   meta: {
     color: colors.muted,
