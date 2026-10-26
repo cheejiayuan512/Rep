@@ -2,7 +2,7 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
-## Unreleased
+## 1.5.0 · Android 15 / iOS 22
 
 - **Finish discards an empty workout.** If nothing is checked off, Finish throws the session away instead of blocking.
 - **Drop sets and failure sets.** Tap the set number and pick Normal, Warm-up, Drop, or Failure. Drop and failure count like working sets. The check springs in when a set is completed.
