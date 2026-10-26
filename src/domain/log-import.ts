@@ -22,7 +22,7 @@ import {
   type HevyParseResult,
 } from './hevy-import';
 import { displayToKg } from './units';
-import type { WeightUnit } from './types';
+import type { SetType, WeightUnit } from './types';
 
 export type LogExportKind = 'hevy' | 'strong' | 'jefit' | 'fitnotes';
 
@@ -275,6 +275,10 @@ function parseSetRows(
       const notes = (setRows.find((row) => row.notes.trim() !== '')?.notes ?? '').slice(0, 500);
       const sets: HevyImportSet[] = [];
       for (const row of setRows) {
+        const order = row.setOrder.trim().toLowerCase();
+        if (order === 'rest timer' || order === 'rest') {
+          continue;
+        }
         const setType = mapImportedSetType(row.setOrder);
         if (setType == null) {
           if (row.setOrder.trim()) {
@@ -332,17 +336,31 @@ function parseSetRows(
   return { skippedCardioRows, unknownSetTypes: [...unknownSetTypes].sort(), workouts };
 }
 
-function mapImportedSetType(setOrder: string): 'normal' | 'warmup' | null {
-  const mapped = mapSetType(setOrder);
-  if (mapped != null) {
-    return mapped;
-  }
+function mapImportedSetType(setOrder: string): SetType | null {
   const normalized = setOrder.trim().toLowerCase();
-  if (normalized === '' || /^\d+$/.test(normalized)) {
+  if (normalized === 'rest timer' || normalized === 'rest') {
+    return null;
+  }
+  if (normalized !== '') {
+    const mapped = mapSetType(setOrder);
+    if (mapped != null && mapped !== 'normal') {
+      return mapped;
+    }
+    if (mapped === 'normal' && (normalized === 'normal' || normalized === '')) {
+      return 'normal';
+    }
+  }
+  if (normalized === '' || /^\d+$/.test(normalized) || normalized === 'normal') {
     return 'normal';
   }
-  if (normalized === 'w' || normalized.startsWith('w')) {
+  if (normalized === 'w' || normalized.startsWith('warm')) {
     return 'warmup';
+  }
+  if (normalized === 'd' || normalized.startsWith('drop')) {
+    return 'drop';
+  }
+  if (normalized === 'f' || normalized.startsWith('fail')) {
+    return 'failure';
   }
   return null;
 }

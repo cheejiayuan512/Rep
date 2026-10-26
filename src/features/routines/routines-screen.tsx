@@ -12,7 +12,7 @@ import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dia
 import { EmptyState } from '../../components/empty-state';
 import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
-import { createRoutine, startWorkoutFromRoutine } from '../../data/repository';
+import { createRoutine, deleteRoutine, startWorkoutFromRoutine } from '../../data/repository';
 import { summarizeNames } from '../../domain/format';
 import type { RoutineSummary } from '../../domain/types';
 import type { StackNavigation } from '../../navigation/types';
@@ -72,9 +72,25 @@ export const RoutinesScreen: React.FC = () => {
     [activeWorkoutId, dispatch, openWorkout],
   );
 
+  const handleDelete = useCallback(
+    (routineId: string) => {
+      setConfirm({
+        confirmLabel: 'Delete',
+        destructive: true,
+        message: 'Past workouts stay in history. This only removes the template.',
+        onConfirm: () => {
+          setConfirm(null);
+          void deleteRoutine(routineId).then(() => dispatch(dataChanged()));
+        },
+        title: 'Delete routine?',
+      });
+    },
+    [dispatch],
+  );
+
   const renderRoutine = useCallback(
-    ({ item }: ListRenderItemInfo<RoutineSummary>) => <RoutineCard onOpen={handleOpen} onStart={handleStart} routine={item} />,
-    [handleOpen, handleStart],
+    ({ item }: ListRenderItemInfo<RoutineSummary>) => <RoutineCard onDelete={handleDelete} onOpen={handleOpen} onStart={handleStart} routine={item} />,
+    [handleDelete, handleOpen, handleStart],
   );
   const pressCreate = useCallback(() => {
     void handleCreate();
@@ -97,7 +113,7 @@ export const RoutinesScreen: React.FC = () => {
           <Button label="New routine" onPress={pressCreate} />
         </View>
       ) : null}
-      <ConfirmDialog confirmLabel={confirm?.confirmLabel ?? 'OK'} message={confirm?.message ?? ''} onCancel={closeConfirm} onConfirm={confirm?.onConfirm ?? closeConfirm} title={confirm?.title ?? ''} visible={confirm != null} />
+      <ConfirmDialog confirmLabel={confirm?.confirmLabel ?? 'OK'} destructive={confirm?.destructive} message={confirm?.message ?? ''} onCancel={closeConfirm} onConfirm={confirm?.onConfirm ?? closeConfirm} title={confirm?.title ?? ''} visible={confirm != null} />
     </Screen>
   );
 };
@@ -106,23 +122,33 @@ interface RoutineCardProps {
   routine: RoutineSummary;
   onOpen: (routineId: string) => void;
   onStart: (routineId: string) => void;
+  onDelete: (routineId: string) => void;
 }
 
-const RoutineCard: React.FC<RoutineCardProps> = React.memo(function RoutineCard({ routine, onOpen, onStart }) {
+const RoutineCard: React.FC<RoutineCardProps> = React.memo(function RoutineCard({ routine, onOpen, onStart, onDelete }) {
   const handleOpen = useCallback(() => {
     onOpen(routine.id);
   }, [onOpen, routine.id]);
   const handleStart = useCallback(() => {
     onStart(routine.id);
   }, [onStart, routine.id]);
+  const handleDelete = useCallback(() => {
+    onDelete(routine.id);
+  }, [onDelete, routine.id]);
 
   return (
     <View style={styles.card}>
-      <Pressable onPress={handleOpen}>
+      <Pressable accessibilityRole="button" onPress={handleOpen}>
         <Text style={styles.name}>{routine.name}</Text>
         <Text style={styles.meta}>{summarizeNames(routine.exerciseNames)}</Text>
       </Pressable>
-      <Button label="Start" onPress={handleStart} style={styles.start} />
+      <View style={styles.actions}>
+        <Button label="Edit" onPress={handleOpen} style={styles.action} variant="secondary" />
+        <Button label="Start" onPress={handleStart} style={styles.action} />
+      </View>
+      <Pressable accessibilityRole="button" onPress={handleDelete} style={styles.delete}>
+        <Text style={styles.deleteText}>Delete</Text>
+      </Pressable>
     </View>
   );
 });
@@ -159,7 +185,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  start: {
+  action: {
+    flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 14,
+  },
+  delete: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  deleteText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

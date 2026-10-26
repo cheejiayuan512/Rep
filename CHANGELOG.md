@@ -4,6 +4,13 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 
 ## Unreleased
 
+- **Finish discards an empty workout.** If nothing is checked off, Finish throws the session away instead of blocking.
+- **Drop sets and failure sets.** Tap the set number and pick Normal, Warm-up, Drop, or Failure. Drop and failure count like working sets. The check springs in when a set is completed.
+- **Supersets.** Superset with next groups a card with the one under it, in a workout or a routine. Rest waits until the round is done.
+- **Home is fuller.** This week is four tiles, recent workouts sit underneath, and each routine card has a pencil. The routines list can edit or delete a template.
+- **Workout summary.** Finishing shows the three stars, the session count, and a card of duration, volume, and best sets. Personal records sit on the bottom pill.
+- **Notes** show a pencil, so the field reads as something you can edit.
+- **Export CSV** on History writes kilograms in Strong's columns. Import still reads that file, including drop sets, failure sets, and rest rows.
 - **Age** on Settings and Strength levels (14–80). The table peaks at 24–39; younger and older expected 1RMs are lower. Missing age leaves the table as-is.
 - **Hide-keyboard chip on iOS** uses the system accessory above the pad, so it shows inside a workout. Android is unchanged.
 - **Import CSV** on History reads Hevy, Strong, Jefit, or FitNotes from the header. Same name matching as Hevy. Real sample files will tighten the last two.

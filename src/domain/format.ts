@@ -68,6 +68,29 @@ export function formatWorkoutWhen(timestamp: number, now = Date.now()): string {
   return `${dayLabel} · ${time}`;
 }
 
+/** "1st", "2nd", "3rd", "4th". */
+export function formatOrdinal(value: number): string {
+  const mod100 = value % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${value}th`;
+  }
+  switch (value % 10) {
+    case 1:
+      return `${value}st`;
+    case 2:
+      return `${value}nd`;
+    case 3:
+      return `${value}rd`;
+    default:
+      return `${value}th`;
+  }
+}
+
+/** "Monday, 26 Oct" — the date line on the workout summary. */
+export function formatLongDate(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', weekday: 'long' }).format(new Date(timestamp));
+}
+
 export function formatDay(timestamp: number): string {
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(timestamp));
 }

@@ -3,15 +3,18 @@
  * Tap the set number to mark it as a warmup. The boxes show text; the parent converts that text to numbers.
  * Swipe the row left to reveal Delete; a long swipe deletes straight away (the card shows Undo).
  */
-import React, { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatLoggedLoad } from '../domain/format';
 import type { SetDraft } from '../domain/drafts';
-import type { PreviousSet, SetRecord, WeightUnit } from '../domain/types';
+import type { PreviousSet, SetRecord, SetType, WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
 import { keyboardDoneId } from './keyboard-done-bar';
+import { SetTypeBadge, SetTypeMenu } from './set-type-badge';
 import { SwipeToDelete } from './swipe-to-delete';
+
+const nativeDriver = Platform.OS !== 'web';
 
 export const setColumn = {
   check: 36,
@@ -38,7 +41,7 @@ interface SetRowProps {
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
   onToggleComplete: (setId: string) => void;
-  onToggleWarmup: (setId: string) => void;
+  onChangeSetType: (setId: string, setType: SetType) => void;
   onApplyPrevious: (setId: string) => void;
   onDelete: (setId: string) => void;
 }
@@ -56,7 +59,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   onChangeReps,
   onChangeRpe,
   onToggleComplete,
-  onToggleWarmup,
+  onChangeSetType,
   onApplyPrevious,
   onDelete,
 }) {
@@ -81,9 +84,33 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   const handleComplete = useCallback(() => {
     onToggleComplete(set.id);
   }, [onToggleComplete, set.id]);
-  const handleWarmup = useCallback(() => {
-    onToggleWarmup(set.id);
-  }, [onToggleWarmup, set.id]);
+  const [typesOpen, setTypesOpen] = useState(false);
+  const toggleTypes = useCallback(() => {
+    setTypesOpen((open) => !open);
+  }, []);
+  const handleSetType = useCallback(
+    (setType: SetType) => {
+      setTypesOpen(false);
+      if (setType !== set.setType) {
+        onChangeSetType(set.id, setType);
+      }
+    },
+    [onChangeSetType, set.id, set.setType],
+  );
+  const checkScale = useRef(new Animated.Value(1)).current;
+  const burst = useRef(new Animated.Value(0)).current;
+  const wasCompleted = useRef(set.completed);
+  useEffect(() => {
+    if (set.completed && !wasCompleted.current) {
+      checkScale.setValue(0.4);
+      burst.setValue(0);
+      Animated.parallel([
+        Animated.spring(checkScale, { friction: 4, tension: 180, toValue: 1, useNativeDriver: nativeDriver }),
+        Animated.timing(burst, { duration: 420, toValue: 1, useNativeDriver: nativeDriver }),
+      ]).start();
+    }
+    wasCompleted.current = set.completed;
+  }, [burst, checkScale, set.completed]);
 
   const handleDelete = useCallback(() => {
     onDelete(set.id);
@@ -97,15 +124,16 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.wrap} testID="set-row">
+      <View>
       <View style={[styles.row, set.setType === 'warmup' && styles.warmup]}>
-        <Pressable accessibilityLabel={set.setType === 'warmup' ? 'Mark as a working set' : 'Mark as a warmup set'} onPress={handleWarmup} style={styles.setNumber}>
-          <Text style={styles.setNumberText}>{set.setType === 'warmup' ? 'W' : String(index + 1)}</Text>
+        <View style={styles.badgeWrap}>
+          <SetTypeBadge index={index} onPress={toggleTypes} open={typesOpen} setType={set.setType} />
           {isRecord ? (
             <Text accessibilityLabel="Personal record" style={styles.star}>
               ★
             </Text>
           ) : null}
-        </Pressable>
+        </View>
         <Pressable
           accessibilityLabel={previous ? `Apply previous ${previousText}` : undefined}
           disabled={!previous}
@@ -152,14 +180,37 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
           />
         ) : null}
         <Pressable accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'} accessibilityRole="button" onPress={handleComplete} style={[styles.check, set.completed && styles.checkDone]}>
-          <Text style={[styles.checkText, set.completed && styles.checkTextDone]}>{set.completed ? '✓' : ''}</Text>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.burst,
+              {
+                opacity: burst.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.7, 0] }),
+                transform: [{ scale: burst.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.8] }) }],
+              },
+            ]}
+          />
+          <Animated.Text style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}>{set.completed ? '✓' : ''}</Animated.Text>
         </Pressable>
+      </View>
+      {typesOpen ? <SetTypeMenu onChange={handleSetType} value={set.setType} /> : null}
       </View>
     </SwipeToDelete>
   );
 });
 
 const styles = StyleSheet.create({
+  burst: {
+    backgroundColor: colors.accent,
+    borderRadius: 18,
+    height: 36,
+    position: 'absolute',
+    width: 36,
+  },
+  badgeWrap: {
+    position: 'relative',
+    width: setColumn.set,
+  },
   check: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -167,6 +218,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 36,
     justifyContent: 'center',
+    overflow: 'visible',
     width: setColumn.check,
   },
   checkDone: {

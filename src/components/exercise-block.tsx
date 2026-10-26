@@ -10,10 +10,10 @@ import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
 import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../domain/rest';
 import type { MachineSetupOption } from '../domain/machine-setup';
-import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type WeightUnit, type WorkoutExercise } from '../domain/types';
-import { previousForSet } from '../domain/workout-edits';
+import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type SetType, type WeightUnit, type WorkoutExercise } from '../domain/types';
+import { previousForSet, type SupersetRole } from '../domain/workout-edits';
 import { colors } from '../theme/colors';
-import { CloseIcon, SwapIcon } from './icons';
+import { CloseIcon, PencilIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
@@ -31,6 +31,9 @@ interface ExerciseBlockProps {
   drafts: DraftMap;
   /** Ids of completed sets in this card that beat a previous best. */
   recordIds: ReadonlySet<string>;
+  superset: SupersetRole;
+  /** False on the last card, which has nothing below it to link. */
+  canLinkSuperset: boolean;
   /** When false, the RPE column stays off the row. */
   showRpe: boolean;
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
@@ -42,7 +45,8 @@ interface ExerciseBlockProps {
   onChangeRpe: (setId: string, value: string) => void;
   onChangeNotes: (workoutExerciseId: string, value: string) => void;
   onToggleComplete: (setId: string) => void;
-  onToggleWarmup: (setId: string) => void;
+  onChangeSetType: (setId: string, setType: SetType) => void;
+  onToggleSuperset: (workoutExerciseId: string) => void;
   onDeleteSet: (setId: string) => void;
   onAddSet: (workoutExerciseId: string) => void;
   onRemove: (workoutExerciseId: string) => void;
@@ -59,6 +63,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   unit,
   drafts,
   recordIds,
+  superset,
+  canLinkSuperset,
   showRpe,
   onChangeRest,
   onChangeAttachment,
@@ -69,7 +75,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onChangeRpe,
   onChangeNotes,
   onToggleComplete,
-  onToggleWarmup,
+  onChangeSetType,
+  onToggleSuperset,
   onDeleteSet,
   onAddSet,
   onRemove,
@@ -87,6 +94,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const handleSwap = useCallback(() => {
     onSwap(exercise.id);
   }, [exercise.id, onSwap]);
+  const handleSuperset = useCallback(() => {
+    onToggleSuperset(exercise.id);
+  }, [exercise.id, onToggleSuperset]);
   const handleMoveAction = useCallback(
     (event: AccessibilityActionEvent) => {
       onMove(exercise.id, event.nativeEvent.actionName === 'up' ? -1 : 1);
@@ -138,9 +148,10 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const isCable = exercise.equipment === 'Cable';
 
   return (
-    <View style={[styles.card, sortHandle.dragging && styles.cardDragging]}>
+    <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
         <View style={styles.titleWrap}>
+          {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
           <Text style={styles.name}>{exercise.name}</Text>
           <Text style={styles.meta}>{exercise.equipment}</Text>
         </View>
@@ -224,7 +235,10 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
       ) : null}
       {notesOpen || exercise.notes.trim().length > 0 ? (
         <View>
-          <Text style={styles.section}>Notes</Text>
+          <View style={styles.notesHead}>
+            <Text style={[styles.section, styles.notesLabel]}>Notes</Text>
+            <PencilIcon color={colors.muted} size={14} />
+          </View>
           <TextInput
             accessibilityLabel="Exercise notes"
             inputAccessoryViewID={keyboardDoneId}
@@ -238,7 +252,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           />
         </View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
+        <Pressable accessibilityLabel="Add notes" accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
+          <PencilIcon color={colors.accent} size={14} />
           <Text style={styles.addText}>Notes</Text>
         </Pressable>
       )}
@@ -264,9 +279,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onChangeReps={onChangeReps}
             onChangeRpe={onChangeRpe}
             onChangeWeight={onChangeWeight}
+            onChangeSetType={onChangeSetType}
             onDelete={onDeleteSet}
             onToggleComplete={onToggleComplete}
-            onToggleWarmup={onToggleWarmup}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             showRpe={showRpe}
             showSetup={showSetup}
@@ -279,6 +294,11 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
           <Text style={styles.addText}>Add set</Text>
         </Pressable>
+        {canLinkSuperset || superset !== 'single' ? (
+          <Pressable accessibilityRole="button" onPress={handleSuperset} style={styles.add}>
+            <Text style={styles.addText}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -309,10 +329,29 @@ const styles = StyleSheet.create({
   add: {
     paddingVertical: 4,
   },
+  cardSuperset: {
+    borderLeftColor: colors.accent,
+    borderLeftWidth: 3,
+  },
   footer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
     marginTop: 12,
   },
+  notesHead: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 14,
+  },
+  notesLabel: {
+    marginTop: 0,
+  },
   notesToggle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
     marginTop: 14,
     paddingVertical: 4,
   },
@@ -464,6 +503,14 @@ const styles = StyleSheet.create({
   rpeCol: {
     textAlign: 'center',
     width: setColumn.rpe,
+  },
+  superset: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   section: {
     color: colors.faint,

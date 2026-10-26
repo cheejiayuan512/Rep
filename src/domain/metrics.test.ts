@@ -41,6 +41,8 @@ test('warmups, incomplete sets, and empty reps do not score', () => {
   assertEqual(scoreLoggedSet(logged({ completed: false })), null);
   assertEqual(scoreLoggedSet(logged({ reps: 0 })), null);
   assertEqual(scoreLoggedSet(logged({ reps: null })), null);
+  assertEqual(scoreLoggedSet(logged({ setType: 'drop' }))?.weightKg, 100);
+  assertEqual(scoreLoggedSet(logged({ setType: 'failure', reps: 8 }))?.reps, 8);
 });
 
 test('bodyweight counts reps and has no estimated max', () => {

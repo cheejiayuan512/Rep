@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
-import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, parseAgeYears, usesMachineSetup } from '../domain/types';
+import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, normalizeSetType, parseAgeYears, usesMachineSetup } from '../domain/types';
 import { seedExercises } from './seed-exercises';
 
 /**
@@ -40,6 +40,8 @@ export interface StoredRoutineExercise {
   exerciseId: string;
   position: number;
   machineSetup: string | null;
+  /** Shared by the exercises in one superset. Null when the card is alone. */
+  supersetId: string | null;
 }
 
 /** A planned set on a routine exercise. Copied into the workout when the routine starts. */
@@ -70,6 +72,8 @@ export interface StoredWorkoutExercise {
   restSeconds: number | null;
   attachment: CableAttachment | null;
   machineSetup: string | null;
+  /** Shared by the exercises in one superset. Null when the card is alone. */
+  supersetId: string | null;
 }
 
 export interface StoredSet {
@@ -301,6 +305,12 @@ function normalizeStored(db: DatabaseShape): boolean {
       exercise.notes = '';
       changed = true;
     }
+    if (typeof exercise.supersetId !== 'string' || exercise.supersetId.trim() === '') {
+      if (exercise.supersetId !== null) {
+        exercise.supersetId = null;
+        changed = true;
+      }
+    }
     const rest = typeof exercise.restSeconds === 'number' && Number.isFinite(exercise.restSeconds) ? exercise.restSeconds : null;
     if (exercise.restSeconds !== rest) {
       exercise.restSeconds = rest;
@@ -313,11 +323,29 @@ function normalizeStored(db: DatabaseShape): boolean {
       exercise.machineSetup = setup;
       changed = true;
     }
+    if (typeof exercise.supersetId !== 'string' || exercise.supersetId.trim() === '') {
+      if (exercise.supersetId !== null) {
+        exercise.supersetId = null;
+        changed = true;
+      }
+    }
   }
   for (const set of db.sets) {
     const rpe = storedRpe(set.rpe);
     if (set.rpe !== rpe) {
       set.rpe = rpe;
+      changed = true;
+    }
+    const setType = normalizeSetType(set.setType);
+    if (set.setType !== setType) {
+      set.setType = setType;
+      changed = true;
+    }
+  }
+  for (const set of db.routineSets) {
+    const setType = normalizeSetType(set.setType);
+    if (set.setType !== setType) {
+      set.setType = setType;
       changed = true;
     }
   }

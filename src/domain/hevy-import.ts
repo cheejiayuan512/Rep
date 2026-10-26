@@ -198,7 +198,7 @@ export function parseHevyCsv(csvText: string, library: HevyImportExerciseRef[]):
           skippedCardioRows += 1;
           continue;
         }
-        if (reps == null && weightKg == null && setType === 'normal') {
+        if (reps == null && weightKg == null) {
           skippedCardioRows += 1;
           continue;
         }
@@ -411,11 +411,17 @@ function readRow(row: string[], index: ReturnType<typeof columnIndex>): CsvRow {
 
 export function mapSetType(value: string): SetType | null {
   const normalized = value.trim().toLowerCase();
-  if (normalized === '' || normalized === 'normal' || normalized === 'failure' || normalized === 'dropset') {
+  if (normalized === '' || normalized === 'normal') {
     return 'normal';
   }
   if (normalized === 'warmup' || normalized === 'warm-up' || normalized === 'warm_up') {
     return 'warmup';
+  }
+  if (normalized === 'dropset' || normalized === 'drop set' || normalized === 'drop') {
+    return 'drop';
+  }
+  if (normalized === 'failure' || normalized === 'fail') {
+    return 'failure';
   }
   return null;
 }

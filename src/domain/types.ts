@@ -5,7 +5,48 @@
  */
 export type WeightUnit = 'kg' | 'lb';
 
-export type SetType = 'normal' | 'warmup';
+export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
+
+export function isSetType(value: unknown): value is SetType {
+  return value === 'normal' || value === 'warmup' || value === 'drop' || value === 'failure';
+}
+
+/** Unknown or missing values stay normal so an old log still opens. */
+export function normalizeSetType(value: unknown): SetType {
+  return isSetType(value) ? value : 'normal';
+}
+
+/** Warmups stay out of volume, charts, and records. Drop and failure sets count. */
+export function isWorkingSetType(setType: SetType): boolean {
+  return setType !== 'warmup';
+}
+
+/** The letter on the set badge. Normal sets use their number instead. */
+export function setTypeMark(setType: SetType): string | null {
+  if (setType === 'warmup') {
+    return 'W';
+  }
+  if (setType === 'drop') {
+    return 'D';
+  }
+  if (setType === 'failure') {
+    return 'F';
+  }
+  return null;
+}
+
+export function setTypeLabel(setType: SetType): string {
+  if (setType === 'warmup') {
+    return 'Warm-up';
+  }
+  if (setType === 'drop') {
+    return 'Drop set';
+  }
+  if (setType === 'failure') {
+    return 'Failure';
+  }
+  return 'Normal';
+}
 
 /** Only used to pick a strength-standards table. */
 export type BodySex = 'male' | 'female';
@@ -117,6 +158,8 @@ export interface WorkoutExercise {
   attachment: CableAttachment | null;
   /** The stack used in this workout. Null when unknown or for free weights. */
   machineSetup: string | null;
+  /** Shared with the other exercises in a superset. Null when this card stands alone. */
+  supersetId: string | null;
   sets: SetRecord[];
   previousSets: PreviousSet[];
 }
@@ -176,6 +219,8 @@ export interface RoutineExercise {
   position: number;
   /** The stack this plan is for. Null when unknown or for free weights. */
   machineSetup: string | null;
+  /** Shared with the other exercises in a superset. Null when this card stands alone. */
+  supersetId: string | null;
   sets: RoutineSet[];
   /** The latest finished session of this exercise, for the Previous column. */
   previousSets: PreviousSet[];

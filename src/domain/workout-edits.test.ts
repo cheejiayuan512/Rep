@@ -3,7 +3,7 @@
  */
 import { assertEqual, assertTrue, test } from './test-support';
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
-import { findNextSet, findSet, moveById, orderByIds, previousForSet, updateSetInWorkout, warmupsFirst } from './workout-edits';
+import { findNextSet, findSet, moveById, orderByIds, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from './workout-edits';
 
 function set(id: string, position: number): SetRecord {
   return { completed: false, id, position, reps: 5, rpe: null, setType: 'normal', weightKg: 80 };
@@ -22,6 +22,7 @@ function exercise(id: string, position: number, sets: SetRecord[]): WorkoutExerc
     position,
     previousSets: [],
     restSeconds: null,
+    supersetId: null,
     sets,
   };
 }
@@ -130,6 +131,32 @@ test('the next set stays in the exercise you are working on', () => {
   assertEqual(findNextSet(plan, 'ex-2')?.label, 'Set 1 of 2');
   assertEqual(findNextSet(plan, null)?.set.id, 'b');
   assertEqual(findNextSet(workout([exercise('ex-1', 0, [done(set('a', 0))])]), 'ex-1'), null);
+});
+
+test('a workout with no checked-off reps is empty', () => {
+  const empty = workout([exercise('ex-1', 0, [set('a', 0)])]);
+  assertEqual(workoutHasLoggedSet(empty), false);
+  const logged = workout([exercise('ex-1', 0, [{ ...set('a', 0), completed: true }])]);
+  assertEqual(workoutHasLoggedSet(logged), true);
+});
+
+test('superset links with the next exercise and rests after the round', () => {
+  const pair = [exercise('a', 0, [set('a1', 0), set('a2', 1)]), exercise('b', 1, [set('b1', 0), set('b2', 1)])];
+  const linked = toggleSupersetWithNext(pair, 'a', 'group-1');
+  assertEqual(linked?.[0].supersetId, 'group-1');
+  assertEqual(linked?.[1].supersetId, 'group-1');
+  assertEqual(supersetRole(linked ?? [], 'a'), 'start');
+  assertEqual(supersetRole(linked ?? [], 'b'), 'end');
+  const plan = workout(linked ?? []);
+  const afterA = updateSetInWorkout(plan, 'a1', { completed: true });
+  assertEqual(findNextSet(afterA, 'a')?.set.id, 'b1');
+  assertEqual(shouldRestAfterSet(afterA, 'a'), false);
+  const afterB = updateSetInWorkout(afterA, 'b1', { completed: true });
+  assertEqual(findNextSet(afterB, 'b')?.set.id, 'a2');
+  assertEqual(shouldRestAfterSet(afterB, 'b'), true);
+  const unlinked = toggleSupersetWithNext(linked ?? [], 'a', 'unused');
+  assertEqual(unlinked?.[0].supersetId, null);
+  assertEqual(unlinked?.[1].supersetId, null);
 });
 
 test('an exercise at the end cannot move further', () => {

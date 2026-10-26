@@ -38,6 +38,25 @@ test('parseLogCsv reads a Strong session, warmup, and pounds', () => {
   assertEqual(Math.round((result.workouts[0].exercises[0].sets[1].weightKg ?? 0) * 10), 1021);
 });
 
+test('parseLogCsv reads a Strong export with rest rows, drop sets, and failure', () => {
+  const csv = [
+    'Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE',
+    '2026-10-26 21:28:07,"Evening Workout",25s,"Squat (Barbell)",1,158.0,1.0,0,0.0,"","",',
+    '2026-10-26 21:28:07,"Evening Workout",25s,"Squat (Barbell)",Rest Timer,0,0.0,0,120.0,,,',
+    '2026-10-26 21:28:07,"Evening Workout",25s,"Squat (Barbell)",D,140.0,3.0,0,0.0,,,',
+    '2026-10-26 21:28:07,"Evening Workout",25s,"Squat (Barbell)",F,150.0,1.0,0,0.0,,,',
+  ].join('\n');
+  const result = parseLogCsv(csv, library);
+  assertEqual(result.workouts.length, 1);
+  assertEqual(result.workouts[0].name, 'Evening Workout');
+  assertEqual(result.workouts[0].exercises[0].sets.length, 3);
+  assertEqual(result.workouts[0].exercises[0].sets[0].setType, 'normal');
+  assertEqual(result.workouts[0].exercises[0].sets[0].weightKg, 158);
+  assertEqual(result.workouts[0].exercises[0].sets[1].setType, 'drop');
+  assertEqual(result.workouts[0].exercises[0].sets[2].setType, 'failure');
+  assertEqual(result.unknownSetTypes.length, 0);
+});
+
 test('parseLogCsv reads FitNotes by date and keeps kilograms', () => {
   const csv = ['Date,Exercise,Category,Weight (kgs),Reps,Distance,Distance Unit,Time,Comment', '2026-10-20,Back Squat,Legs,100,5,,,,heavy'].join('\n');
   const result = parseLogCsv(csv, library);

@@ -31,7 +31,8 @@ import { detectRecords, filterSetsBySetup, latestSessionSets, recordSetIds, scor
 import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { machineSetupOptions } from '../../domain/machine-setup';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
-import { findNextSet, findSet, moveById, previousForSet, updateSetInWorkout, warmupsFirst } from '../../domain/workout-edits';
+import { createId } from '../../domain/ids';
+import { findNextSet, findSet, moveById, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from '../../domain/workout-edits';
 import { formatWeight, kgToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   addExerciseToWorkout,
@@ -47,6 +48,7 @@ import {
   restoreWorkoutExercise,
   saveNow,
   saveSetPositions,
+  saveSupersetIds,
   saveWorkoutExercisePositions,
   updateSetCompleted,
   updateSetNumbers,
@@ -517,21 +519,20 @@ export const ActiveWorkoutScreen: React.FC = () => {
     [queueNote],
   );
 
-  // Warmups always sit above the working sets, so a toggled set moves into place.
-  const handleToggleWarmup = useCallback((setId: string) => {
+  // Warmups always sit above the working sets, so a changed set moves into place.
+  const handleChangeSetType = useCallback((setId: string, setType: SetType) => {
     const current = workoutRef.current;
     const located = current ? findSet(current, setId) : null;
-    if (!current || !located) {
+    if (!current || !located || located.set.setType === setType) {
       return;
     }
-    const setType: SetType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
     const sets = located.exercise.sets.map((set) => (set.id === setId ? { ...set, setType } : set));
     const ordered = warmupsFirst(sets, true);
     setWorkout({
       ...current,
       exercises: current.exercises.map((exercise) => (exercise.id === located.exercise.id ? { ...exercise, sets: ordered ?? sets } : exercise)),
     });
-    void updateSetType(setId, setType);
+    void updateSetType(setId, setType).then(() => saveNow());
     if (ordered) {
       void saveSetPositions(ordered.map((set) => ({ id: set.id, position: set.position })));
     }
@@ -541,6 +542,22 @@ export const ActiveWorkoutScreen: React.FC = () => {
       delete orderTimersRef.current[located.exercise.id];
     }
     void hapticLight();
+  }, []);
+
+  const handleToggleSuperset = useCallback((workoutExerciseId: string) => {
+    const current = workoutRef.current;
+    if (!current) {
+      return;
+    }
+    const exercises = toggleSupersetWithNext(current.exercises, workoutExerciseId, createId());
+    if (!exercises) {
+      return;
+    }
+    setWorkout({ ...current, exercises });
+    void saveSupersetIds(
+      'workout',
+      exercises.map((exercise) => ({ id: exercise.id, supersetId: exercise.supersetId })),
+    ).then(() => saveNow());
   }, []);
 
   const handleToggleComplete = useCallback(
@@ -558,8 +575,9 @@ export const ActiveWorkoutScreen: React.FC = () => {
       const completed = !located.set.completed;
       setBanner(null);
       clearPending(setId);
-      setWorkout(updateSetInWorkout(current, setId, { completed, ...numbers }));
-      void updateSetCompleted(setId, completed, numbers.weightKg, numbers.reps, numbers.rpe);
+      const updated = updateSetInWorkout(current, setId, { completed, ...numbers });
+      setWorkout(updated);
+      void updateSetCompleted(setId, completed, numbers.weightKg, numbers.reps, numbers.rpe).then(() => saveNow());
       if (!completed) {
         return;
       }
@@ -567,17 +585,19 @@ export const ActiveWorkoutScreen: React.FC = () => {
       if (editingRef.current) {
         return;
       }
-      const startedAt = Date.now();
-      const seconds = restAfterSet(
-        located.exercise.restSeconds ?? defaultRestFor(located.exercise),
-        located.set.setType,
-        warmupMultiplierRef.current,
-        warmupLoadRatio(numbers.weightKg, located.exercise.sets, located.exercise.previousSets),
-      );
-      const endsAt = startedAt + seconds * 1000;
       setLastExercise(current.id, located.exercise.id);
-      applyRest({ endsAt, startedAt, workoutExerciseId: located.exercise.id, workoutId: current.id });
-      void scheduleRestEnd(endsAt, located.exercise.name);
+      if (shouldRestAfterSet(updated, located.exercise.id)) {
+        const startedAt = Date.now();
+        const seconds = restAfterSet(
+          located.exercise.restSeconds ?? defaultRestFor(located.exercise),
+          located.set.setType,
+          warmupMultiplierRef.current,
+          warmupLoadRatio(numbers.weightKg, located.exercise.sets, located.exercise.previousSets),
+        );
+        const endsAt = startedAt + seconds * 1000;
+        applyRest({ endsAt, startedAt, workoutExerciseId: located.exercise.id, workoutId: current.id });
+        void scheduleRestEnd(endsAt, located.exercise.name);
+      }
       const scored = scoreWorkoutSet(current, located.exercise, { ...located.set, ...numbers, completed: true }, current.startedAt + located.set.position + 1);
       if (!scored) {
         return;
@@ -846,15 +866,16 @@ export const ActiveWorkoutScreen: React.FC = () => {
     if (!current || finishing) {
       return;
     }
-    const hasCompletedSet = current.exercises.some((exercise) => exercise.sets.some((set) => set.completed && (set.reps ?? 0) > 0));
-    if (!hasCompletedSet) {
-      setConfirm({
-        confirmLabel: 'OK',
-        hideCancel: true,
-        message: 'Add reps and check off at least one set before finishing.',
-        onConfirm: () => setConfirm(null),
-        title: 'No completed sets',
-      });
+    if (!workoutHasLoggedSet(current)) {
+      await flushPending();
+      await discardWorkout(current.id);
+      applyRest(null);
+      clearWorkoutActivityState(current.id);
+      void cancelRestEnd();
+      endWorkoutActivity();
+      dispatch(activeWorkoutChanged(null));
+      dispatch(dataChanged());
+      leave();
       return;
     }
     setFinishing(true);
@@ -875,7 +896,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
     } finally {
       setFinishing(false);
     }
-  }, [applyRest, dispatch, finishing, flushPending, navigation]);
+  }, [applyRest, dispatch, finishing, flushPending, leave, navigation]);
 
   const handleDiscard = useCallback(() => {
     setConfirm({
@@ -1053,7 +1074,7 @@ export const ActiveWorkoutScreen: React.FC = () => {
               </View>
             <View style={styles.list}>
               {workout && workout.exercises.length === 0 ? (
-                <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to mark a warmup." onAction={handleAddExercise} title="Empty workout" />
+                <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to choose warm-up, drop, or failure." onAction={handleAddExercise} title="Empty workout" />
               ) : null}
               {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? (
@@ -1077,11 +1098,14 @@ export const ActiveWorkoutScreen: React.FC = () => {
                       onChangeWeight={handleChangeWeight}
                       onDeleteSet={handleDeleteSet}
                       onMove={handleMove}
+                      onChangeSetType={handleChangeSetType}
                       onRemove={handleRemove}
                       onSwap={handleSwap}
                       onToggleComplete={handleToggleComplete}
-                      onToggleWarmup={handleToggleWarmup}
+                      onToggleSuperset={handleToggleSuperset}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
+                      canLinkSuperset={workout.exercises[workout.exercises.length - 1]?.id !== exercise.id}
+                      superset={supersetRole(workout.exercises, exercise.id)}
                       setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}
                       showRpe={showRpe}
                       sortHandle={handle}

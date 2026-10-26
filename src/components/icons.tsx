@@ -90,6 +90,24 @@ export const CloseIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   );
 };
 
+export const PencilIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M4 20l1.2-4.2L16.4 4.6a1.6 1.6 0 0 1 2.3 0l.7.7a1.6 1.6 0 0 1 0 2.3L8.2 18.8 4 20z" stroke={color} strokeLinejoin="round" strokeWidth="1.7" />
+      <Path d="M14.2 6.8l3 3" stroke={color} strokeLinecap="round" strokeWidth="1.7" />
+    </Svg>
+  );
+};
+
+export const ShareIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
+  return (
+    <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>
+      <Path d="M12 14V4M8.5 7.5L12 4l3.5 3.5" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      <Path d="M6 13.5V18a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4.5" stroke={color} strokeLinecap="round" strokeWidth="1.8" />
+    </Svg>
+  );
+};
+
 export const KeyboardHideIcon: React.FC<IconProps> = ({ color, size = 22 }) => {
   return (
     <Svg fill="none" height={size} viewBox="0 0 24 24" width={size}>

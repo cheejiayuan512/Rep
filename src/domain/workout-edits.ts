@@ -101,7 +101,8 @@ export interface NextSet {
  */
 export function findNextSet(workout: WorkoutDetail, lastExerciseId: string | null): NextSet | null {
   const current = workout.exercises.find((exercise) => exercise.id === lastExerciseId);
-  const exercise = current?.sets.some((set) => !set.completed) ? current : workout.exercises.find((item) => item.sets.some((set) => !set.completed));
+  const partner = nextSupersetExercise(workout.exercises, current);
+  const exercise = partner ?? (current?.sets.some((set) => !set.completed) ? current : workout.exercises.find((item) => item.sets.some((set) => !set.completed)));
   const set = exercise?.sets.find((item) => !item.completed);
   if (!exercise || !set) {
     return null;
@@ -111,6 +112,96 @@ export function findNextSet(workout: WorkoutDetail, lastExerciseId: string | nul
   }
   const working = exercise.sets.filter((item) => item.setType !== 'warmup');
   return { exercise, label: `Set ${working.indexOf(set) + 1} of ${working.length}`, set };
+}
+
+/** The next exercise in this superset that still has an open set, wrapping around for the next round. */
+function nextSupersetExercise(exercises: WorkoutExercise[], current: WorkoutExercise | undefined): WorkoutExercise | undefined {
+  if (!current?.supersetId) {
+    return undefined;
+  }
+  const group = exercises.filter((item) => item.supersetId === current.supersetId);
+  if (group.length < 2) {
+    return undefined;
+  }
+  const index = group.findIndex((item) => item.id === current.id);
+  for (let step = 1; step <= group.length; step += 1) {
+    const partner = group[(index + step) % group.length];
+    if (partner?.sets.some((set) => !set.completed)) {
+      return partner;
+    }
+  }
+  return undefined;
+}
+
+/** True when at least one set was checked off with reps. A blank session can be discarded. */
+export function workoutHasLoggedSet(workout: { exercises: Array<{ sets: Array<{ completed: boolean; reps: number | null }> }> }): boolean {
+  return workout.exercises.some((exercise) => exercise.sets.some((set) => set.completed && (set.reps ?? 0) > 0));
+}
+
+export type SupersetRole = 'single' | 'start' | 'middle' | 'end';
+
+/** Where this card sits in its superset, for the shared bar and the link label. */
+export function supersetRole(exercises: Array<{ id: string; supersetId: string | null }>, exerciseId: string): SupersetRole {
+  const exercise = exercises.find((item) => item.id === exerciseId);
+  if (!exercise?.supersetId) {
+    return 'single';
+  }
+  const group = exercises.filter((item) => item.supersetId === exercise.supersetId);
+  if (group.length < 2) {
+    return 'single';
+  }
+  const index = group.findIndex((item) => item.id === exerciseId);
+  if (index === 0) {
+    return 'start';
+  }
+  return index === group.length - 1 ? 'end' : 'middle';
+}
+
+/**
+ * Links this exercise with the next one, or takes it back out when they already share a group.
+ * A group of one is cleared. Returns null when there is no next exercise to link.
+ */
+export function toggleSupersetWithNext<T extends { id: string; supersetId: string | null }>(exercises: T[], exerciseId: string, newId: string): T[] | null {
+  const index = exercises.findIndex((item) => item.id === exerciseId);
+  const current = exercises[index];
+  const next = exercises[index + 1];
+  if (!current || !next) {
+    return null;
+  }
+  if (current.supersetId != null && current.supersetId === next.supersetId) {
+    const id = current.supersetId;
+    const cleared = exercises.map((item) => (item.id === current.id ? { ...item, supersetId: null } : item));
+    const still = cleared.filter((item) => item.supersetId === id);
+    if (still.length < 2) {
+      return cleared.map((item) => (item.supersetId === id ? { ...item, supersetId: null } : item));
+    }
+    return cleared;
+  }
+  const keep = current.supersetId ?? next.supersetId ?? newId;
+  const drop = current.supersetId && next.supersetId && current.supersetId !== next.supersetId ? next.supersetId : null;
+  return exercises.map((item) => {
+    if (item.id === current.id || item.id === next.id || (drop != null && item.supersetId === drop)) {
+      return { ...item, supersetId: keep };
+    }
+    return item;
+  });
+}
+
+/**
+ * Rest starts after a standalone exercise, and after the last exercise of a superset round.
+ * Call this with the set already marked complete, so the next open set is the one that follows.
+ */
+export function shouldRestAfterSet(workout: WorkoutDetail, exerciseId: string): boolean {
+  const exercise = workout.exercises.find((item) => item.id === exerciseId);
+  if (!exercise?.supersetId) {
+    return true;
+  }
+  const next = findNextSet(workout, exerciseId);
+  if (!next || next.exercise.supersetId !== exercise.supersetId) {
+    return true;
+  }
+  const group = workout.exercises.filter((item) => item.supersetId === exercise.supersetId);
+  return group.findIndex((item) => item.id === next.exercise.id) <= group.findIndex((item) => item.id === exercise.id);
 }
 
 export function moveById<T extends { id: string; position: number }>(items: T[], id: string, direction: -1 | 1): T[] | null {

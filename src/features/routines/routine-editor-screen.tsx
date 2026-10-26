@@ -25,6 +25,7 @@ import {
   restoreRoutineSet,
   saveRoutinePositions,
   saveRoutineSetPositions,
+  saveSupersetIds,
   getExerciseLog,
   startWorkoutFromRoutine,
   switchRoutineExerciseSetup,
@@ -34,7 +35,8 @@ import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domai
 import { machineSetupOptions } from '../../domain/machine-setup';
 import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { parseDecimal, repsTextToNumber, weightTextToKg } from '../../domain/units';
-import { moveById, warmupsFirst } from '../../domain/workout-edits';
+import { createId } from '../../domain/ids';
+import { moveById, supersetRole, toggleSupersetWithNext, warmupsFirst } from '../../domain/workout-edits';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { RoutineExerciseCard } from './routine-exercise-card';
@@ -277,14 +279,13 @@ export const RoutineEditorScreen: React.FC = () => {
     [applyNumbers],
   );
 
-  const handleToggleWarmup = useCallback(
-    (setId: string) => {
+  const handleChangeSetType = useCallback(
+    (setId: string, setType: SetType) => {
       const current = routineRef.current;
       const located = findSet(current, setId);
-      if (!current || !located) {
+      if (!current || !located || located.set.setType === setType) {
         return;
       }
-      const setType: SetType = located.set.setType === 'warmup' ? 'normal' : 'warmup';
       const toggled = located.exercise.sets.map((set): RoutineSet => (set.id === setId ? { ...set, setType } : set));
       const ordered = warmupsFirst(toggled, true) ?? toggled.map((set, position) => ({ ...set, position }));
       applyRoutine(mapSets(current, located.exercise.id, () => ordered));
@@ -295,6 +296,25 @@ export const RoutineEditorScreen: React.FC = () => {
         clearTimeout(pendingOrder);
         delete orderTimersRef.current[located.exercise.id];
       }
+    },
+    [applyRoutine],
+  );
+
+  const handleToggleSuperset = useCallback(
+    (routineExerciseId: string) => {
+      const current = routineRef.current;
+      if (!current) {
+        return;
+      }
+      const next = toggleSupersetWithNext(current.exercises, routineExerciseId, createId());
+      if (!next) {
+        return;
+      }
+      applyRoutine({ ...current, exercises: next });
+      void saveSupersetIds(
+        'routine',
+        next.map((exercise) => ({ id: exercise.id, supersetId: exercise.supersetId })),
+      );
     },
     [applyRoutine],
   );
@@ -507,18 +527,21 @@ export const RoutineEditorScreen: React.FC = () => {
         exercise={exercise}
         onAddSet={pressAddSet}
         onChangeReps={handleChangeReps}
+        onChangeSetType={handleChangeSetType}
         onChangeSetup={handleChangeSetup}
         setupOptions={machineSetupOptions(getExerciseLog.now(exercise.exerciseId) ?? [])}
         onChangeWeight={handleChangeWeight}
         onDeleteSet={handleDeleteSet}
         onMove={handleMove}
         onRemove={handleRemove}
-        onToggleWarmup={handleToggleWarmup}
+        onToggleSuperset={handleToggleSuperset}
         panHandlers={handle.panHandlers}
+        canLinkSuperset={(routine?.exercises[routine.exercises.length - 1]?.id ?? exercise.id) !== exercise.id}
+        superset={supersetRole(routine?.exercises ?? [], exercise.id)}
         unit={unit}
       />
     ),
-    [drafts, handleChangeReps, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleWarmup, pressAddSet, unit],
+    [drafts, handleChangeReps, handleChangeSetType, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleSuperset, pressAddSet, routine?.exercises, unit],
   );
 
   const exercises = routine?.exercises ?? [];

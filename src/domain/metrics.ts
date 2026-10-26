@@ -3,7 +3,7 @@
  * not a warmup, and has at least one rep. The first set is saved but not announced.
  */
 import type { ChartMetric, LoggedSet, SetType } from './types';
-import { sameMachineSetup } from './types';
+import { isWorkingSetType, sameMachineSetup } from './types';
 import type { WeightUnit } from './types';
 import { formatLoggedLoad } from './format';
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from './units';
@@ -67,7 +67,7 @@ export function estimateOneRepMax(weight: number, reps: number): number {
 }
 
 export function scoreLoggedSet(set: LoggedSet): ScoredSet | null {
-  if (!set.completed || set.setType !== 'normal' || set.reps == null || set.reps <= 0) {
+  if (!set.completed || !isWorkingSetType(set.setType) || set.reps == null || set.reps <= 0) {
     return null;
   }
 

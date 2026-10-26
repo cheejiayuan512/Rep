@@ -3,11 +3,12 @@
  * Import past sessions from a Hevy, Strong, Jefit, or FitNotes CSV export.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
+import { Alert, Pressable, SectionList, Share, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { importWorkoutCsv } from '../../data/repository';
+import { importWorkoutCsv, listWorkoutsForExport } from '../../data/repository';
+import { workoutsToCsv } from '../../domain/log-export';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
 import { dataChanged, useAppDispatch } from '../../state/store';
 import { EmptyState } from '../../components/empty-state';
@@ -83,6 +84,22 @@ export const HistoryScreen: React.FC = () => {
     }
   }, [dispatch, importing]);
 
+  const handleExportCsv = useCallback(async () => {
+    const rows = listWorkoutsForExport.now();
+    if (!rows || rows.length === 0) {
+      Alert.alert('Nothing to export', 'Finish a workout first.');
+      return;
+    }
+    try {
+      await Share.share({ message: workoutsToCsv(rows), title: 'Rep workouts.csv' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message && !/cancel|abort/i.test(message)) {
+        Alert.alert('Export failed', message);
+      }
+    }
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<WorkoutSummary, HistorySection>) => <HistoryCard onOpen={handleOpen} unit={unit} workout={item} />,
     [handleOpen, unit],
@@ -95,11 +112,16 @@ export const HistoryScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>History</Text>
-          <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportCsv()} style={styles.importButton}>
-            <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import CSV'}</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable accessibilityRole="button" onPress={() => void handleExportCsv()} style={styles.importButton}>
+              <Text style={styles.importLabel}>Export CSV</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportCsv()} style={styles.importButton}>
+              <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import CSV'}</Text>
+            </Pressable>
+          </View>
         </View>
-        <Text style={styles.subtitle}>Finished sessions stay on this device. Export a CSV from Hevy, Strong, Jefit, or FitNotes, then import it here.</Text>
+        <Text style={styles.subtitle}>Finished sessions stay on this device. Export writes kilograms in Strong's columns. Import reads Hevy, Strong, Jefit, or FitNotes.</Text>
       </View>
       <SectionList
         style={styles.fill}
@@ -325,6 +347,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 34,
     fontWeight: '800',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   titleRow: {
     alignItems: 'center',

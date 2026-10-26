@@ -11,10 +11,11 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } fro
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { Screen } from '../../components/screen';
-import { formatClock, summarizeNames } from '../../domain/format';
+import { formatClock, formatDuration, formatLoggedLoad, formatWorkoutWhen, summarizeNames } from '../../domain/format';
 import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
-import type { RoutineSummary, WeightUnit } from '../../domain/types';
+import type { RoutineSummary, WeightUnit, WorkoutSummary } from '../../domain/types';
+import { PencilIcon } from '../../components/icons';
 import { createRoutine, startEmptyWorkout, startWorkoutFromRoutine } from '../../data/repository';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -86,6 +87,20 @@ export const WorkoutHomeScreen: React.FC = () => {
     navigation.navigate('Routines');
   }, [navigation]);
 
+  const handleEditRoutine = useCallback(
+    (routineId: string) => {
+      navigation.navigate('RoutineEditor', { routineId });
+    },
+    [navigation],
+  );
+
+  const handleOpenWorkout = useCallback(
+    (workoutId: string) => {
+      navigation.navigate('WorkoutDetail', { workoutId });
+    },
+    [navigation],
+  );
+
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const pressCreateRoutine = useCallback(() => {
     void handleCreateRoutine();
@@ -101,12 +116,18 @@ export const WorkoutHomeScreen: React.FC = () => {
           <Pressable accessibilityRole="button" hitSlop={8} onPress={handleOpenRoutines}>
             <Text style={styles.section}>Routines</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={handleOpenRoutines}>
+            <Text style={styles.seeAll}>See all</Text>
+          </Pressable>
         </View>
         {home && home.routines.length > 0 ? (
           <ScrollView contentContainerStyle={styles.routineRow} horizontal showsHorizontalScrollIndicator={false}>
             {home.routines.map((routine) => (
-              <RoutineStartCard key={routine.id} onStart={handleStartRoutine} routine={routine} />
+              <RoutineStartCard key={routine.id} onEdit={handleEditRoutine} onStart={handleStartRoutine} routine={routine} />
             ))}
+            <Pressable accessibilityRole="button" onPress={pressCreateRoutine} style={styles.newRoutine}>
+              <Text style={styles.newRoutineText}>New routine</Text>
+            </Pressable>
           </ScrollView>
         ) : (
           <View style={styles.noRoutines}>
@@ -116,6 +137,12 @@ export const WorkoutHomeScreen: React.FC = () => {
         )}
         <Text style={styles.weekHeading}>This week</Text>
         {home ? <WeekStats stats={home.stats} unit={unit} /> : null}
+        <Text style={styles.weekHeading}>Recent</Text>
+        {home && home.recent.length > 0 ? (
+          home.recent.map((workout) => <RecentWorkout key={workout.id} onOpen={handleOpenWorkout} unit={unit} workout={workout} />)
+        ) : (
+          <Text style={styles.weekLine}>Finished workouts show up here.</Text>
+        )}
       </ScrollView>
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
@@ -136,15 +163,25 @@ interface WeekStatsProps {
 
 const WeekStats: React.FC<WeekStatsProps> = React.memo(function WeekStats({ stats, unit }) {
   const { streakWeeks, thisWeek } = stats;
-  const line = [
-    `${thisWeek.workouts} ${thisWeek.workouts === 1 ? 'workout' : 'workouts'}`,
-    `${formatVolume(kgToDisplay(thisWeek.volumeKg, unit))} ${unit}`,
-    formatMinutes(thisWeek.minutes),
-    `${thisWeek.sets} ${thisWeek.sets === 1 ? 'set' : 'sets'}`,
-    `${streakWeeks} wk streak`,
-  ].join(' · ');
-  return <Text style={styles.weekLine}>{line}</Text>;
+  return (
+    <View>
+      <View style={styles.tiles}>
+        <Tile label={thisWeek.workouts === 1 ? 'Workout' : 'Workouts'} value={String(thisWeek.workouts)} />
+        <Tile label={unit} value={formatVolume(kgToDisplay(thisWeek.volumeKg, unit))} />
+        <Tile label="Time" value={formatMinutes(thisWeek.minutes)} />
+        <Tile label={thisWeek.sets === 1 ? 'Set' : 'Sets'} value={String(thisWeek.sets)} />
+      </View>
+      <Text style={styles.weekLine}>{streakWeeks} wk streak</Text>
+    </View>
+  );
 });
+
+const Tile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <View style={styles.tile}>
+    <Text style={styles.tileValue}>{value}</Text>
+    <Text style={styles.tileLabel}>{label}</Text>
+  </View>
+);
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) {
@@ -158,6 +195,7 @@ function formatMinutes(minutes: number): string {
 interface RoutineStartCardProps {
   routine: RoutineSummary;
   onStart: (routineId: string) => void;
+  onEdit: (routineId: string) => void;
 }
 
 interface ResumeCardProps {
@@ -185,18 +223,51 @@ const ResumeCard: React.FC<ResumeCardProps> = ({ workoutId, name, elapsed, exerc
   );
 };
 
-const RoutineStartCard: React.FC<RoutineStartCardProps> = React.memo(function RoutineStartCard({ routine, onStart }) {
+const RoutineStartCard: React.FC<RoutineStartCardProps> = React.memo(function RoutineStartCard({ routine, onStart, onEdit }) {
   const handlePress = useCallback(() => {
     onStart(routine.id);
   }, [onStart, routine.id]);
+  const handleEdit = useCallback(() => {
+    onEdit(routine.id);
+  }, [onEdit, routine.id]);
 
   return (
-    <Pressable onPress={handlePress} style={styles.routineCard}>
-      <Text numberOfLines={1} style={styles.routineName}>
-        {routine.name}
-      </Text>
-      <Text numberOfLines={2} style={styles.routineMeta}>
-        {summarizeNames(routine.exerciseNames)}
+    <View style={styles.routineCard}>
+      <Pressable accessibilityRole="button" onPress={handlePress} style={styles.routineBody}>
+        <Text numberOfLines={1} style={styles.routineName}>
+          {routine.name}
+        </Text>
+        <Text numberOfLines={2} style={styles.routineMeta}>
+          {summarizeNames(routine.exerciseNames)}
+        </Text>
+      </Pressable>
+      <Pressable accessibilityLabel={`Edit ${routine.name}`} accessibilityRole="button" hitSlop={8} onPress={handleEdit} style={styles.edit}>
+        <PencilIcon color={colors.muted} size={16} />
+      </Pressable>
+    </View>
+  );
+});
+
+interface RecentWorkoutProps {
+  workout: WorkoutSummary;
+  unit: WeightUnit;
+  onOpen: (workoutId: string) => void;
+}
+
+const RecentWorkout: React.FC<RecentWorkoutProps> = React.memo(function RecentWorkout({ workout, unit, onOpen }) {
+  const handlePress = useCallback(() => {
+    onOpen(workout.id);
+  }, [onOpen, workout.id]);
+  const best = workout.exercises.find((exercise) => exercise.best);
+  return (
+    <Pressable accessibilityRole="button" onPress={handlePress} style={styles.recent}>
+      <View style={styles.recentCopy}>
+        <Text style={styles.routineName}>{workout.name}</Text>
+        <Text style={styles.routineMeta}>{formatWorkoutWhen(workout.finishedAt)}</Text>
+      </View>
+      <Text style={styles.recentStat}>
+        {formatDuration(workout.startedAt, workout.finishedAt)} · {formatVolume(kgToDisplay(workout.volumeKg, unit))} {unit}
+        {best?.best ? ` · ${formatLoggedLoad(best.best.weightKg, best.best.reps, unit)}` : ''}
       </Text>
     </Pressable>
   );
@@ -264,13 +335,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   routineCard: {
+    alignItems: 'flex-start',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
+    flexDirection: 'row',
     marginRight: 10,
     padding: 14,
-    width: 210,
+    width: 220,
   },
   routineMeta: {
     color: colors.muted,
@@ -290,8 +363,81 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
+  edit: {
+    padding: 4,
+  },
+  newRoutine: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginRight: 10,
+    minHeight: 84,
+    padding: 14,
+    width: 140,
+  },
+  newRoutineText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  recent: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+  },
+  recentCopy: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  recentStat: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  routineBody: {
+    flex: 1,
+    paddingRight: 8,
+  },
   sectionHead: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 26,
+  },
+  seeAll: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tile: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexGrow: 1,
+    flexBasis: '46%',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  tileLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  tileValue: {
+    color: colors.text,
+    fontSize: 20,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '800',
+  },
+  tiles: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
   },
   weekHeading: {
     color: colors.text,

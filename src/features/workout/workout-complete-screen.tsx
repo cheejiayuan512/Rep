@@ -1,25 +1,28 @@
 /**
- * The page right after Finish: what the session added up to, new records,
- * the XP it earned toward the next level, and any badge it unlocked.
+ * The page right after Finish. The top follows Strong's summary:
+ * stars, the session count, and a card of duration, volume, and best sets.
+ * XP and badges stay underneath.
  */
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { BadgeGlyph } from '../../components/badge-icons';
-import { Button } from '../../components/button';
+import { Header, IconButton, TextButton } from '../../components/header';
+import { CloseIcon, ShareIcon } from '../../components/icons';
 import { Screen } from '../../components/screen';
 import { getWorkoutRecap, unfinishWorkout, type WorkoutRecap } from '../../data/repository';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
-import { formatDuration, formatLoggedLoad } from '../../domain/format';
+import { formatDuration, formatLoggedLoad, formatLongDate, formatOrdinal } from '../../domain/format';
 import type { ProfileBadge } from '../../domain/profile';
-import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
+import { formatEstimate, formatVolume, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { useStored, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
 const nativeDriver = Platform.OS !== 'web';
+const starGold = '#F5C518';
 
 export const WorkoutCompleteScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
@@ -27,6 +30,7 @@ export const WorkoutCompleteScreen: React.FC = () => {
   const dispatch = useAppDispatch();
   const { unit } = useWeightUnit();
   const recap = useStored(getWorkoutRecap, route.params.workoutId);
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   const handleDone = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -50,23 +54,60 @@ export const WorkoutCompleteScreen: React.FC = () => {
     })();
   }, [dispatch, navigation, route.params.workoutId]);
 
+  const handleShare = useCallback(() => {
+    if (!recap) {
+      return;
+    }
+    const { workout } = recap;
+    const lines = [
+      workout.name,
+      formatLongDate(workout.startedAt),
+      `${formatDuration(workout.startedAt, workout.finishedAt)} · ${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit} · ${workout.recordCount} PRs`,
+      ...recap.exercises.map((exercise) => {
+        const best = exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—';
+        return `${exercise.sets} × ${exercise.name} · ${best}`;
+      }),
+    ];
+    void Share.share({ message: lines.join('\n') }).catch(() => undefined);
+  }, [recap, unit]);
+
+  const toggleRecords = useCallback(() => {
+    setRecordsOpen((open) => !open);
+  }, []);
+
   return (
     <Screen>
+      <Header
+        left={
+          <IconButton accessibilityLabel="Close" onPress={handleDone}>
+            <CloseIcon color={colors.text} size={22} />
+          </IconButton>
+        }
+        right={
+          <IconButton accessibilityLabel="Share workout" onPress={handleShare}>
+            <ShareIcon color={colors.accent} size={22} />
+          </IconButton>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        {recap ? <RecapBody recap={recap} unit={unit} /> : <Text style={styles.muted}>Saving your workout…</Text>}
-        <Button label="Done" onPress={handleDone} style={styles.done} />
-        <Pressable accessibilityRole="button" onPress={handleUndo} style={styles.quiet}>
-          <Text style={styles.quietText}>Undo finish</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={handleView} style={styles.quiet}>
-          <Text style={styles.quietText}>View workout</Text>
-        </Pressable>
+        {recap ? <RecapBody recap={recap} recordsOpen={recordsOpen} unit={unit} /> : <Text style={styles.muted}>Saving your workout…</Text>}
+        <View style={styles.quiet}>
+          <TextButton label="Undo finish" onPress={handleUndo} />
+          <TextButton label="View workout" onPress={handleView} />
+        </View>
       </ScrollView>
+      {recap && recap.records.length > 0 ? (
+        <Pressable accessibilityRole="button" onPress={toggleRecords} style={styles.pill}>
+          <Text style={styles.pillText}>
+            ★ {recap.records.length} Personal {recap.records.length === 1 ? 'Record' : 'Records'}
+          </Text>
+        </Pressable>
+      ) : null}
     </Screen>
   );
 };
 
-const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap, unit }) => {
+const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: boolean }> = ({ recap, unit, recordsOpen }) => {
   const { after, before, workout } = recap;
   const gained = after.level.points - before.level.points;
   const leveledUp = after.level.level > before.level.level;
@@ -74,30 +115,38 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap,
 
   return (
     <View>
-      <Medal />
-      <Text style={styles.kicker}>Workout complete</Text>
-      <Text style={styles.title}>{workout.name}</Text>
-      <Text style={styles.subtitle}>{praise(recap)}</Text>
+      <Stars />
+      <Text style={styles.wellDone}>Well Done!</Text>
+      <Text style={styles.subtitle}>That's your {formatOrdinal(recap.sessionNumber)} workout!</Text>
 
-      <View style={styles.stats}>
-        <Stat label="Time" value={formatDuration(workout.startedAt, workout.finishedAt)} />
-        <Stat label={`Volume (${unit})`} value={formatVolume(kgToDisplay(workout.volumeKg, unit))} />
-        <Stat label="Sets" value={String(workout.setCount)} />
-        <Stat label="Reps" value={String(recap.reps)} />
-      </View>
-
-      {recap.records.length > 0 ? (
-        <View style={styles.records}>
-          <Text style={styles.recordsTitle}>
-            {recap.records.length} new {recap.records.length === 1 ? 'PR' : 'PRs'}
-          </Text>
-          {recap.records.map((record) => (
-            <Text key={record.name} style={styles.recordLine}>
-              {record.name} · est. 1RM {formatEstimate(kgToDisplay(record.oneRepMaxKg, unit))} {unit}
-            </Text>
-          ))}
+      <View style={styles.summary}>
+        <Text style={styles.workoutName}>{workout.name}</Text>
+        <Text style={styles.date}>{formatLongDate(workout.startedAt)}</Text>
+        <View style={styles.metrics}>
+          <Metric label={formatDuration(workout.startedAt, workout.finishedAt)} />
+          <Metric label={`${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit}`} />
+          <Metric label={`${workout.recordCount} PRs`} />
         </View>
-      ) : null}
+        <View style={styles.tableHead}>
+          <Text style={styles.tableLabel}>Exercise</Text>
+          <Text style={styles.tableLabel}>Best Set</Text>
+        </View>
+        {recap.exercises.map((exercise) => (
+          <View key={exercise.name} style={styles.tableRow}>
+            <Text style={styles.exerciseName}>
+              {exercise.sets} × {exercise.name}
+            </Text>
+            <Text style={styles.bestSet}>{exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—'}</Text>
+          </View>
+        ))}
+        {recordsOpen
+          ? recap.records.map((record) => (
+              <Text key={record.name} style={styles.recordLine}>
+                {record.name} · est. 1RM {formatEstimate(kgToDisplay(record.oneRepMaxKg, unit))} {unit}
+              </Text>
+            ))
+          : null}
+      </View>
 
       <View style={styles.card}>
         <View style={styles.xpHead}>
@@ -129,25 +178,6 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit }> = ({ recap,
           ))}
         </View>
       ) : null}
-
-      <Text style={styles.section}>Exercises</Text>
-      {recap.exercises.map((exercise) => (
-        <View key={exercise.name} style={styles.exercise}>
-          <View style={styles.exerciseCopy}>
-            <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <Text style={styles.muted}>
-              {exercise.sets} {exercise.sets === 1 ? 'set' : 'sets'}
-              {exercise.best ? ` · best ${formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit)}` : ''}
-            </Text>
-          </View>
-          {exercise.sessionKg != null ? (
-            <View style={styles.oneRm}>
-              <Text style={styles.oneRmValue}>{formatEstimate(kgToDisplay(exercise.sessionKg, unit))}</Text>
-              <Text style={styles.oneRmLabel}>session 1RM</Text>
-            </View>
-          ) : null}
-        </View>
-      ))}
     </View>
   );
 };
@@ -160,24 +190,8 @@ function upgradedBadges(before: ProfileBadge[], after: ProfileBadge[]): ProfileB
   });
 }
 
-function praise(recap: WorkoutRecap): string {
-  if (recap.records.length > 0) {
-    return 'New personal best. That is what the work is for.';
-  }
-  if (recap.after.level.level > recap.before.level.level) {
-    return 'A new level. Keep stacking sessions.';
-  }
-  return 'Another one in the log. Consistency wins.';
-}
+const Metric: React.FC<{ label: string }> = ({ label }) => <Text style={styles.metric}>{label}</Text>;
 
-const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.stat}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
-
-/** Fills from where the level bar was before this workout to where it is now. */
 const XpBar: React.FC<{ before: WorkoutRecap['before']['level']; after: WorkoutRecap['after']['level'] }> = ({ after, before }) => {
   const ratioOf = (points: number) => {
     if (after.ceiling == null) {
@@ -200,18 +214,21 @@ const XpBar: React.FC<{ before: WorkoutRecap['before']['level']; after: WorkoutR
   );
 };
 
-const Medal: React.FC = () => {
-  const scale = useRef(new Animated.Value(0.3)).current;
+const Stars: React.FC = () => {
+  const left = useRef(new Animated.Value(0)).current;
+  const middle = useRef(new Animated.Value(0)).current;
+  const right = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(scale, { friction: 4, tension: 80, toValue: 1, useNativeDriver: nativeDriver }).start();
-  }, [scale]);
+    Animated.stagger(90, [left, middle, right].map((value) => Animated.spring(value, { friction: 5, tension: 80, toValue: 1, useNativeDriver: nativeDriver }))).start();
+  }, [left, middle, right]);
   return (
-    <Animated.View style={[styles.medal, { transform: [{ scale }] }]}>
-      <Text style={styles.medalStar}>★</Text>
-    </Animated.View>
+    <View style={styles.stars}>
+      <Animated.Text style={[styles.star, styles.starSide, { transform: [{ scale: left }] }]}>★</Animated.Text>
+      <Animated.Text style={[styles.star, styles.starMiddle, { transform: [{ scale: middle }] }]}>★</Animated.Text>
+      <Animated.Text style={[styles.star, styles.starSide, { transform: [{ scale: right }] }]}>★</Animated.Text>
+    </View>
   );
 };
-
 
 const styles = StyleSheet.create({
   badgeCopy: {
@@ -228,6 +245,12 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
   },
+  bestSet: {
+    color: colors.text,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -238,35 +261,19 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
-  done: {
-    marginTop: 28,
-  },
-  exercise: {
-    alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    paddingVertical: 12,
-  },
-  exerciseCopy: {
-    flex: 1,
-    paddingRight: 12,
+  date: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 4,
   },
   exerciseName: {
     color: colors.text,
-    fontSize: 16,
+    flex: 1,
+    fontSize: 15,
     fontWeight: '700',
-  },
-  kicker: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginTop: 16,
-    textAlign: 'center',
-    textTransform: 'uppercase',
+    paddingRight: 12,
   },
   levelLine: {
     color: colors.text,
@@ -279,21 +286,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
-  medal: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: 48,
-    height: 96,
-    justifyContent: 'center',
-    marginTop: 12,
-    width: 96,
+  metric: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
   },
-  medalStar: {
-    color: colors.accentInk,
-    fontSize: 52,
-    lineHeight: 60,
-    textAlign: 'center',
+  metrics: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 14,
   },
   muted: {
     color: colors.muted,
@@ -301,88 +302,79 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 4,
   },
-  oneRm: {
-    alignItems: 'flex-end',
-  },
-  oneRmLabel: {
-    color: colors.faint,
-    fontSize: 11,
-  },
-  oneRmValue: {
-    color: colors.text,
-    fontSize: 17,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
   quiet: {
-    alignSelf: 'center',
-    marginTop: 12,
-    paddingVertical: 6,
+    alignItems: 'center',
+    marginTop: 18,
   },
-  quietText: {
-    color: colors.muted,
+  pill: {
+    alignSelf: 'center',
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    bottom: 28,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    position: 'absolute',
+  },
+  pillText: {
+    color: colors.text,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   recordLine: {
-    color: colors.accentInk,
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  records: {
-    backgroundColor: colors.accent,
-    borderRadius: 16,
-    marginTop: 16,
-    padding: 16,
-  },
-  recordsTitle: {
-    color: colors.accentInk,
-    fontSize: 17,
-    fontWeight: '800',
+    marginTop: 8,
   },
   section: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
-    marginTop: 22,
   },
-  stat: {
-    alignItems: 'center',
-    flex: 1,
+  star: {
+    color: starGold,
   },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 2,
+  starMiddle: {
+    fontSize: 54,
+    marginHorizontal: 6,
   },
-  statValue: {
-    color: colors.text,
-    fontSize: 18,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
+  starSide: {
+    fontSize: 34,
+    marginTop: 10,
   },
-  stats: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
+  stars: {
+    alignItems: 'flex-end',
+    alignSelf: 'center',
     flexDirection: 'row',
-    marginTop: 20,
-    paddingVertical: 14,
+    marginTop: 8,
   },
   subtitle: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 16,
     marginTop: 6,
     textAlign: 'center',
   },
-  title: {
+  summary: {
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 28,
+    padding: 16,
+  },
+  tableHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 18,
+  },
+  tableLabel: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 15,
     fontWeight: '800',
-    marginTop: 4,
-    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
   },
   track: {
     backgroundColor: colors.surfaceRaised,
@@ -395,6 +387,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: 999,
     height: 10,
+  },
+  wellDone: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  workoutName: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
   },
   xpGain: {
     color: colors.accent,

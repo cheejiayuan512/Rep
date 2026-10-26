@@ -13,9 +13,10 @@ import { draftFromSet } from '../../domain/drafts';
 import { MachineSetupChoices } from '../../components/machine-setup-choices';
 import { formatLoggedLoad } from '../../domain/format';
 import type { MachineSetupOption } from '../../domain/machine-setup';
-import type { PreviousSet, RoutineExercise, RoutineSet, WeightUnit } from '../../domain/types';
+import type { PreviousSet, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
-import { previousForSet } from '../../domain/workout-edits';
+import { previousForSet, type SupersetRole } from '../../domain/workout-edits';
+import { SetTypeBadge, SetTypeMenu } from '../../components/set-type-badge';
 import { colors } from '../../theme/colors';
 
 const column = {
@@ -36,7 +37,10 @@ interface RoutineExerciseCardProps {
   onAddSet: (routineExerciseId: string) => void;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
-  onToggleWarmup: (setId: string) => void;
+  onChangeSetType: (setId: string, setType: SetType) => void;
+  onToggleSuperset: (routineExerciseId: string) => void;
+  superset: SupersetRole;
+  canLinkSuperset: boolean;
   onDeleteSet: (setId: string) => void;
   onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
@@ -58,7 +62,10 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onAddSet,
   onChangeWeight,
   onChangeReps,
-  onToggleWarmup,
+  onChangeSetType,
+  onToggleSuperset,
+  superset,
+  canLinkSuperset,
   onDeleteSet,
   onChangeSetup,
   setupOptions,
@@ -69,6 +76,9 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   const handleAdd = useCallback(() => {
     onAddSet(exercise.id);
   }, [exercise.id, onAddSet]);
+  const handleSuperset = useCallback(() => {
+    onToggleSuperset(exercise.id);
+  }, [exercise.id, onToggleSuperset]);
   const [setupOpen, setSetupOpen] = useState(false);
   const toggleSetup = useCallback(() => {
     setSetupOpen((open) => !open);
@@ -90,9 +100,10 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
 
   return (
     <SwipeToDelete accessibilityLabel={`Remove ${exercise.name}`} label="Remove" onDelete={handleRemove} radius={18} style={styles.swipe}>
-      <View style={[styles.card, dragging && styles.cardDragging]}>
+      <View style={[styles.card, superset !== 'single' && styles.cardSuperset, dragging && styles.cardDragging]}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
+            {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
             <Text style={styles.name}>{exercise.name}</Text>
             <Text style={styles.meta}>
               {exercise.muscleGroup} · {exercise.equipment}
@@ -137,9 +148,9 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
             key={set.id}
             onChangeReps={onChangeReps}
+            onChangeSetType={onChangeSetType}
             onChangeWeight={onChangeWeight}
             onDelete={onDeleteSet}
-            onToggleWarmup={onToggleWarmup}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
             set={set}
             showSetup={showSetup}
@@ -150,6 +161,11 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
           <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
             <Text style={styles.addText}>Add set</Text>
           </Pressable>
+          {canLinkSuperset || superset !== 'single' ? (
+            <Pressable accessibilityRole="button" onPress={handleSuperset} style={styles.add}>
+              <Text style={styles.addText}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>
+            </Pressable>
+          ) : null}
           {exercise.sets.length > 0 ? <Text style={styles.hint}>Swipe a set left to delete</Text> : null}
         </View>
       </View>
@@ -166,11 +182,11 @@ interface RoutineSetRowProps {
   showSetup?: boolean;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
-  onToggleWarmup: (setId: string) => void;
+  onChangeSetType: (setId: string, setType: SetType) => void;
   onDelete: (setId: string) => void;
 }
 
-const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, onChangeWeight, onChangeReps, onToggleWarmup, onDelete }) {
+const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, onChangeWeight, onChangeReps, onChangeSetType, onDelete }) {
   const handleWeight = useCallback(
     (value: string) => {
       onChangeWeight(set.id, value);
@@ -183,9 +199,19 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     },
     [onChangeReps, set.id],
   );
-  const handleWarmup = useCallback(() => {
-    onToggleWarmup(set.id);
-  }, [onToggleWarmup, set.id]);
+  const [typesOpen, setTypesOpen] = useState(false);
+  const toggleTypes = useCallback(() => {
+    setTypesOpen((open) => !open);
+  }, []);
+  const handleSetType = useCallback(
+    (setType: SetType) => {
+      setTypesOpen(false);
+      if (setType !== set.setType) {
+        onChangeSetType(set.id, setType);
+      }
+    },
+    [onChangeSetType, set.id, set.setType],
+  );
   const handleDelete = useCallback(() => {
     onDelete(set.id);
   }, [onDelete, set.id]);
@@ -197,10 +223,9 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.setWrap}>
+      <View>
       <View style={[styles.row, warmup && styles.warmup]}>
-        <Pressable accessibilityLabel={warmup ? 'Mark as a working set' : 'Mark as a warmup set'} onPress={handleWarmup} style={styles.setNumber}>
-          <Text style={styles.setNumberText}>{warmup ? 'W' : String(index + 1)}</Text>
-        </Pressable>
+        <SetTypeBadge index={index} onPress={toggleTypes} open={typesOpen} setType={set.setType} />
         <Text numberOfLines={1} style={styles.previous}>
           {previousText}
         </Text>
@@ -227,6 +252,8 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
           value={draft.repsText}
         />
       </View>
+      {typesOpen ? <SetTypeMenu onChange={handleSetType} value={set.setType} /> : null}
+      </View>
     </SwipeToDelete>
   );
 });
@@ -239,6 +266,10 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
+  },
+  cardSuperset: {
+    borderLeftColor: colors.accent,
+    borderLeftWidth: 3,
   },
   card: {
     backgroundColor: colors.surface,
@@ -307,6 +338,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     marginTop: 2,
+  },
+  superset: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   name: {
     color: colors.text,

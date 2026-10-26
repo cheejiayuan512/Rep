@@ -18,7 +18,7 @@ import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domai
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
 import { estimateFromSets } from '../../domain/one-rep-max';
-import { formatMachineSetup, usesMachineSetup, type SetRecord, type WeightUnit, type WorkoutDetail, type WorkoutExercise } from '../../domain/types';
+import { formatMachineSetup, setTypeMark, usesMachineSetup, type SetRecord, type WeightUnit, type WorkoutDetail, type WorkoutExercise } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -183,7 +183,9 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
         const max = !warmup && set.completed && weight > 0 && reps > 0 ? estimateOneRepMax(weight, reps) : null;
         return (
           <View key={set.id} style={[styles.row, !set.completed && styles.skipped]}>
-            <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup]}>{warmup ? 'W' : set.completed ? workingNumber : '–'}</Text>
+            <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup, set.setType === 'failure' && styles.failure, set.setType === 'drop' && styles.drop]}>
+              {setTypeMark(set.setType) ?? (set.completed ? workingNumber : '–')}
+            </Text>
             <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>{formatLoggedLoad(set.weightKg, set.reps, unit)}</Text>
             <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>
             <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
@@ -361,6 +363,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 32,
     fontWeight: '800',
+  },
+  drop: {
+    color: colors.accent,
+  },
+  failure: {
+    color: colors.danger,
   },
   warmup: {
     color: '#F0C14A',

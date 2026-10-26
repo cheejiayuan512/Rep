@@ -28,7 +28,8 @@ import type {
   WorkoutExercise,
   WorkoutSummary,
 } from '../domain/types';
-import { isCableAttachment, isEquipment, isMuscleGroup, normalizeMachineSetup, sameMachineSetup, usesMachineSetup } from '../domain/types';
+import { isCableAttachment, isEquipment, isMuscleGroup, isWorkingSetType, normalizeMachineSetup, normalizeSetType, sameMachineSetup, usesMachineSetup } from '../domain/types';
+import type { ExportWorkout } from '../domain/log-export';
 import { filterSetsBySetup } from '../domain/metrics';
 import { warmupsFirst } from '../domain/workout-edits';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
@@ -293,6 +294,7 @@ export const getRoutine = reader((db, routineId: string): RoutineDetail | null =
         machineSetup: usesMachineSetup(details.equipment) ? normalizeMachineSetup(exercise.machineSetup) : null,
         name: details.name,
         position: exercise.position,
+        supersetId: exercise.supersetId,
         previousSets: latestSessionSets(historyForSetup(history[exercise.exerciseId] ?? [], details.equipment, exercise.machineSetup)).map((set) =>
           toPrevious(set, details.equipment),
         ),
@@ -340,7 +342,7 @@ export async function addExerciseToRoutine(routineId: string, exerciseId: string
     const position = nextPosition(rows);
     const routineExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
-    db.routineExercises.push({ exerciseId, id: routineExerciseId, machineSetup, position, routineId });
+    db.routineExercises.push({ exerciseId, id: routineExerciseId, machineSetup, position, routineId, supersetId: null });
     const previous = latestSessionSets(historyForSetup(historyFor(db, [exerciseId], '')[exerciseId] ?? [], requireExercise(db, exerciseId).equipment, machineSetup));
     const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
     templates.forEach((template, index) => {
@@ -370,7 +372,7 @@ export async function restoreRoutineExercise(routineId: string, exercise: Routin
       return;
     }
     const rows = routineExerciseRows(db, routineId);
-    const restored = { exerciseId: exercise.exerciseId, id: exercise.id, machineSetup: exercise.machineSetup, position: 0, routineId };
+    const restored = { exerciseId: exercise.exerciseId, id: exercise.id, machineSetup: exercise.machineSetup, position: 0, routineId, supersetId: exercise.supersetId };
     rows.splice(Math.min(index, rows.length), 0, restored);
     rows.forEach((row, position) => {
       row.position = position;
@@ -485,6 +487,19 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
     }
     found = true;
     const exercises = routineExerciseRows(db, routine.id);
+    const supersetIds = new Map<string, string>();
+    const supersetFor = (value: string | null): string | null => {
+      if (!value) {
+        return null;
+      }
+      const existing = supersetIds.get(value);
+      if (existing) {
+        return existing;
+      }
+      const created = createId();
+      supersetIds.set(value, created);
+      return created;
+    };
     db.workouts.push({ finishedAt: null, id: workoutId, name: routine.name, routineId: routine.id, startedAt: Date.now() });
     exercises.forEach((exercise, index) => {
       const workoutExerciseId = createId();
@@ -499,6 +514,7 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
         notes: '',
         position: index,
         restSeconds: lastRestFor(db, exercise.exerciseId),
+        supersetId: supersetFor(exercise.supersetId),
         workoutId,
       });
       const planned = routineSetRows(db, exercise.id);
@@ -667,7 +683,7 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
     const position = nextPosition(rows);
     const workoutExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
-    db.workoutExercises.push({ attachment: defaultAttachment(db, exerciseId), exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), workoutId });
+    db.workoutExercises.push({ attachment: defaultAttachment(db, exerciseId), exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), supersetId: null, workoutId });
     addTemplateSets(db, workoutExerciseId, latestSessionSets(historyForSetup(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? [], requireExercise(db, exerciseId).equipment, machineSetup)));
   });
 }
@@ -715,10 +731,16 @@ export async function duplicateWorkout(workoutId: string): Promise<string> {
       return;
     }
     found = true;
+    const supersetIds = new Map<string, string>();
     db.workouts.push({ finishedAt: null, id, name: source.name, routineId: source.routineId, startedAt: Date.now() });
     workoutExerciseRows(db, source.id).forEach((row, index) => {
       const workoutExerciseId = createId();
-      db.workoutExercises.push({ attachment: row.attachment, exerciseId: row.exerciseId, id: workoutExerciseId, machineSetup: row.machineSetup, notes: row.notes, position: index, restSeconds: row.restSeconds, workoutId: id });
+      let supersetId: string | null = null;
+      if (row.supersetId) {
+        supersetId = supersetIds.get(row.supersetId) ?? createId();
+        supersetIds.set(row.supersetId, supersetId);
+      }
+      db.workoutExercises.push({ attachment: row.attachment, exerciseId: row.exerciseId, id: workoutExerciseId, machineSetup: row.machineSetup, notes: row.notes, position: index, restSeconds: row.restSeconds, supersetId, workoutId: id });
       db.sets
         .filter((set) => set.workoutExerciseId === row.id)
         .sort((left, right) => left.position - right.position)
@@ -1037,6 +1059,7 @@ export async function restoreWorkoutExercise(workoutId: string, exercise: Workou
       notes: exercise.notes,
       position: 0,
       restSeconds: exercise.restSeconds,
+      supersetId: exercise.supersetId,
       workoutId,
     };
     rows.splice(Math.min(index, rows.length), 0, restored);
@@ -1182,6 +1205,7 @@ export async function importWorkoutCsv(csvText: string): Promise<HevyImportSumma
           notes,
           position: exercise.position,
           restSeconds: null,
+          supersetId: null,
           workoutId,
         });
 
@@ -1305,7 +1329,7 @@ function bestLifts(db: DatabaseShape, withoutWorkoutId: string | null): Map<stri
     for (const set of history[exerciseId] ?? []) {
       const reps = set.reps ?? 0;
       const weightKg = set.weightKg ?? 0;
-      if (!set.completed || set.setType !== 'normal' || reps <= 0 || reps > STRENGTH_MAX_REPS || weightKg <= 0) {
+      if (!set.completed || !isWorkingSetType(set.setType) || reps <= 0 || reps > STRENGTH_MAX_REPS || weightKg <= 0) {
         continue;
       }
       const oneRepMaxKg = estimateOneRepMax(weightKg, reps);
@@ -1319,6 +1343,8 @@ function bestLifts(db: DatabaseShape, withoutWorkoutId: string | null): Map<stri
 
 export interface WorkoutRecap {
   workout: WorkoutSummary;
+  /** 1 for the earliest finished session, counting this one. */
+  sessionNumber: number;
   reps: number;
   exercises: Array<{ name: string; sets: number; best: { weightKg: number; reps: number } | null; sessionKg: number | null }>;
   /** Exercises where a set beat the previous best estimated 1RM. */
@@ -1358,15 +1384,53 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
     }
   }
   const now = Date.now();
+  const finished = db.workouts.filter((item) => item.finishedAt != null).sort((left, right) => (left.finishedAt ?? 0) - (right.finishedAt ?? 0));
   return {
     after: profileOf(db, now, null),
     before: profileOf(db, now, workoutId),
     exercises: exercises.filter((exercise) => exercise.sets > 0),
     records,
     reps: rows.reduce((total, row) => total + setsOf(db, row.id).filter(isWorkingSet).reduce((sum, set) => sum + (set.reps ?? 0), 0), 0),
+    sessionNumber: Math.max(1, finished.findIndex((item) => item.id === workoutId) + 1),
     workout,
   };
 });
+
+/** Finished workouts in Strong's column shape. Weight stays kilograms. */
+export const listWorkoutsForExport = reader((db): ExportWorkout[] => {
+  return db.workouts
+    .filter((workout) => workout.finishedAt != null)
+    .map((workout) => ({
+      exercises: workoutExerciseRows(db, workout.id).map((row) => ({
+        name: exerciseName(db, row.exerciseId),
+        notes: row.notes ?? '',
+        restSeconds: row.restSeconds,
+        sets: setsOf(db, row.id).map((set) => ({
+          completed: set.completed,
+          reps: set.reps,
+          rpe: set.rpe,
+          setType: normalizeSetType(set.setType),
+          weightKg: set.weightKg,
+        })),
+      })),
+      finishedAt: workout.finishedAt ?? workout.startedAt,
+      name: workout.name,
+      startedAt: workout.startedAt,
+    }));
+});
+
+/** Writes the superset group for each exercise. A null id means the card stands alone. */
+export async function saveSupersetIds(kind: 'workout' | 'routine', rows: Array<{ id: string; supersetId: string | null }>): Promise<void> {
+  await writeDatabase((db) => {
+    const list = kind === 'workout' ? db.workoutExercises : db.routineExercises;
+    const ids = new Map(rows.map((row) => [row.id, row.supersetId]));
+    for (const row of list) {
+      if (ids.has(row.id)) {
+        row.supersetId = ids.get(row.id) ?? null;
+      }
+    }
+  });
+}
 
 export const listTrainedExercises = reader((db): TrainedExercise[] => {
   const latest = new Map<string, number>();
@@ -1428,7 +1492,7 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
         position: set.position,
         reps: set.reps,
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
-        setType: set.setType,
+        setType: normalizeSetType(set.setType),
         weightKg: set.weightKg,
         workoutId: workout.id,
       });
@@ -1477,6 +1541,7 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
     notes: row.notes ?? '',
     position: row.position,
     previousSets: previous,
+    supersetId: row.supersetId,
     restSeconds: row.restSeconds ?? null,
     sets,
   };
@@ -1575,7 +1640,7 @@ function mapRoutineSet(set: StoredRoutineSet): RoutineSet {
     id: set.id,
     position: set.position,
     reps: set.reps,
-    setType: set.setType === 'warmup' ? 'warmup' : 'normal',
+    setType: normalizeSetType(set.setType),
     weightKg: set.weightKg,
   };
 }
@@ -1617,7 +1682,7 @@ function mapSet(set: StoredSet): SetRecord {
     position: set.position,
     reps: set.reps,
     rpe: typeof set.rpe === 'number' ? set.rpe : null,
-    setType: set.setType === 'warmup' ? 'warmup' : 'normal',
+    setType: normalizeSetType(set.setType),
     weightKg: set.weightKg,
   };
 }
@@ -1626,7 +1691,7 @@ function toPrevious(set: LoggedSet, equipment: Equipment): PreviousSet {
   return {
     machineSetup: usesMachineSetup(equipment) ? (set.machineSetup ?? null) : undefined,
     reps: set.reps,
-    setType: set.setType,
+    setType: normalizeSetType(set.setType),
     weightKg: set.weightKg,
   };
 }
