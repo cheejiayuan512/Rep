@@ -36,6 +36,25 @@ export function formatClock(totalSeconds: number): string {
   return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }
 
+/** Spoken form of a countdown, so a screen reader does not say "one colon thirty". */
+export function speakClock(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  const parts: string[] = [];
+  if (hours > 0) {
+    parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+  }
+  if (remainder > 0 || parts.length === 0) {
+    parts.push(`${remainder} ${remainder === 1 ? 'second' : 'seconds'}`);
+  }
+  return parts.join(' ');
+}
+
 export function formatDuration(start: number, end: number): string {
   const minutes = Math.max(1, Math.round((end - start) / 60000));
   if (minutes < 60) {

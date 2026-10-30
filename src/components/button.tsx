@@ -25,6 +25,7 @@ export const Button: React.FC<ButtonProps> = ({ label, onPress, variant = 'prima
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={handlePress}
       style={({ pressed }) => [

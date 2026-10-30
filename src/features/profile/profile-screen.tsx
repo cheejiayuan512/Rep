@@ -297,7 +297,7 @@ const MEDAL_STAR = starPath(36, 37.5, 17, 7.2);
 
 const LevelMedal: React.FC<{ level: number }> = ({ level }) => {
   return (
-    <View accessibilityLabel={`Level ${level}`} style={styles.medal}>
+    <View accessibilityLabel={`Level ${level}`} accessible style={styles.medal}>
       <Svg height="72" viewBox="0 0 72 72" width="72">
         <Circle cx="36" cy="36" fill={colors.accent} r="32" />
         <Path d={MEDAL_STAR} fill={colors.accentInk} />
@@ -310,7 +310,7 @@ const LevelBar: React.FC<{ points: number; floor: number; ceiling: number | null
   const span = ceiling == null ? 1 : Math.max(1, ceiling - floor);
   const ratio = ceiling == null ? 1 : Math.min(1, Math.max(0, (points - floor) / span));
   return (
-    <View style={styles.track}>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.track}>
       <View style={[styles.fill, { width: `${ratio * 100}%` }]} />
     </View>
   );
@@ -321,9 +321,22 @@ const WeekChart: React.FC<{ weeks: ProfileWeek[]; metric: ProfileChartMetric; un
   const peak = Math.max(...values, 1);
   const first = weeks[0];
   const last = weeks[weeks.length - 1];
+  const spoken = (value: number) => {
+    if (metric === 'volume') {
+      return `${formatVolume(value)} ${unit}`;
+    }
+    if (metric === 'reps') {
+      return `${Math.round(value)} reps`;
+    }
+    return `${Math.round(value)} minutes`;
+  };
+  const summary =
+    first && last
+      ? `${METRICS.find((item) => item.id === metric)?.label ?? 'Weeks'} over 12 weeks. ${formatDay(first.start)}, ${spoken(values[0] ?? 0)}. ${formatDay(last.start)}, ${spoken(values[values.length - 1] ?? 0)}.`
+      : 'No weeks yet';
   return (
-    <View>
-      <View style={styles.chart}>
+    <View accessibilityLabel={summary} accessible>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.chart}>
         {weeks.map((week, index) => {
           const value = values[index] ?? 0;
           const height = Math.max(4, (value / peak) * 112);

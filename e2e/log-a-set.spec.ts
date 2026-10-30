@@ -182,16 +182,16 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'Complete set' }).click();
   await page.getByRole('button', { name: /^Weight/ }).first().click();
   await page.getByRole('button', { name: 'RPE', exact: true }).click();
-  const skipBox = await page.getByRole('button', { name: 'Skip' }).boundingBox();
+  const skipBox = await page.getByRole('button', { name: 'Skip rest' }).boundingBox();
   const effortBox = await page.getByText('Effort', { exact: true }).boundingBox();
   if (!skipBox || !effortBox) {
     throw new Error('Rest and the RPE pad are not both on screen');
   }
   expect(effortBox.y - (skipBox.y + skipBox.height)).toBeLessThan(48);
   await hidePad(page);
-  await page.getByRole('button', { name: '+15' }).click();
+  await page.getByRole('button', { name: 'Add 15 seconds' }).click();
   await expect(page.getByRole('button', { name: 'Rest timer 3:00, default' })).toBeVisible();
-  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Skip rest' }).click();
 
   await page.getByRole('button', { name: 'Add set' }).click();
   await page.getByRole('button', { name: 'Normal. Change set type' }).nth(1).click();
@@ -202,7 +202,7 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await hidePad(page);
   await page.getByRole('button', { name: 'Complete set' }).first().click();
   await expect(page.getByText(/^1:5[45]$/)).toBeVisible();
-  await page.getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('button', { name: 'Skip rest' }).click();
 
   await page.getByRole('button', { name: 'Swap Back Squat' }).click();
   await page.getByRole('textbox', { name: 'Search exercises' }).fill('Front Squat');

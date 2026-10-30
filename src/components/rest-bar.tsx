@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatClock } from '../domain/format';
+import { formatClock, speakClock } from '../domain/format';
 import { colors } from '../theme/colors';
 import { TextButton } from './header';
 
@@ -28,16 +28,18 @@ export const RestBar: React.FC<RestBarProps> = ({ endsAt, onSubtract, onAdd, onS
     return () => clearInterval(id);
   }, []);
 
+  const remaining = Math.max(0, (endsAt - now) / 1000);
+
   return (
     <View style={[styles.rest, { bottom: lift, paddingBottom: lift > 0 ? 12 : insets.bottom + 12 }]}>
-      <View>
+      <View accessibilityLabel={`Rest, ${speakClock(remaining)}`} accessible>
         <Text style={styles.restLabel}>Rest</Text>
-        <Text style={styles.restTime}>{formatClock((endsAt - now) / 1000)}</Text>
+        <Text style={styles.restTime}>{formatClock(remaining)}</Text>
       </View>
       <View style={styles.restActions}>
-        <TextButton label="-15" onPress={onSubtract} />
-        <TextButton label="+15" onPress={onAdd} />
-        <TextButton label="Skip" onPress={onSkip} tone="accent" />
+        <TextButton accessibilityLabel="Subtract 15 seconds" label="-15" onPress={onSubtract} />
+        <TextButton accessibilityLabel="Add 15 seconds" label="+15" onPress={onAdd} />
+        <TextButton accessibilityLabel="Skip rest" label="Skip" onPress={onSkip} tone="accent" />
       </View>
     </View>
   );

@@ -83,7 +83,7 @@ export const ExerciseProgressScreen: React.FC = () => {
               <MetricChip key={item.id} metric={item.id} label={item.label} onSelect={setMetric} selected={metric === item.id} />
             ))}
           </View>
-          <LineChart points={points} />
+          <LineChart caption={`${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`} points={points} />
           {delta == null ? <Text style={styles.delta}>Log another session to see the change.</Text> : <DeltaText delta={delta} metric={metric} unit={unit} />}
           {sessions.slice().reverse().map((session) => (
             <View key={session.workoutId} style={styles.session}>
@@ -131,7 +131,7 @@ const MetricChip: React.FC<MetricChipProps> = ({ metric, label, selected, onSele
   }, [metric, onSelect]);
 
   return (
-    <Pressable onPress={handlePress} style={[styles.metric, selected && styles.metricSelected]}>
+    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={handlePress} style={[styles.metric, selected && styles.metricSelected]}>
       <Text style={[styles.metricText, selected && styles.metricTextSelected]}>{label}</Text>
     </Pressable>
   );

@@ -14,7 +14,11 @@ interface StrengthMarkProps {
 
 export const StrengthMark: React.FC<StrengthMarkProps> = React.memo(function StrengthMark({ rating }) {
   return (
-    <View accessibilityLabel={`${rating.level}, stronger than ${rating.percentile} percent of lifters`} style={styles.mark}>
+    <View
+      accessibilityLabel={`${rating.level}, stronger than ${rating.percentile} percent of lifters`}
+      accessible
+      style={styles.mark}
+    >
       <View style={styles.segments}>
         {STRENGTH_LEVELS.map((level, index) => {
           const fill = index <= rating.levelIndex ? 1 : index === rating.levelIndex + 1 ? rating.progress : 0;

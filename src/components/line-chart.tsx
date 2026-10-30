@@ -12,12 +12,14 @@ import { formatDay } from '../domain/format';
 import { colors } from '../theme/colors';
 
 interface LineChartProps {
+  /** What the line measures, including the unit. Read instead of the drawn marks. */
+  caption: string;
   points: ChartPoint[];
 }
 
 const HEIGHT = 208;
 
-export const LineChart: React.FC<LineChartProps> = ({ points }) => {
+export const LineChart: React.FC<LineChartProps> = ({ caption, points }) => {
   const [width, setWidth] = useState(0);
   const handleLayout = useCallback((widthNext: number) => {
     setWidth(widthNext);
@@ -34,7 +36,7 @@ export const LineChart: React.FC<LineChartProps> = ({ points }) => {
   }
 
   return (
-    <View onLayout={onLayout} style={styles.wrap}>
+    <View accessibilityLabel={chartSummary(caption, points)} accessibilityRole="image" accessible onLayout={onLayout} style={styles.wrap}>
       {width > 0 ? <ChartCanvas points={points} width={width} /> : null}
     </View>
   );
@@ -43,6 +45,18 @@ export const LineChart: React.FC<LineChartProps> = ({ points }) => {
 interface ChartCanvasProps {
   points: ChartPoint[];
   width: number;
+}
+
+function chartSummary(caption: string, points: ChartPoint[]): string {
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) {
+    return caption;
+  }
+  if (points.length === 1) {
+    return `${caption}. ${formatDay(first.at)}, ${formatChartTick(first.value)}.`;
+  }
+  return `${caption}. ${points.length} sessions, from ${formatChartTick(first.value)} on ${formatDay(first.at)} to ${formatChartTick(last.value)} on ${formatDay(last.at)}.`;
 }
 
 const ChartCanvas: React.FC<ChartCanvasProps> = ({ points, width }) => {

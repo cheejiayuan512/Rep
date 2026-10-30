@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
-import { formatClock } from '../domain/format';
+import { formatClock, speakClock } from '../domain/format';
 import { colors } from '../theme/colors';
 
 interface ElapsedClockProps {
@@ -21,7 +21,12 @@ export const ElapsedClock: React.FC<ElapsedClockProps> = ({ startedAt }) => {
     return () => clearInterval(id);
   }, []);
 
-  return <Text style={styles.elapsed}>{formatClock((now - startedAt) / 1000)}</Text>;
+  const elapsed = Math.max(0, (now - startedAt) / 1000);
+  return (
+    <Text accessibilityLabel={`Workout time, ${speakClock(elapsed)}`} style={styles.elapsed}>
+      {formatClock(elapsed)}
+    </Text>
+  );
 };
 
 const styles = StyleSheet.create({

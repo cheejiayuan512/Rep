@@ -19,6 +19,7 @@ import { formatEstimate, formatVolume, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { useStored, useWeightUnit } from '../../state/hooks';
+import { useReduceMotion } from '../../components/use-reduce-motion';
 import { colors } from '../../theme/colors';
 
 const nativeDriver = Platform.OS !== 'web';
@@ -202,13 +203,18 @@ const XpBar: React.FC<{ before: WorkoutRecap['before']['level']; after: WorkoutR
   const start = after.level > before.level ? 0 : ratioOf(before.points);
   const fill = useRef(new Animated.Value(start)).current;
 
+  const reduceMotion = useReduceMotion();
   const target = ratioOf(after.points);
   useEffect(() => {
+    if (reduceMotion) {
+      fill.setValue(target);
+      return;
+    }
     Animated.timing(fill, { delay: 450, duration: 1100, easing: Easing.out(Easing.cubic), toValue: target, useNativeDriver: false }).start();
-  }, [fill, target]);
+  }, [fill, reduceMotion, target]);
 
   return (
-    <View style={styles.track}>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.track}>
       <Animated.View style={[styles.trackFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
     </View>
   );
@@ -218,11 +224,18 @@ const Stars: React.FC = () => {
   const left = useRef(new Animated.Value(0)).current;
   const middle = useRef(new Animated.Value(0)).current;
   const right = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      left.setValue(1);
+      middle.setValue(1);
+      right.setValue(1);
+      return;
+    }
     Animated.stagger(90, [left, middle, right].map((value) => Animated.spring(value, { friction: 5, tension: 80, toValue: 1, useNativeDriver: nativeDriver }))).start();
-  }, [left, middle, right]);
+  }, [left, middle, reduceMotion, right]);
   return (
-    <View style={styles.stars}>
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.stars}>
       <Animated.Text style={[styles.star, styles.starSide, { transform: [{ scale: left }] }]}>★</Animated.Text>
       <Animated.Text style={[styles.star, styles.starMiddle, { transform: [{ scale: middle }] }]}>★</Animated.Text>
       <Animated.Text style={[styles.star, styles.starSide, { transform: [{ scale: right }] }]}>★</Animated.Text>

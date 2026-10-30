@@ -19,7 +19,13 @@ export const Header: React.FC<HeaderProps> = ({ title, left, right, children }) 
     <View style={styles.wrap}>
       <View style={styles.row}>
         <View style={styles.side}>{left}</View>
-        {title ? <Text style={styles.title}>{title}</Text> : <View style={styles.flex} />}
+        {title ? (
+          <Text accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
+        ) : (
+          <View style={styles.flex} />
+        )}
         <View style={[styles.side, styles.right]}>{right}</View>
       </View>
       {children}
@@ -43,12 +49,14 @@ export const IconButton: React.FC<IconButtonProps> = ({ accessibilityLabel, chil
 
 interface TextButtonProps {
   label: string;
+  /** Spoken name when the visible word is an abbreviation, such as +15. */
+  accessibilityLabel?: string;
   onPress: () => void;
   tone?: 'default' | 'accent' | 'danger';
   disabled?: boolean;
 }
 
-export const TextButton: React.FC<TextButtonProps> = ({ label, onPress, tone = 'default', disabled = false }) => {
+export const TextButton: React.FC<TextButtonProps> = ({ label, accessibilityLabel, onPress, tone = 'default', disabled = false }) => {
   const handlePress = useCallback(() => {
     if (!disabled) {
       onPress();
@@ -56,7 +64,15 @@ export const TextButton: React.FC<TextButtonProps> = ({ label, onPress, tone = '
   }, [disabled, onPress]);
 
   return (
-    <Pressable accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={handlePress} style={styles.textButton}>
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      hitSlop={8}
+      onPress={handlePress}
+      style={styles.textButton}
+    >
       <Text style={[styles.textButtonLabel, tone === 'accent' && styles.accent, tone === 'danger' && styles.danger, disabled && styles.disabled]}>{label}</Text>
     </Pressable>
   );

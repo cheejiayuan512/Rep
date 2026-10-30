@@ -13,6 +13,7 @@ import { colors } from '../theme/colors';
 import { LogValue } from './log-pad';
 import { SetTypeBadge } from './set-type-badge';
 import { SwipeToDelete } from './swipe-to-delete';
+import { useReduceMotion } from './use-reduce-motion';
 
 const nativeDriver = Platform.OS !== 'web';
 
@@ -93,11 +94,12 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
     },
     [onChangeSetType, set.id],
   );
+  const reduceMotion = useReduceMotion();
   const checkScale = useRef(new Animated.Value(1)).current;
   const burst = useRef(new Animated.Value(0)).current;
   const wasCompleted = useRef(set.completed);
   useEffect(() => {
-    if (set.completed && !wasCompleted.current) {
+    if (set.completed && !wasCompleted.current && !reduceMotion) {
       checkScale.setValue(0.4);
       burst.setValue(0);
       Animated.parallel([
@@ -106,7 +108,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
       ]).start();
     }
     wasCompleted.current = set.completed;
-  }, [burst, checkScale, set.completed]);
+  }, [burst, checkScale, reduceMotion, set.completed]);
 
   const handleDelete = useCallback(() => {
     onDelete(set.id);
@@ -139,6 +141,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
         </View>
         <Pressable
           accessibilityLabel={previous ? `Apply previous ${previousText}` : undefined}
+          accessibilityRole={previous ? 'button' : undefined}
           disabled={!previous}
           onPress={handleApplyPrevious}
           style={styles.previousHit}
@@ -152,7 +155,13 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
         {showRpe ? (
           <LogValue accessibilityLabel="RPE" id={`${set.id}:rpe`} kind="rpe" links={links} onChange={handleRpe} order={order + 2} style={styles.rpe} unit={unit} value={draft.rpeText} />
         ) : null}
-        <Pressable accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'} accessibilityRole="button" onPress={handleComplete} style={[styles.check, set.completed && styles.checkDone]}>
+        <Pressable
+          accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'}
+          accessibilityRole="button"
+          accessibilityState={{ checked: set.completed }}
+          onPress={handleComplete}
+          style={[styles.check, set.completed && styles.checkDone]}
+        >
           <Animated.View
             pointerEvents="none"
             style={[

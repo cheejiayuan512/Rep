@@ -1,7 +1,7 @@
 /**
  * The words shown on a set, a clock, and a workout summary.
  */
-import { formatClock, formatDuration, formatLoggedLoad, formatWorkoutWhen, summarizeNames } from './format';
+import { formatClock, formatDuration, formatLoggedLoad, formatWorkoutWhen, speakClock, summarizeNames } from './format';
 import { assertEqual, assertTrue, test } from './test-support';
 
 const noon = new Date(2026, 9, 16, 12, 0, 0).getTime();
@@ -24,6 +24,13 @@ test('the clock rolls into hours', () => {
   assertEqual(formatClock(95), '1:35');
   assertEqual(formatClock(3661), '1:01:01');
   assertEqual(formatClock(-5), '0:00');
+});
+
+test('a clock is spoken in hours, minutes, and seconds', () => {
+  assertEqual(speakClock(95), '1 minute 35 seconds');
+  assertEqual(speakClock(3661), '1 hour 1 minute 1 second');
+  assertEqual(speakClock(60), '1 minute');
+  assertEqual(speakClock(0), '0 seconds');
 });
 
 test('duration is at least one minute', () => {
