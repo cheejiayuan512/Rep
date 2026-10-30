@@ -5,7 +5,7 @@
  * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,12 +18,13 @@ import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, IconButton, TextButton } from '../../components/header';
-import { ChevronDownIcon } from '../../components/icons';
+import { ChevronDownIcon, PencilIcon } from '../../components/icons';
 import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pad';
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
 import { formatWorkoutWhen } from '../../domain/format';
+import { DEFAULT_WORKOUT_NAME, isDefaultWorkoutName } from '../../domain/workout-name';
 import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import { Screen } from '../../components/screen';
 import { QuickAdd } from '../../components/quick-add';
@@ -152,7 +153,7 @@ const ActiveWorkoutBody: React.FC = () => {
   const [drafts, setDrafts] = useState<DraftMap>(() => (initial.workout ? mergeDrafts({}, initial.workout.exercises.flatMap((exercise) => exercise.sets), unit) : {}));
   const [historyByExercise, setHistoryByExercise] = useState<Record<string, LoggedSet[]>>(initial.history ?? {});
   const [missing, setMissing] = useState(false);
-  const [title, setTitle] = useState(initial.workout?.name ?? 'Workout');
+  const [title, setTitle] = useState(initial.workout?.name ?? DEFAULT_WORKOUT_NAME);
   const [banner, setBanner] = useState<string | null>(null);
   const [recordBanner, setRecordBanner] = useState<RecordToast | null>(null);
   const [undo, setUndo] = useState<UndoToast | null>(null);
@@ -165,6 +166,7 @@ const ActiveWorkoutBody: React.FC = () => {
   const draftsRef = useRef(drafts);
   const unitRef = useRef(unit);
   const titleRef = useRef(title);
+  const titleInput = useRef<TextInputInstance>(null);
   const titleFocused = useRef(false);
   const historyRef = useRef(historyByExercise);
   const pendingRef = useRef<Record<string, PendingSet>>({});
@@ -431,7 +433,7 @@ const ActiveWorkoutBody: React.FC = () => {
     if (!current) {
       return;
     }
-    const next = titleRef.current.trim() || 'Workout';
+    const next = titleRef.current.trim() || DEFAULT_WORKOUT_NAME;
     setTitle(next);
     setWorkout({ ...current, name: next });
     void renameWorkout(current.id, next);
@@ -439,6 +441,10 @@ const ActiveWorkoutBody: React.FC = () => {
 
   const handleFocusTitle = useCallback(() => {
     titleFocused.current = true;
+  }, []);
+
+  const focusTitle = useCallback(() => {
+    titleInput.current?.focus();
   }, []);
 
   const readSetNumbers = useCallback((setId: string, fallback: { weightKg: number | null; reps: number | null; rpe: number | null }, override?: Partial<{ weightText: string; repsText: string; rpeText: string }>) => {
@@ -1103,7 +1109,25 @@ const ActiveWorkoutBody: React.FC = () => {
             style={styles.fill}
           >
             <View style={styles.intro}>
-                <TextInput onBlur={handleRename} onChangeText={setTitle} onFocus={handleFocusTitle} style={styles.title} value={title} />
+                <View style={styles.titleRow}>
+                  <TextInput
+                    ref={titleInput}
+                    accessibilityHint={isDefaultWorkoutName(title) ? 'Tap to rename' : undefined}
+                    accessibilityLabel="Workout name"
+                    onBlur={handleRename}
+                    onChangeText={setTitle}
+                    onFocus={handleFocusTitle}
+                    placeholder="Name this workout"
+                    placeholderTextColor={colors.faint}
+                    selectTextOnFocus
+                    style={[styles.title, isDefaultWorkoutName(title) && styles.titleUnnamed]}
+                    value={title}
+                  />
+                  <Pressable accessibilityLabel="Rename workout" accessibilityRole="button" hitSlop={8} onPress={focusTitle} style={styles.rename}>
+                    <PencilIcon color={colors.accent} size={20} />
+                  </Pressable>
+                </View>
+                {isDefaultWorkoutName(title) ? <Text style={styles.renameHint}>Tap to rename</Text> : null}
                 <View style={styles.metaRow}>
                   {workout?.finishedAt != null ? (
                     <Text style={styles.elapsed}>{formatWorkoutWhen(workout.finishedAt)}</Text>
@@ -1291,8 +1315,32 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
+    flexGrow: 1,
+    flexShrink: 1,
     fontSize: 32,
     fontWeight: '800',
+    minWidth: 0,
     padding: 0,
+  },
+  titleUnnamed: {
+    color: colors.muted,
+  },
+  titleRow: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  rename: {
+    padding: 4,
+  },
+  renameHint: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
   },
 });

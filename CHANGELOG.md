@@ -14,6 +14,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Logging pad.** Weight and reps use an in-app keypad with Next, delete, and a nudge (2.5 kg, 5 lb, or 1 rep). RPE opens a 6–10 scale and a line about how many reps were left. Notes still use the system keyboard.
 - **One of something.** Analysis and badge counts say “1 set” and “1 workout” instead of the plural.
 - **Past sets.** Tap an exercise name during a workout, or on a finished workout, to see every finished set and rep for that exercise.
+- **Workout names.** The title shows a pencil and “Tap to rename”. A workout left as Workout is named when you finish, from the time of day and the muscles you trained.
 
 ## 1.5.0 · Android 15 / iOS 22
 

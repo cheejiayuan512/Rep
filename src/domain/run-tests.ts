@@ -20,6 +20,7 @@ import './stats.test';
 import './strength.test';
 import './units.test';
 import './workout-edits.test';
+import './workout-name.test';
 import { runAll } from './test-support';
 
 runAll();

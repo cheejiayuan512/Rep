@@ -32,6 +32,7 @@ import { isCableAttachment, isEquipment, isMuscleGroup, isWorkingSetType, normal
 import type { ExportWorkout } from '../domain/log-export';
 import { filterSetsBySetup } from '../domain/metrics';
 import { warmupsFirst } from '../domain/workout-edits';
+import { isDefaultWorkoutName, DEFAULT_WORKOUT_NAME, suggestWorkoutName } from '../domain/workout-name';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
 import { fuzzyFilter } from '../domain/fuzzy-search';
@@ -472,7 +473,7 @@ export const getActiveWorkoutSummary = reader((db, workoutId: string): ActiveWor
 export async function startEmptyWorkout(): Promise<string> {
   const id = createId();
   await writeDatabase((db) => {
-    db.workouts.push({ finishedAt: null, id, name: 'Workout', routineId: null, startedAt: Date.now() });
+    db.workouts.push({ finishedAt: null, id, name: DEFAULT_WORKOUT_NAME, routineId: null, startedAt: Date.now() });
   });
   return id;
 }
@@ -1088,7 +1089,7 @@ export async function renameWorkout(workoutId: string, name: string): Promise<vo
   await writeDatabase((db) => {
     const workout = db.workouts.find((item) => item.id === workoutId);
     if (workout) {
-      workout.name = name.trim() || 'Workout';
+      workout.name = name.trim() || DEFAULT_WORKOUT_NAME;
     }
   });
 }
@@ -1097,6 +1098,9 @@ export async function finishWorkout(workoutId: string): Promise<void> {
   await writeDatabase((db) => {
     const workout = db.workouts.find((item) => item.id === workoutId && item.finishedAt == null);
     if (workout) {
+      if (isDefaultWorkoutName(workout.name)) {
+        workout.name = suggestWorkoutName(workout.startedAt, muscleGroupsWorked(db, workout.id));
+      }
       workout.finishedAt = Date.now();
     }
   });
@@ -1607,6 +1611,22 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
       group.push(item);
     } else {
       groups.set(id, [item]);
+    }
+  }
+  return groups;
+}
+
+function muscleGroupsWorked(db: DatabaseShape, workoutId: string): string[] {
+  const rows = workoutExerciseRows(db, workoutId);
+  const trained = (row: StoredWorkoutExercise, workingOnly: boolean) =>
+    setsOf(db, row.id).some((set) => (workingOnly ? isWorkingSet(set) : set.completed && (set.reps ?? 0) > 0));
+  const working = rows.filter((row) => trained(row, true));
+  const source = working.length > 0 ? working : rows.filter((row) => trained(row, false));
+  const groups: string[] = [];
+  for (const row of source) {
+    const group = requireExercise(db, row.exerciseId).muscleGroup;
+    if (!groups.includes(group)) {
+      groups.push(group);
     }
   }
   return groups;
