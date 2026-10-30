@@ -566,7 +566,7 @@ const RoutineEditorBody: React.FC = () => {
           style={styles.fill}
         >
           <TextInput accessibilityLabel="Routine name" onChangeText={setName} onEndEditing={handleRename} style={styles.name} value={name} />
-          {exercises.length > 0 ? <Text style={styles.hint}>Drag ⋮ to reorder. Swipe a card left to remove it.</Text> : null}
+          {exercises.length > 0 ? <Text style={styles.hint}>Drag the dots to reorder. Swipe a card left to remove it.</Text> : null}
           <SortableList items={exercises} keyOf={exerciseKey} onDraggingChange={setDragging} onReorder={handleReorder} renderItem={renderExercise} />
           <Button label="Add exercise" onPress={handleAdd} variant="secondary" />
           <Button label="Start workout" onPress={pressStart} style={styles.start} />

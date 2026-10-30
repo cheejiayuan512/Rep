@@ -76,7 +76,7 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
       <Text style={styles.caption}>Share of working sets. A big gap can point to a muscle that needs more work.</Text>
       <View style={styles.card}>
         {analysis.muscles.map((row) => (
-          <ShareBar key={row.id} label={row.id} share={row.share} value={`${row.sets} sets`} />
+          <ShareBar key={row.id} label={row.id} share={row.share} value={countNoun(row.sets, 'set')} />
         ))}
       </View>
 
@@ -90,7 +90,7 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
       <Text style={styles.section}>Training days</Text>
       <View style={[styles.card, styles.days]}>
         {analysis.weekdays.map((count, index) => (
-          <View accessibilityLabel={`${WEEKDAYS[index]} ${count} workouts`} key={index} style={styles.day}>
+            <View accessibilityLabel={`${WEEKDAYS[index]}, ${countNoun(count, 'workout')}`} key={index} style={styles.day}>
             <Text style={styles.dayCount}>{count}</Text>
             <View style={styles.dayTrack}>
               <View style={[styles.dayFill, { height: `${(count / peakDay) * 100}%` }]} />
@@ -122,7 +122,7 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
                 <Text numberOfLines={1} style={styles.liftName}>
                   {lift.name}
                 </Text>
-                <Text style={styles.caption}>{lift.sets} working sets</Text>
+                <Text style={styles.caption}>{countNoun(lift.sets, 'working set')}</Text>
               </View>
               <View style={styles.liftNumbers}>
                 <Text style={styles.liftValue}>
@@ -158,6 +158,10 @@ const Tile: React.FC<{ label: string; value: string; sub: string; change?: numbe
     </View>
   );
 };
+
+function countNoun(count: number, singular: string): string {
+  return `${count} ${count === 1 ? singular : `${singular}s`}`;
+}
 
 const ShareBar: React.FC<{ label: string; value: string; share: number }> = ({ label, share, value }) => {
   return (

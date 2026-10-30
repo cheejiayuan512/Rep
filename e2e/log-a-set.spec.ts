@@ -302,7 +302,7 @@ test('profile holds the unit and bodyweight, and strength levels compare a lift'
 
   await page.getByRole('button', { name: /^Logger,/ }).click();
   await expect(page.getByText('Finished workouts.')).toBeVisible();
-  await expect(page.getByText(/^Now: 1 workouts/)).toBeVisible();
+  await expect(page.getByText(/^Now: 1 workout/)).toBeVisible();
   await page.getByRole('button', { name: 'Close', exact: true }).click();
 
   await page.getByRole('button', { name: 'Strength levels' }).click();

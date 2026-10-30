@@ -87,7 +87,7 @@ const TrainedRow: React.FC<TrainedRowProps> = React.memo(function TrainedRow({ e
   }, [exercise.id, onPress]);
 
   return (
-    <Pressable onPress={handlePress} style={styles.row}>
+    <Pressable accessibilityLabel={exercise.name} accessibilityRole="button" onPress={handlePress} style={styles.row}>
       <View style={styles.copy}>
         <Text style={styles.name}>{exercise.name}</Text>
         <Text style={styles.meta}>

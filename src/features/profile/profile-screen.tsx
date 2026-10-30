@@ -456,7 +456,28 @@ function formatBadgeAmount(badge: ProfileBadge, amount: number, unit: WeightUnit
   if (label.startsWith('kg')) {
     return `${formatStep(Math.round(kgToDisplay(amount, unit)))} ${label.replace('kg', unit)}`;
   }
-  return `${formatStep(amount)} ${label}`;
+  return `${formatStep(amount)} ${amount === 1 ? singularUnit(label) : label}`;
+}
+
+/** Badge units are stored as plurals. One of something should read as one. */
+function singularUnit(unit: string): string {
+  const singles: Record<string, string> = {
+    exercises: 'exercise',
+    notes: 'note',
+    PRs: 'PR',
+    reps: 'rep',
+    sets: 'set',
+    warmups: 'warmup',
+    workouts: 'workout',
+    '100-rep workouts': '100-rep workout',
+    '90-min sessions': '90-min session',
+    'muscle groups': 'muscle group',
+    'quick sessions': 'quick session',
+    'sets with RPE': 'set with RPE',
+    'weekend workouts': 'weekend workout',
+    'weeks in a row': 'week in a row',
+  };
+  return singles[unit] ?? unit;
 }
 
 function formatStep(value: number): string {
