@@ -12,7 +12,9 @@ import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../domain/rest'
 import type { MachineSetupOption } from '../domain/machine-setup';
 import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type SetType, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { previousForSet, type SupersetRole } from '../domain/workout-edits';
+import type { StrengthRating } from '../domain/strength';
 import { colors } from '../theme/colors';
+import { StrengthMark } from './strength-mark';
 import { CloseIcon, PencilIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
@@ -31,6 +33,8 @@ interface ExerciseBlockProps {
   drafts: DraftMap;
   /** Ids of completed sets in this card that beat a previous best. */
   recordIds: ReadonlySet<string>;
+  /** Best level from history and from the numbers typed on this card. Null without a standard or a body profile. */
+  strength: StrengthRating | null;
   superset: SupersetRole;
   /** False on the last card, which has nothing below it to link. */
   canLinkSuperset: boolean;
@@ -65,6 +69,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   unit,
   drafts,
   recordIds,
+  strength,
   superset,
   canLinkSuperset,
   showRpe,
@@ -155,7 +160,12 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
       <View style={styles.header}>
         <View style={styles.titleWrap}>
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
-          <Text style={styles.name}>{exercise.name}</Text>
+          <View style={styles.nameRow}>
+            <Text numberOfLines={1} style={styles.name}>
+              {exercise.name}
+            </Text>
+            {strength ? <StrengthMark rating={strength} /> : null}
+          </View>
           <Text style={styles.meta}>{exercise.equipment}</Text>
         </View>
         <View style={styles.headerActions}>
@@ -466,8 +476,14 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
+    flexShrink: 1,
     fontSize: 17,
     fontWeight: '700',
+  },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   notes: {
     backgroundColor: colors.surfaceRaised,

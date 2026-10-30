@@ -16,7 +16,7 @@ import type { MachineSetupOption } from '../../domain/machine-setup';
 import type { PreviousSet, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { previousForSet, type SupersetRole } from '../../domain/workout-edits';
-import { SetTypeBadge, SetTypeMenu } from '../../components/set-type-badge';
+import { SetTypeBadge } from '../../components/set-type-badge';
 import { colors } from '../../theme/colors';
 
 const column = {
@@ -204,18 +204,11 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     },
     [onChangeReps, set.id],
   );
-  const [typesOpen, setTypesOpen] = useState(false);
-  const toggleTypes = useCallback(() => {
-    setTypesOpen((open) => !open);
-  }, []);
   const handleSetType = useCallback(
     (setType: SetType) => {
-      setTypesOpen(false);
-      if (setType !== set.setType) {
-        onChangeSetType(set.id, setType);
-      }
+      onChangeSetType(set.id, setType);
     },
-    [onChangeSetType, set.id, set.setType],
+    [onChangeSetType, set.id],
   );
   const handleDelete = useCallback(() => {
     onDelete(set.id);
@@ -236,16 +229,13 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.setWrap}>
-      <View>
       <View style={[styles.row, warmup && styles.warmup]}>
-        <SetTypeBadge index={index} onPress={toggleTypes} open={typesOpen} setType={set.setType} />
+        <SetTypeBadge index={index} onChange={handleSetType} setType={set.setType} />
         <Text numberOfLines={1} style={styles.previous}>
           {previousText}
         </Text>
         <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weightCol} unit={unit} value={draft.weightText} />
         <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.repsCol} unit={unit} value={draft.repsText} />
-      </View>
-      {typesOpen ? <SetTypeMenu onChange={handleSetType} value={set.setType} /> : null}
       </View>
     </SwipeToDelete>
   );

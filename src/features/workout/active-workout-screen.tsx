@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useShowRpe, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
+import { useBodyProfile, useShowRpe, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { ExerciseBlock } from '../../components/exercise-block';
 import { SortableList } from '../../components/sortable-list';
@@ -34,6 +34,7 @@ import { machineSetupOptions } from '../../domain/machine-setup';
 import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { createId } from '../../domain/ids';
 import { findNextSet, findSet, moveById, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from '../../domain/workout-edits';
+import { bestWorkingOneRepMax, rateLift, type StrengthRating } from '../../domain/strength';
 import { formatWeight, kgToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   addExerciseToWorkout,
@@ -130,6 +131,8 @@ const ActiveWorkoutBody: React.FC = () => {
   const insets = useSafeAreaInsets();
   const pad = useLogPadLayout();
   const { unit } = useWeightUnit();
+  const { body } = useBodyProfile();
+  const strengthOverview = useStrengthOverview();
   const { showRpe } = useShowRpe();
   const { warmupMultiplier } = useWarmupRestMultiplier();
   const workoutId = route.params.workoutId;
@@ -298,6 +301,31 @@ const ActiveWorkoutBody: React.FC = () => {
     const id = setTimeout(() => setUndo(null), 5000);
     return () => clearTimeout(id);
   }, [undo]);
+
+  const strengthByCard = useMemo(() => {
+    const map = new Map<string, StrengthRating>();
+    if (!workout || body.bodyweightKg == null || body.sex == null) {
+      return map;
+    }
+    for (const exercise of workout.exercises) {
+      const stored = strengthOverview?.ratings.find((rating) => rating.exerciseId === exercise.exerciseId)?.oneRepMaxKg ?? 0;
+      const typed = bestWorkingOneRepMax(
+        exercise.sets.map((set) => {
+          const draft = drafts[set.id];
+          return {
+            reps: draft ? repsTextToNumber(draft.repsText, null) : set.reps,
+            setType: set.setType,
+            weightKg: draft ? weightTextToKg(draft.weightText, unit, null) : set.weightKg,
+          };
+        }),
+      );
+      const rating = rateLift(exercise.exerciseId, Math.max(stored, typed ?? 0), body.bodyweightKg, body.sex, body.ageYears);
+      if (rating) {
+        map.set(exercise.id, rating);
+      }
+    }
+    return map;
+  }, [body.ageYears, body.bodyweightKg, body.sex, drafts, strengthOverview, unit, workout]);
 
   const recordIdsByExercise = useMemo(() => {
     const map = new Map<string, ReadonlySet<string>>();
@@ -1110,6 +1138,7 @@ const ActiveWorkoutBody: React.FC = () => {
                       onToggleSuperset={handleToggleSuperset}
                       orderBase={Math.max(0, workout.exercises.findIndex((item) => item.id === exercise.id)) * 1000}
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
+                      strength={strengthByCard.get(exercise.id) ?? null}
                       canLinkSuperset={workout.exercises[workout.exercises.length - 1]?.id !== exercise.id}
                       superset={supersetRole(workout.exercises, exercise.id)}
                       setupOptions={machineSetupOptions(historyByExercise[exercise.exerciseId] ?? [])}

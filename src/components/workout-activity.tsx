@@ -1,7 +1,7 @@
 /**
  * The open workout on the iOS Lock Screen and in the Dynamic Island: the next
- * set, a Done button that checks it off, and either the rest countdown or the
- * time since the workout started.
+ * set, a Done button that checks it off, and either the rest countdown or how
+ * much of the workout is done.
  * The function below runs inside the widget extension, not the app: it can use
  * only @expo/ui/swift-ui views, no hooks, and nothing declared outside it.
  * iOS ticks both timers itself, so the app sends nothing while you rest.
@@ -24,6 +24,9 @@ export interface WorkoutActivityProps {
   restEndsAt: number;
   /** False when the next set has no reps yet, so Done would have nothing to log. */
   canComplete: boolean;
+  /** Checked-off sets over every set on the workout. The island shows this when you are not resting. */
+  completedSets: number;
+  totalSets: number;
 }
 
 const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityEnvironment) => {
@@ -32,13 +35,17 @@ const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityE
   const resting = props.restEndsAt > 0 && !environment.isStale;
   const rest = { lower: new Date(props.restStartedAt), upper: new Date(props.restEndsAt) };
   const elapsed = { lower: new Date(props.workoutStartedAt), upper: new Date(props.workoutStartedAt + 24 * 60 * 60 * 1000) };
+  const totalSets = props.totalSets > 0 ? props.totalSets : 0;
+  const completedSets = props.completedSets > 0 ? props.completedSets : 0;
+  const percentText = totalSets > 0 ? `${Math.round((100 * completedSets) / totalSets)}%` : '';
+  const heading = resting ? 'Rest · up next' : percentText ? `Up next · ${percentText}` : 'Up next';
   const detail = [props.setLabel, props.nextSet].filter((part) => part.length > 0).join(' · ');
 
   return {
     banner: (
       <HStack modifiers={[padding({ all: 16 })]}>
         <VStack alignment="leading">
-          <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#93A0B3')]}>{resting ? 'Rest · up next' : 'Up next'}</Text>
+          <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#93A0B3')]}>{heading}</Text>
           <Text modifiers={[font({ size: 17, weight: 'bold' }), foregroundStyle('#F4F7FB')]}>{props.exerciseName}</Text>
           {detail ? <Text modifiers={[font({ size: 13 }), foregroundStyle('#93A0B3')]}>{detail}</Text> : null}
         </VStack>
@@ -58,13 +65,15 @@ const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityE
     compactLeading: <Image color={accent} systemName={resting ? 'timer' : 'figure.strengthtraining.traditional'} />,
     compactTrailing: resting ? (
       <Text countsDown modifiers={[monospacedDigit(), foregroundStyle(accent), frame({ width: 44 })]} timerInterval={rest} />
+    ) : percentText ? (
+      <Text modifiers={[font({ size: 14, weight: 'bold' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 46, alignment: 'trailing' })]}>{percentText}</Text>
     ) : (
       <Text countsDown={false} modifiers={[monospacedDigit(), foregroundStyle('#F4F7FB'), frame({ width: 52 })]} timerInterval={elapsed} />
     ),
     minimal: <Image color={accent} systemName={resting ? 'timer' : 'figure.strengthtraining.traditional'} />,
     expandedLeading: (
       <VStack alignment="leading" modifiers={[padding({ leading: 8, top: 8 })]}>
-        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#93A0B3')]}>{resting ? 'Rest · up next' : 'Up next'}</Text>
+        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle('#93A0B3')]}>{heading}</Text>
         <Text modifiers={[font({ size: 15, weight: 'bold' })]}>{props.exerciseName}</Text>
       </VStack>
     ),

@@ -7,9 +7,14 @@
  * table (peak 24–39). These are rough public standards, not a survey of the
  * whole population; most people who do not train would sit below Beginner.
  */
-import type { BodySex } from './types';
+import { estimateOneRepMax } from './metrics';
+import type { BodySex, SetType } from './types';
+import { isWorkingSetType } from './types';
 
 export const STRENGTH_LEVELS = ['Beginner', 'Novice', 'Intermediate', 'Advanced', 'Elite'] as const;
+
+/** Above this many reps an estimated max is too loose to rank strength. */
+export const STRENGTH_MAX_REPS = 10;
 export type StrengthLevel = (typeof STRENGTH_LEVELS)[number];
 
 const PERCENTILES = [5, 20, 50, 80, 95];
@@ -42,6 +47,20 @@ export const STRENGTH_LIFTS = Object.keys(STANDARDS);
 
 export function hasStrengthStandard(exerciseId: string): boolean {
   return exerciseId in STANDARDS;
+}
+
+/** Highest Epley estimate among working sets of 1–10 reps. Null when none qualify. */
+export function bestWorkingOneRepMax(sets: Array<{ setType: SetType; weightKg: number | null; reps: number | null }>): number | null {
+  let best = 0;
+  for (const set of sets) {
+    const reps = set.reps ?? 0;
+    const weightKg = set.weightKg ?? 0;
+    if (!isWorkingSetType(set.setType) || reps <= 0 || reps > STRENGTH_MAX_REPS || weightKg <= 0) {
+      continue;
+    }
+    best = Math.max(best, estimateOneRepMax(weightKg, reps));
+  }
+  return best > 0 ? best : null;
 }
 
 export interface StrengthRating {

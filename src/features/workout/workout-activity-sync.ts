@@ -68,15 +68,32 @@ export function activityPropsFor(workout: WorkoutDetail, unit: WeightUnit): Work
   const next = findNextSet(workout, getLastExercise(workout.id));
   const current = getRest(workout.id);
   const empty = workout.exercises.length === 0;
+  const progress = progressOf(workout);
   return {
     canComplete: next != null && (next.set.reps ?? 0) > 0,
+    completedSets: progress.completedSets,
     exerciseName: next ? next.exercise.name : empty ? 'Add an exercise' : 'All sets done',
     nextSet: next ? formatLoggedLoad(next.set.weightKg, next.set.reps, unit) : empty ? '' : 'Finish in Rep',
     restEndsAt: current?.endsAt ?? 0,
     restStartedAt: current?.startedAt ?? 0,
     setLabel: next?.label ?? '',
+    totalSets: progress.totalSets,
     workoutStartedAt: workout.startedAt,
   };
+}
+
+function progressOf(workout: WorkoutDetail): { completedSets: number; totalSets: number } {
+  let completedSets = 0;
+  let totalSets = 0;
+  for (const exercise of workout.exercises) {
+    for (const set of exercise.sets) {
+      totalSets += 1;
+      if (set.completed) {
+        completedSets += 1;
+      }
+    }
+  }
+  return { completedSets, totalSets };
 }
 
 /** Listens for Done for the life of the app. Call once at startup. */

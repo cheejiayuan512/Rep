@@ -35,7 +35,7 @@ import { warmupsFirst } from '../domain/workout-edits';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
 import { fuzzyFilter } from '../domain/fuzzy-search';
-import { rateLift, STRENGTH_LIFTS, type StrengthRating } from '../domain/strength';
+import { rateLift, STRENGTH_LIFTS, STRENGTH_MAX_REPS, type StrengthRating } from '../domain/strength';
 import type { BodyProfile } from '../domain/types';
 import { isBodySex, parseAgeYears } from '../domain/types';
 import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
@@ -1281,9 +1281,6 @@ function profileOf(db: DatabaseShape, now: number, withoutWorkoutId: string | nu
     workouts,
   });
 }
-
-/** Above this many reps an estimated max is too loose to rank strength. */
-const STRENGTH_MAX_REPS = 10;
 
 export interface StrengthOverview {
   body: BodyProfile;

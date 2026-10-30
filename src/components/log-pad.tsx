@@ -84,7 +84,9 @@ export function useLogPadLayout(): {
 } {
   const pad = useLogPad();
   return {
-    height: pad.activeId ? Math.max(pad.height, LOG_PAD_FALLBACK) : 0,
+    // The RPE scale is shorter than the number pad. Once measured, use that
+    // height so the rest bar sits on the keys instead of a fixed 300px gap.
+    height: pad.activeId ? (pad.height > 0 ? pad.height : LOG_PAD_FALLBACK) : 0,
     onScroll: pad.onScroll,
     open: pad.activeId != null,
     scrollRef: pad.scrollRef,

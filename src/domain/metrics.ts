@@ -19,6 +19,8 @@ export interface ScoredSet {
   volumeKg: number;
   achievedAt: number;
   rpe: number | null;
+  /** Groups sets into a session so two singles can beat one single. */
+  workoutId: string;
 }
 
 export interface Bests {
@@ -29,7 +31,7 @@ export interface Bests {
 }
 
 export interface RecordHit {
-  kind: 'oneRepMax' | 'heaviest' | 'volume' | 'reps' | 'rpe';
+  kind: 'oneRepMax' | 'heaviest' | 'volume' | 'reps' | 'rpe' | 'session';
   title: string;
   detail: string;
 }
@@ -79,6 +81,7 @@ export function scoreLoggedSet(set: LoggedSet): ScoredSet | null {
     rpe: typeof set.rpe === 'number' ? set.rpe : null,
     volumeKg: weightKg * set.reps,
     weightKg,
+    workoutId: set.workoutId,
   };
 }
 
@@ -112,7 +115,7 @@ export function detectRecord(current: ScoredSet, prior: ScoredSet[], unit: Weigh
   return detectRecords(current, prior, unit)[0] ?? null;
 }
 
-/** Every record this set beats, in priority order: 1RM, heaviest, volume, reps, then easier RPE. */
+/** Every record this set beats, in priority order: 1RM, heaviest, volume, reps, easier RPE, then a bigger session. */
 export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit[] {
   const best = bestsFromScored(prior);
   const hits: RecordHit[] = [];
@@ -156,8 +159,69 @@ export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: Weig
       });
     }
   }
+  const session = sessionHit(current, prior, unit);
+  if (session) {
+    hits.push(session);
+  }
 
   return hits;
+}
+
+/**
+ * More work across the session than any earlier one: two singles after a best
+ * of one single. The set that crosses the old total gets the star. A single
+ * set that already beats that total stays a set record and is not repeated here.
+ */
+function sessionHit(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): RecordHit | null {
+  let bestVolume = 0;
+  let bestReps = 0;
+  let earlierVolume = 0;
+  let earlierReps = 0;
+  let earlierCount = 0;
+  const other = new Map<string, { reps: number; volumeKg: number }>();
+  for (const set of prior) {
+    if (set.workoutId === current.workoutId) {
+      earlierVolume += set.volumeKg;
+      earlierReps += set.reps;
+      earlierCount += 1;
+      continue;
+    }
+    const row = other.get(set.workoutId) ?? { reps: 0, volumeKg: 0 };
+    row.volumeKg += set.volumeKg;
+    row.reps += set.reps;
+    other.set(set.workoutId, row);
+  }
+  for (const row of other.values()) {
+    if (row.volumeKg > bestVolume) {
+      bestVolume = row.volumeKg;
+    }
+    if (row.volumeKg <= 0 && row.reps > bestReps) {
+      bestReps = row.reps;
+    }
+  }
+  const sets = earlierCount + 1;
+  if (bestVolume > 0) {
+    const running = earlierVolume + current.volumeKg;
+    const crossed = running > bestVolume + VOLUME_EPSILON_KG && earlierVolume <= bestVolume + VOLUME_EPSILON_KG;
+    if (crossed && current.volumeKg <= bestVolume + VOLUME_EPSILON_KG) {
+      return {
+        detail: `${sets} sets`,
+        kind: 'session',
+        title: `Session PR · ${formatVolume(kgToDisplay(running, unit))} ${unit} · ${sets} sets`,
+      };
+    }
+    return null;
+  }
+  const runningReps = earlierReps + current.reps;
+  const crossedReps = bestReps > 0 && runningReps > bestReps && earlierReps <= bestReps;
+  if (crossedReps && current.reps <= bestReps) {
+    return {
+      detail: `${sets} sets`,
+      kind: 'session',
+      title: `Session PR · ${runningReps} reps · ${sets} sets`,
+    };
+  }
+  return null;
 }
 
 /**

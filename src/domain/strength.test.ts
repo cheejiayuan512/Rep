@@ -1,5 +1,12 @@
-import { ageFactor, overallLevel, rateLift } from './strength';
+import { ageFactor, bestWorkingOneRepMax, overallLevel, rateLift } from './strength';
 import { assertClose, assertEqual, test } from './test-support';
+
+test('typed working sets of 10 or fewer feed the strength mark', () => {
+  assertClose(bestWorkingOneRepMax([{ reps: 5, setType: 'normal', weightKg: 100 }]) ?? 0, 100 * (1 + 5 / 30));
+  assertEqual(bestWorkingOneRepMax([{ reps: 5, setType: 'warmup', weightKg: 200 }]), null);
+  assertEqual(bestWorkingOneRepMax([{ reps: 12, setType: 'normal', weightKg: 100 }]), null);
+  assertEqual(bestWorkingOneRepMax([{ reps: 1, setType: 'drop', weightKg: 80 }]), 80);
+});
 
 test('at the reference bodyweight the thresholds are plain multiples', () => {
   const rating = rateLift('back-squat', 120, 80, 'male');

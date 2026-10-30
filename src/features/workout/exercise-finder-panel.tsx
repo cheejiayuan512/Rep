@@ -7,6 +7,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { TextButton } from '../../components/header';
+import { StrengthMark } from '../../components/strength-mark';
+import type { StrengthRating } from '../../domain/strength';
 import { bodyPositions, feelLabels, findExercises, movementCue, usingLabels, type FinderAnswers, type FinderMatch } from '../../domain/exercise-finder';
 import { equipmentTypes, muscleGroups, type Exercise } from '../../domain/types';
 import { colors } from '../../theme/colors';
@@ -19,6 +21,7 @@ interface ExerciseFinderPanelProps {
   currentExerciseId: string | null;
   onSelect: (exerciseId: string) => void;
   onClose: () => void;
+  ratingByExercise: ReadonlyMap<string, StrengthRating>;
 }
 
 type Step = 'muscle' | 'equipment' | 'position' | 'results';
@@ -41,7 +44,7 @@ const questions: Record<Exclude<Step, 'results'>, { title: string; options: Opti
   position: { options: positionOptions, title: 'How is your body placed?' },
 };
 
-export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exercises, addedIds, pendingId, swapping, currentExerciseId, onSelect, onClose }) => {
+export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exercises, addedIds, pendingId, swapping, currentExerciseId, onSelect, onClose, ratingByExercise }) => {
   const [step, setStep] = useState<Step>('muscle');
   const [answers, setAnswers] = useState<FinderAnswers>(empty);
   const matches = useMemo(() => (step === 'results' ? findExercises(exercises, answers) : []), [answers, exercises, step]);
@@ -105,11 +108,11 @@ export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exerci
           </Text>
           {summary ? <Text style={styles.summary}>{summary}</Text> : null}
           {exact.map((match) => (
-            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} swapping={swapping} />
+            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} rating={ratingByExercise.get(match.exercise.id) ?? null} swapping={swapping} />
           ))}
           {near.length > 0 ? <Text style={styles.section}>{exact.length > 0 ? 'Also close' : 'One answer differs'}</Text> : null}
           {near.map((match) => (
-            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} swapping={swapping} />
+            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} rating={ratingByExercise.get(match.exercise.id) ?? null} swapping={swapping} />
           ))}
           {matches.length === 0 ? <Text style={styles.summary}>Nothing in the library matches. Go back to search and create it as a new exercise.</Text> : null}
           <View style={styles.footer}>
@@ -146,10 +149,11 @@ interface FinderResultProps {
   pending: boolean;
   current: boolean;
   swapping: boolean;
+  rating: StrengthRating | null;
   onPress: (exerciseId: string) => void;
 }
 
-const FinderResult: React.FC<FinderResultProps> = React.memo(function FinderResult({ match, added, pending, current, swapping, onPress }) {
+const FinderResult: React.FC<FinderResultProps> = React.memo(function FinderResult({ match, added, pending, current, swapping, rating, onPress }) {
   const { exercise } = match;
   const handlePress = useCallback(() => {
     onPress(exercise.id);
@@ -160,14 +164,19 @@ const FinderResult: React.FC<FinderResultProps> = React.memo(function FinderResu
   return (
     <Pressable
       accessibilityHint={swapping ? 'Replaces the exercise on the card' : added ? 'Removes it from the list' : 'Adds it to the list'}
-      accessibilityLabel={exercise.name}
+      accessibilityLabel={rating ? `${exercise.name}, ${rating.level}` : exercise.name}
       accessibilityRole="button"
       accessibilityState={{ selected: added }}
       onPress={handlePress}
       style={styles.result}
     >
       <View style={styles.resultCopy}>
-        <Text style={styles.name}>{exercise.name}</Text>
+        <View style={styles.nameRow}>
+          <Text numberOfLines={1} style={styles.name}>
+            {exercise.name}
+          </Text>
+          {rating ? <StrengthMark rating={rating} /> : null}
+        </View>
         <Text style={styles.meta}>
           {exercise.muscleGroup} · {exercise.equipment}
           {exercise.isCustom ? ' · Custom' : ''}
@@ -209,8 +218,14 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: '700',
+  },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   option: {
     backgroundColor: colors.surface,

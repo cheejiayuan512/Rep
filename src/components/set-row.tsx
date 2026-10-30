@@ -3,7 +3,7 @@
  * Tap the set number to mark it as a warmup. The boxes show text; the parent converts that text to numbers.
  * Swipe the row left to reveal Delete; a long swipe deletes straight away (the card shows Undo).
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatLoggedLoad } from '../domain/format';
@@ -11,7 +11,7 @@ import type { SetDraft } from '../domain/drafts';
 import type { PreviousSet, SetRecord, SetType, WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
 import { LogValue } from './log-pad';
-import { SetTypeBadge, SetTypeMenu } from './set-type-badge';
+import { SetTypeBadge } from './set-type-badge';
 import { SwipeToDelete } from './swipe-to-delete';
 
 const nativeDriver = Platform.OS !== 'web';
@@ -87,18 +87,11 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   const handleComplete = useCallback(() => {
     onToggleComplete(set.id);
   }, [onToggleComplete, set.id]);
-  const [typesOpen, setTypesOpen] = useState(false);
-  const toggleTypes = useCallback(() => {
-    setTypesOpen((open) => !open);
-  }, []);
   const handleSetType = useCallback(
     (setType: SetType) => {
-      setTypesOpen(false);
-      if (setType !== set.setType) {
-        onChangeSetType(set.id, setType);
-      }
+      onChangeSetType(set.id, setType);
     },
-    [onChangeSetType, set.id, set.setType],
+    [onChangeSetType, set.id],
   );
   const checkScale = useRef(new Animated.Value(1)).current;
   const burst = useRef(new Animated.Value(0)).current;
@@ -135,10 +128,9 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.wrap} testID="set-row">
-      <View>
       <View style={[styles.row, set.setType === 'warmup' && styles.warmup]}>
         <View style={styles.badgeWrap}>
-          <SetTypeBadge index={index} onPress={toggleTypes} open={typesOpen} setType={set.setType} />
+          <SetTypeBadge index={index} onChange={handleSetType} setType={set.setType} />
           {isRecord ? (
             <Text accessibilityLabel="Personal record" style={styles.star}>
               ★
@@ -173,8 +165,6 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
           />
           <Animated.Text style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}>{set.completed ? '✓' : ''}</Animated.Text>
         </Pressable>
-      </View>
-      {typesOpen ? <SetTypeMenu onChange={handleSetType} value={set.setType} /> : null}
       </View>
     </SwipeToDelete>
   );

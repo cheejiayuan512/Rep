@@ -22,7 +22,10 @@ import {
   removeExerciseFromWorkout,
   swapWorkoutExercise,
 } from '../../data/repository';
-import { groupExercises, type ExerciseListItem } from '../../domain/exercise-families';
+import { groupExercises, movementFamily, type ExerciseListItem } from '../../domain/exercise-families';
+import type { StrengthRating } from '../../domain/strength';
+import { StrengthMark } from '../../components/strength-mark';
+import { useStrengthOverview } from '../../state/hooks';
 import { ExerciseFinderPanel } from './exercise-finder-panel';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
 import { equipmentTypes, muscleGroups } from '../../domain/types';
@@ -59,6 +62,29 @@ export const ExercisePickerScreen: React.FC = () => {
   const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
   const [finderLibrary, setFinderLibrary] = useState<Exercise[] | null>(null);
   const items = useMemo(() => groupExercises(exercises, expandedFamilies, query.trim().length > 0), [exercises, expandedFamilies, query]);
+  const strengthOverview = useStrengthOverview();
+  const ratingByExercise = useMemo(() => {
+    const map = new Map<string, StrengthRating>();
+    for (const rating of strengthOverview?.ratings ?? []) {
+      map.set(rating.exerciseId, rating);
+    }
+    return map;
+  }, [strengthOverview]);
+  const ratingByFamily = useMemo(() => {
+    const map = new Map<string, StrengthRating>();
+    for (const exercise of exercises) {
+      const family = movementFamily(exercise.id);
+      const rating = ratingByExercise.get(exercise.id);
+      if (!family || !rating) {
+        continue;
+      }
+      const current = map.get(family);
+      if (!current || rating.percentile > current.percentile) {
+        map.set(family, rating);
+      }
+    }
+    return map;
+  }, [exercises, ratingByExercise]);
 
   const load = useCallback(async (nextQuery: string, nextMuscle: MuscleGroup | null) => {
     const rows = await listExercises(nextQuery, nextMuscle);
@@ -225,7 +251,7 @@ export const ExercisePickerScreen: React.FC = () => {
   const renderExercise = useCallback(
     ({ item }: ListRenderItemInfo<ExerciseListItem>) =>
       item.kind === 'family' ? (
-        <FamilyRow count={item.count} expanded={item.expanded} family={item.family} onToggle={toggleFamily} />
+        <FamilyRow count={item.count} expanded={item.expanded} family={item.family} onToggle={toggleFamily} rating={ratingByFamily.get(item.family) ?? null} />
       ) : (
         <ExerciseChoice
           added={addedIds.has(item.exercise.id)}
@@ -234,10 +260,11 @@ export const ExercisePickerScreen: React.FC = () => {
           nested={item.nested}
           onPress={handleSelect}
           pending={pendingId === item.exercise.id}
+          rating={ratingByExercise.get(item.exercise.id) ?? null}
           swapping={swapping != null}
         />
       ),
-    [addedIds, handleSelect, pendingId, swapping, toggleFamily],
+    [addedIds, handleSelect, pendingId, ratingByExercise, ratingByFamily, swapping, toggleFamily],
   );
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
@@ -272,6 +299,7 @@ export const ExercisePickerScreen: React.FC = () => {
             addedIds={addedIds}
             currentExerciseId={swapping?.currentExerciseId ?? null}
             exercises={finderLibrary}
+            ratingByExercise={ratingByExercise}
             onClose={closeFinder}
             onSelect={pressFinderResult}
             pendingId={pendingId}
@@ -367,26 +395,30 @@ interface FamilyRowProps {
   family: string;
   count: number;
   expanded: boolean;
+  rating: StrengthRating | null;
   onToggle: (family: string) => void;
 }
 
-const FamilyRow: React.FC<FamilyRowProps> = React.memo(function FamilyRow({ family, count, expanded, onToggle }) {
+const FamilyRow: React.FC<FamilyRowProps> = React.memo(function FamilyRow({ family, count, expanded, onToggle, rating }) {
   const handlePress = useCallback(() => {
     onToggle(family);
   }, [family, onToggle]);
 
   return (
     <Pressable
-      accessibilityLabel={`${family}, ${count} variations`}
+      accessibilityLabel={rating ? `${family}, ${rating.level}, ${count} variations` : `${family}, ${count} variations`}
       accessibilityRole="button"
       accessibilityState={{ expanded }}
       onPress={handlePress}
       style={styles.row}
     >
       <View style={styles.rowCopy}>
-        <Text numberOfLines={1} style={styles.name}>
-          {family}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text numberOfLines={1} style={styles.name}>
+            {family}
+          </Text>
+          {rating ? <StrengthMark rating={rating} /> : null}
+        </View>
         <Text style={styles.meta}>{count} variations</Text>
       </View>
       <Text style={styles.chevron}>{expanded ? '▾' : '▸'}</Text>
@@ -402,10 +434,11 @@ interface ExerciseChoiceProps {
   /** Swap mode: the card's own exercise. */
   current: boolean;
   swapping: boolean;
+  rating: StrengthRating | null;
   onPress: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, current, swapping, onPress }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, current, swapping, rating, onPress }) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);
@@ -415,16 +448,19 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
   return (
     <Pressable
       accessibilityHint={hint}
-      accessibilityLabel={exercise.name}
+      accessibilityLabel={rating ? `${exercise.name}, ${rating.level}` : exercise.name}
       accessibilityRole="button"
       accessibilityState={{ selected: added }}
       onPress={handlePress}
       style={[styles.row, nested && styles.nested]}
     >
       <View style={styles.rowCopy}>
-        <Text numberOfLines={1} style={styles.name}>
-          {exercise.name}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text numberOfLines={1} style={styles.name}>
+            {exercise.name}
+          </Text>
+          {rating ? <StrengthMark rating={rating} /> : null}
+        </View>
         <Text style={styles.meta}>
           {exercise.muscleGroup} · {exercise.equipment}
           {exercise.isCustom ? ' · Custom' : ''}
@@ -511,8 +547,14 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: '700',
+  },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   nested: {
     backgroundColor: colors.surface,

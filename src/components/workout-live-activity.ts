@@ -41,9 +41,10 @@ export function showWorkoutActivity(props: WorkoutActivityProps): void {
   const resting = props.restEndsAt > Date.now();
   if (Platform.OS === 'android') {
     try {
+      const percent = props.totalSets > 0 ? `${Math.round((100 * props.completedSets) / props.totalSets)}%` : '';
       RestLiveUpdate?.show({
         actionLabel: props.canComplete ? 'Done set' : '',
-        body: [props.exerciseName, props.setLabel, props.nextSet].filter((part) => part.length > 0).join(' · '),
+        body: [percent, props.exerciseName, props.setLabel, props.nextSet].filter((part) => part.length > 0).join(' · '),
         // One-word titles leave room for the timer beside them and in Samsung's Now Bar pill.
         idleTitle: 'Workout',
         restEndsAt: resting ? props.restEndsAt : 0,

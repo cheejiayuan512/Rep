@@ -2,6 +2,14 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## Unreleased
+
+- **Set type menu.** Normal, Warm-up, Drop, and Failure open over the row. The sets underneath stay put.
+- **RPE pad.** The rest bar sits on the effort keyboard. It no longer leaves a gap under the shorter keys.
+- **Dynamic Island.** While you are not resting, the island shows how much of the workout is checked off. Rest still shows the countdown.
+- **Session records.** Two singles after a best of one single is a personal record. The star is on the set that makes the session bigger.
+- **Strength mark.** A small five-bar level sits beside the exercise name on the card and in search, including the set you are typing.
+
 ## 1.5.1 · Android 16 / iOS 23
 
 - **Logging pad.** Weight and reps use an in-app keypad with Next, delete, and a nudge (2.5 kg, 5 lb, or 1 rep). RPE opens a 6–10 scale and a line about how many reps were left. Notes still use the system keyboard.

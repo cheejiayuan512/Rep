@@ -104,6 +104,40 @@ test('one set can beat weight, volume, and reps at once', () => {
   );
 });
 
+test('a second single is a session record when one single was the best session', () => {
+  const history = scored({ performedAt: 1, reps: 1, weightKg: 100, workoutId: 'last' });
+  const first = scored({ performedAt: 2, reps: 1, weightKg: 100, workoutId: 'today' });
+  const second = scored({ performedAt: 3, reps: 1, weightKg: 100, workoutId: 'today' });
+  assertEqual(detectRecords(first, [history], 'kg'), []);
+  assertEqual(detectRecords(second, [history, first], 'kg').map((hit) => hit.kind), ['session']);
+  assertEqual(detectRecords(second, [history, first], 'kg')[0]?.title, 'Session PR · 200 kg · 2 sets');
+  const ids = recordSetIds(
+    [
+      { id: 'first', scored: first },
+      { id: 'second', scored: second },
+    ],
+    [history],
+  );
+  assertEqual([...ids], ['second']);
+});
+
+test('one set that already beats the old session is not also a session record', () => {
+  const history = scored({ performedAt: 1, reps: 1, weightKg: 100, workoutId: 'last' });
+  const current = scored({ performedAt: 2, reps: 1, weightKg: 110, workoutId: 'today' });
+  assertEqual(
+    detectRecords(current, [history], 'kg').map((hit) => hit.kind),
+    ['oneRepMax', 'heaviest', 'volume'],
+  );
+});
+
+test('a fourth matching set is a session record', () => {
+  const history = [1, 2, 3].map((position) => scored({ performedAt: position, position, reps: 5, weightKg: 100, workoutId: 'last' }));
+  const today = [4, 5, 6, 7].map((position) => scored({ performedAt: position, position, reps: 5, weightKg: 100, workoutId: 'today' }));
+  const fourth = today[3];
+  assertTrue(fourth != null, 'expected a fourth set');
+  assertEqual(detectRecords(fourth, [...history, ...today.slice(0, 3)], 'kg').map((hit) => hit.kind), ['session']);
+});
+
 test('record stars skip the first ever set and warmups', () => {
   const ids = recordSetIds(
     [
