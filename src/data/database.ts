@@ -208,15 +208,40 @@ async function ensureLoaded(): Promise<DatabaseShape> {
   }
 
   const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  const parsed = raw ? parseDatabase(raw) : null;
-  const next = parsed ?? emptyDatabase();
-  const seeded = ensureSeed(next);
-  const normalized = normalizeStored(next);
-  commit(next);
-  if (!parsed || seeded || normalized) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  const loaded = loadStoredDocument(raw);
+  commit(loaded.database);
+  if (loaded.shouldPersist) {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(loaded.database));
   }
-  return next;
+  return loaded.database;
+}
+
+/** Thrown when the saved file is not a log. The file is left on disk. */
+export class CorruptLogError extends Error {
+  constructor() {
+    super('Could not open the workout log. The saved file was left as it is.');
+    this.name = 'CorruptLogError';
+  }
+}
+
+/**
+ * Opens a saved document. `null` is a first launch. A file that is not a log
+ * throws, so the caller must not write an empty document over it.
+ */
+export function loadStoredDocument(raw: string | null): { database: DatabaseShape; shouldPersist: boolean } {
+  if (raw == null) {
+    const next = emptyDatabase();
+    ensureSeed(next);
+    normalizeStored(next);
+    return { database: next, shouldPersist: true };
+  }
+  const parsed = parseDatabase(raw);
+  if (!parsed) {
+    throw new CorruptLogError();
+  }
+  const seeded = ensureSeed(parsed);
+  const normalized = normalizeStored(parsed);
+  return { database: parsed, shouldPersist: seeded || normalized };
 }
 
 function parseDatabase(raw: string): DatabaseShape | null {
@@ -236,16 +261,7 @@ function isDatabaseShape(value: unknown): value is DatabaseShape {
     return false;
   }
   const record = value as Partial<DatabaseShape>;
-  return (
-    Array.isArray(record.exercises) &&
-    Array.isArray(record.routines) &&
-    Array.isArray(record.routineExercises) &&
-    Array.isArray(record.workouts) &&
-    Array.isArray(record.workoutExercises) &&
-    Array.isArray(record.sets) &&
-    !!record.settings &&
-    isWeightUnit(record.settings.weightUnit)
-  );
+  return Array.isArray(record.exercises) && Array.isArray(record.routines) && Array.isArray(record.routineExercises) && Array.isArray(record.workouts) && Array.isArray(record.workoutExercises) && Array.isArray(record.sets);
 }
 
 function normalizeStored(db: DatabaseShape): boolean {
@@ -391,8 +407,11 @@ function ensureSeed(db: DatabaseShape): boolean {
     });
     changed = true;
   }
-  if (!db.settings || !isWeightUnit(db.settings.weightUnit)) {
+  if (!db.settings || typeof db.settings !== 'object') {
     db.settings = defaultSettings();
+    changed = true;
+  } else if (!isWeightUnit(db.settings.weightUnit)) {
+    db.settings.weightUnit = 'kg';
     changed = true;
   }
   return changed;

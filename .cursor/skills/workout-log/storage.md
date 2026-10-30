@@ -15,7 +15,9 @@ Reads and writes are serialized on a promise queue. `writeDatabase` clones, muta
 - `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `setType` (`normal`, `warmup`, `drop`, or `failure`), `completed`
 - `settings`: `weightUnit`, `warmupRestMultiplier` (0.25, 0.5, 0.75, or 1; default 0.5), `bodyweightKg` (kilograms or `null`), `ageYears` (14–80 or `null`; scales strength levels), `sex` (`male`, `female`, or `null`; picks the strength standards), `showRpe` (show the RPE column before any RPE is logged). Older documents also carry an unused `restSeconds`
 
-Old documents may omit `notes`, `rpe`, `restSeconds`, `attachment`, `machineSetup`, `warmupRestMultiplier`, `bodyweightKg`, `ageYears`, `sex`, or `showRpe`. `normalizeStored` fills those on load (seeded cable exercises get their seed attachment; missing setups become `null`; missing `showRpe` becomes true if any set has an RPE). Keep that path when adding a field.
+Old documents may omit `notes`, `rpe`, `restSeconds`, `attachment`, `machineSetup`, `warmupRestMultiplier`, `bodyweightKg`, `ageYears`, `sex`, `showRpe`, or `routineSets`. `normalizeStored` fills those on load (seeded cable exercises get their seed attachment; missing setups become `null`; missing `showRpe` becomes true if any set has an RPE). Keep that path when adding a field.
+
+A file that is not a log throws `CorruptLogError` and is left on disk. Do not replace it with an empty document.
 
 `writeDatabase` commits in memory and saves after a short delay. `flushDatabase` (or `saveNow` in the repository) waits for queued writes and saves immediately.
 

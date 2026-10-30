@@ -4,6 +4,8 @@
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { fillSet, hidePad, typePad } from './pad';
+
 async function swipeLeft(page: Page, row: Locator): Promise<void> {
   const box = await row.boundingBox();
   if (!box) {
@@ -31,15 +33,14 @@ test('a logged set shows up in history', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Notes' }).click();
   await page.getByRole('textbox', { name: 'Exercise notes' }).fill('Felt steady.');
-  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Complete set' }).click();
   await page.getByRole('button', { name: 'Finish' }).click();
 
-  await expect(page.getByText('Workout complete')).toBeVisible();
+  await expect(page.getByText('Well Done!')).toBeVisible();
   await expect(page.getByText(/^\+\d+ XP$/)).toBeVisible();
   await expect(page.getByText(/XP to level \d+/)).toBeVisible();
-  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.getByRole('tab', { name: 'History' }).click();
   await page.getByText('Back Squat').last().click();
@@ -61,26 +62,27 @@ test('variants fold, a heavier set is starred, and deletes can be undone', async
   await expect(page.getByText('Added')).toBeVisible();
   await page.getByRole('button', { name: 'Done' }).click();
 
-  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Complete set' }).click();
   await expect(page.getByText('New PR', { exact: false })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Add set' }).click();
-  await page.getByRole('textbox', { name: 'Weight' }).nth(1).fill('110');
+  await page.getByRole('button', { name: /^Weight/ }).nth(1).click();
+  await typePad(page, '110');
+  await hidePad(page);
   await page.getByRole('button', { name: 'Complete set' }).click();
   await expect(page.getByText('New PR · Barbell Bench Press')).toBeVisible();
   await expect(page.getByLabel('Personal record')).toHaveCount(1);
 
   await swipeLeft(page, page.getByTestId('set-row').nth(1));
-  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /^Weight/ })).toHaveCount(1);
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /^Weight/ })).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Remove' }).click();
   await expect(page.getByText('Removed Barbell Bench Press')).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /^Weight/ })).toHaveCount(2);
 
   await page.getByRole('button', { name: /^Rest timer/ }).click();
   await page.getByRole('button', { name: '2:00' }).click();
@@ -106,24 +108,25 @@ test('the picker toggles, and a past workout can be edited and duplicated', asyn
   await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: 'Remove' })).toHaveCount(1);
 
-  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Complete set' }).click();
   await page.getByRole('button', { name: 'Finish' }).click();
-  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.getByRole('tab', { name: 'History' }).click();
   await page.getByText('Back Squat').last().click();
   await page.getByRole('button', { name: 'Edit' }).click();
   await expect(page.getByText('Edit workout')).toBeVisible();
-  await page.getByRole('textbox', { name: 'Reps' }).fill('6');
+  await page.getByRole('button', { name: /^Reps/ }).click();
+  await typePad(page, '6');
+  await hidePad(page);
   await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByText(/^100 . 6$/).last()).toBeVisible();
 
   await page.getByRole('button', { name: 'Duplicate' }).click();
   await expect(page.getByRole('button', { name: 'Finish' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveValue('100');
-  await expect(page.getByRole('textbox', { name: 'Reps' })).toHaveValue('6');
+  await expect(page.getByRole('button', { name: 'Weight, 100' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reps, 6' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Complete set' })).toBeVisible();
 });
 
@@ -175,17 +178,28 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: 'Rest timer 3:00, default' })).toBeVisible();
 
-  await page.getByRole('textbox', { name: 'Weight' }).fill('100');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('5');
+  await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Complete set' }).click();
+  await page.getByRole('button', { name: /^Weight/ }).first().click();
+  await page.getByRole('button', { name: 'RPE', exact: true }).click();
+  const skipBox = await page.getByRole('button', { name: 'Skip' }).boundingBox();
+  const effortBox = await page.getByText('Effort', { exact: true }).boundingBox();
+  if (!skipBox || !effortBox) {
+    throw new Error('Rest and the RPE pad are not both on screen');
+  }
+  expect(effortBox.y - (skipBox.y + skipBox.height)).toBeLessThan(48);
+  await hidePad(page);
   await page.getByRole('button', { name: '+15' }).click();
   await expect(page.getByRole('button', { name: 'Rest timer 3:00, default' })).toBeVisible();
   await page.getByRole('button', { name: 'Skip' }).click();
 
   await page.getByRole('button', { name: 'Add set' }).click();
-  await page.getByLabel('Mark as a warmup set').nth(1).click();
-  await expect(page.getByLabel(/^Mark as a/).first()).toHaveAccessibleName('Mark as a working set');
-  await page.getByRole('textbox', { name: 'Weight' }).first().fill('50');
+  await page.getByRole('button', { name: 'Normal. Change set type' }).nth(1).click();
+  await page.getByRole('button', { name: /Warm-up/ }).click();
+  await expect(page.getByRole('button', { name: 'Warm-up. Change set type' })).toBeVisible();
+  await page.getByRole('button', { name: /^Weight/ }).first().click();
+  await typePad(page, '50');
+  await hidePad(page);
   await page.getByRole('button', { name: 'Complete set' }).first().click();
   await expect(page.getByText(/^1:5[45]$/)).toBeVisible();
   await page.getByRole('button', { name: 'Skip' }).click();
@@ -222,10 +236,9 @@ test('add set copies a small-plate weight exactly', async ({ page }) => {
   await page.getByRole('button', { name: 'Cable Lateral Raise', exact: true }).click();
   await page.getByRole('button', { name: 'Done' }).click();
 
-  await page.getByRole('textbox', { name: 'Weight' }).fill('8.75');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('12');
+  await fillSet(page, '8.75', '12');
   await page.getByRole('button', { name: 'Add set' }).click();
-  await expect(page.getByRole('textbox', { name: 'Weight' }).nth(1)).toHaveValue('8.75');
+  await expect(page.getByRole('button', { name: 'Weight, 8.75' }).nth(1)).toBeVisible();
 });
 
 test('the 1RM calculator blends a whole session', async ({ page }) => {
@@ -275,11 +288,10 @@ test('profile holds the unit and bodyweight, and strength levels compare a lift'
   await page.getByRole('textbox', { name: 'Search exercises' }).fill('Back Squat');
   await page.getByRole('button', { name: 'Back Squat', exact: true }).click();
   await page.getByRole('button', { name: 'Done' }).click();
-  await page.getByRole('textbox', { name: 'Weight' }).fill('140');
-  await page.getByRole('textbox', { name: 'Reps' }).fill('3');
+  await fillSet(page, '140', '3');
   await page.getByRole('button', { name: 'Complete set' }).click();
   await page.getByRole('button', { name: 'Finish' }).click();
-  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.getByRole('tab', { name: 'Profile' }).click();
   await expect(page.getByText(/^Level \d+ of 20$/)).toBeVisible();
@@ -296,4 +308,13 @@ test('profile holds the unit and bodyweight, and strength levels compare a lift'
   await page.getByRole('button', { name: 'Strength levels' }).click();
   await expect(page.getByText('Not logged yet')).toBeVisible();
   await expect(page.getByText(/^Back Squat/).last()).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).click();
+
+  await page.getByRole('tab', { name: 'Workout' }).click();
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await page.getByRole('button', { name: 'Add exercise' }).click();
+  await page.getByRole('textbox', { name: 'Search exercises' }).fill('Back Squat');
+  await page.getByRole('button', { name: 'Back Squat, Intermediate' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('Intermediate', { exact: true })).toBeVisible();
 });

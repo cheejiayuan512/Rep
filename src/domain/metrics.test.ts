@@ -104,6 +104,24 @@ test('one set can beat weight, volume, and reps at once', () => {
   );
 });
 
+test('a second bodyweight set is a session record when one set was the best session', () => {
+  const history = scored({ performedAt: 1, reps: 8, weightKg: 0, workoutId: 'last' });
+  const first = scored({ performedAt: 2, reps: 8, weightKg: 0, workoutId: 'today' });
+  const second = scored({ performedAt: 3, reps: 8, weightKg: 0, workoutId: 'today' });
+  assertEqual(detectRecords(first, [history], 'kg'), []);
+  assertEqual(detectRecords(second, [history, first], 'kg').map((hit) => hit.kind), ['session']);
+  assertEqual(detectRecords(second, [history, first], 'kg')[0]?.title, 'Session PR · 16 reps · 2 sets');
+});
+
+test('one bodyweight set that already beats the old session is not also a session record', () => {
+  const history = scored({ performedAt: 1, reps: 8, weightKg: 0, workoutId: 'last' });
+  const current = scored({ performedAt: 2, reps: 10, weightKg: 0, workoutId: 'today' });
+  assertEqual(
+    detectRecords(current, [history], 'kg').map((hit) => hit.kind),
+    ['reps'],
+  );
+});
+
 test('a second single is a session record when one single was the best session', () => {
   const history = scored({ performedAt: 1, reps: 1, weightKg: 100, workoutId: 'last' });
   const first = scored({ performedAt: 2, reps: 1, weightKg: 100, workoutId: 'today' });

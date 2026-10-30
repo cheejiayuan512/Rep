@@ -3,6 +3,8 @@
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { fillSet } from './pad';
+
 async function dragBy(page: Page, target: Locator, dx: number, dy: number): Promise<void> {
   const box = await target.boundingBox();
   if (!box) {
@@ -48,11 +50,10 @@ test('a routine plans sets, reorders by dragging, and removes by swiping', async
   await addExercise(page, 'Back Squat');
   await addExercise(page, 'Barbell Bench Press');
 
-  await page.getByRole('textbox', { name: 'Weight' }).first().fill('100');
-  await page.getByRole('textbox', { name: 'Reps' }).first().fill('5');
+  await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Add set' }).first().click();
-  await expect(page.getByRole('textbox', { name: 'Weight' })).toHaveCount(3);
-  await expect(page.getByRole('textbox', { name: 'Weight' }).nth(1)).toHaveValue('100');
+  await expect(page.getByRole('button', { name: /^Weight/ })).toHaveCount(3);
+  await expect(page.getByRole('button', { name: 'Weight, 100' })).toHaveCount(2);
 
   const squatHandle = page.getByLabel('Reorder Back Squat');
   const benchHandle = page.getByLabel('Reorder Barbell Bench Press');
@@ -73,6 +74,6 @@ test('a routine plans sets, reorders by dragging, and removes by swiping', async
 
   await page.getByRole('button', { name: 'Start workout' }).click();
   await expect(page.getByRole('button', { name: 'Complete set' })).toHaveCount(2);
-  await expect(page.getByRole('textbox', { name: 'Weight' }).first()).toHaveValue('100');
-  await expect(page.getByRole('textbox', { name: 'Reps' }).nth(1)).toHaveValue('5');
+  await expect(page.getByRole('button', { name: 'Weight, 100' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reps, 5' }).nth(1)).toBeVisible();
 });
