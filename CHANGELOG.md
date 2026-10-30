@@ -15,6 +15,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **One of something.** Analysis and badge counts say “1 set” and “1 workout” instead of the plural.
 - **Past sets.** Tap an exercise name during a workout, or on a finished workout, to see every finished set and rep for that exercise.
 - **Workout names.** The title shows a pencil and “Tap to rename”. A workout left as Workout is named when you finish, from the time of day and the muscles you trained.
+- **Notes.** The pencil sits in the note field, lined up with the text.
 
 ## 1.5.0 · Android 15 / iOS 22
 

@@ -3,7 +3,7 @@
  * The rows under it are the sets. This component draws the card; the workout screen saves.
  */
 import React, { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent, type TextStyle } from 'react-native';
 
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
@@ -21,6 +21,7 @@ import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
 import type { SortHandle } from './sortable-list';
 
+const webNotesReset: TextStyle | null = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null;
 const restChoices = [30, 60, 90, 120, 150, 180, 240, 300];
 const moveActions = [
   { label: 'Move up', name: 'up' },
@@ -252,10 +253,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         </View>
       ) : null}
       {notesOpen || exercise.notes.trim().length > 0 ? (
-        <View>
-          <View style={styles.notesHead}>
-            <Text style={[styles.section, styles.notesLabel]}>Notes</Text>
-            <PencilIcon color={colors.muted} size={14} />
+        <View style={styles.notesField}>
+          <View pointerEvents="none" style={styles.notesIcon}>
+            <PencilIcon color={colors.muted} size={16} />
           </View>
           <TextInput
             accessibilityLabel="Exercise notes"
@@ -264,14 +264,14 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onChangeText={handleNotes}
             placeholder="How did this exercise feel?"
             placeholderTextColor={colors.faint}
-            style={styles.notes}
+            style={[styles.notes, webNotesReset]}
             textAlignVertical="top"
             value={exercise.notes}
           />
         </View>
       ) : (
         <Pressable accessibilityLabel="Add notes" accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
-          <PencilIcon color={colors.accent} size={14} />
+          <PencilIcon color={colors.accent} size={16} />
           <Text style={styles.addText}>Notes</Text>
         </Pressable>
       )}
@@ -358,17 +358,22 @@ const styles = StyleSheet.create({
     gap: 16,
     marginTop: 12,
   },
-  notesHead: {
-    alignItems: 'center',
+  notesField: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 12,
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  notesLabel: {
-    marginTop: 0,
+  notesIcon: {
+    marginTop: 3,
   },
   notesToggle: {
     alignItems: 'center',
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     gap: 6,
     marginTop: 14,
@@ -491,13 +496,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   notes: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     color: colors.text,
+    flexGrow: 1,
+    flexShrink: 1,
     fontSize: 15,
-    minHeight: 72,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    lineHeight: 22,
+    minHeight: 66,
+    minWidth: 0,
+    padding: 0,
   },
   option: {
     backgroundColor: colors.surfaceRaised,
@@ -536,14 +544,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginBottom: 2,
     textTransform: 'uppercase',
-  },
-  section: {
-    color: colors.faint,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: 6,
-    marginTop: 14,
   },
   setCol: {
     textAlign: 'center',
