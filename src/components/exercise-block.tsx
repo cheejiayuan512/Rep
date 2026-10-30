@@ -271,7 +271,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         </View>
       ) : (
         <Pressable accessibilityLabel="Add notes" accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
-          <PencilIcon color={colors.accent} size={16} />
+          <View style={styles.notesToggleIcon}>
+            <PencilIcon color={colors.accent} size={16} />
+          </View>
           <Text style={styles.addText}>Notes</Text>
         </Pressable>
       )}
@@ -375,9 +377,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     marginTop: 14,
     paddingVertical: 4,
+  },
+  notesToggleIcon: {
+    marginTop: 2,
   },
   addText: {
     color: colors.accent,
