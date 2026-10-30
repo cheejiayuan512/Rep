@@ -58,6 +58,7 @@ interface ExerciseBlockProps {
   onRemove: (workoutExerciseId: string) => void;
   onSwap: (workoutExerciseId: string) => void;
   onApplyPrevious: (setId: string) => void;
+  onOpenHistory: (exercise: WorkoutExercise) => void;
   onMove: (workoutExerciseId: string, direction: -1 | 1) => void;
   sortHandle: SortHandle;
 }
@@ -90,6 +91,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onRemove,
   onSwap,
   onApplyPrevious,
+  onOpenHistory,
   onMove,
   sortHandle,
 }) {
@@ -150,6 +152,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     },
     [exercise.id, onChangeSetup],
   );
+  const handleOpenHistory = useCallback(() => {
+    onOpenHistory(exercise);
+  }, [exercise, onOpenHistory]);
   const showSetup = usesMachineSetup(exercise.equipment);
   const defaultRest = defaultRestFor(exercise);
   const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
@@ -158,7 +163,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   return (
     <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
-        <View style={styles.titleWrap}>
+        <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={handleOpenHistory} style={styles.titleWrap}>
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
           <View style={styles.nameRow}>
             <Text numberOfLines={1} style={styles.name}>
@@ -167,7 +172,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             {strength ? <StrengthMark rating={strength} /> : null}
           </View>
           <Text style={styles.meta}>{exercise.equipment}</Text>
-        </View>
+        </Pressable>
         <View style={styles.headerActions}>
           <Pressable accessibilityLabel={`Swap ${exercise.name}`} accessibilityRole="button" hitSlop={6} onPress={handleSwap} style={styles.iconAction}>
             <SwapIcon color={colors.muted} size={18} />

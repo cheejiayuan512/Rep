@@ -1,7 +1,7 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsBySetup, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsBySetup, groupLoggedSessions, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import type { LoggedSet } from './types';
 
@@ -185,6 +185,20 @@ test('the latest session keeps its completed sets in order', () => {
   assertEqual(
     sets.map((set) => set.weightKg),
     [70, 90],
+  );
+});
+
+test('past sessions list every finished set, newest first', () => {
+  const sessions = groupLoggedSessions([
+    logged({ performedAt: 1, position: 0, setType: 'warmup', weightKg: 60, workoutId: 'older' }),
+    logged({ performedAt: 1, position: 1, reps: 5, weightKg: 100, workoutId: 'older' }),
+    logged({ completed: false, performedAt: 2, position: 0, weightKg: 40, workoutId: 'newer' }),
+    logged({ performedAt: 2, position: 2, reps: 3, weightKg: 110, workoutId: 'newer' }),
+    logged({ performedAt: 2, position: 1, reps: 5, weightKg: 105, workoutId: 'newer' }),
+  ]);
+  assertEqual(
+    sessions.map((session) => session.sets.map((set) => set.weightKg)),
+    [[105, 110], [60, 100]],
   );
 });
 

@@ -3,7 +3,7 @@
  * Edit reopens it in the workout screen; Duplicate starts a new workout from it.
  */
 import React, { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 
 import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } from '../../state/store';
@@ -88,6 +88,15 @@ export const WorkoutDetailScreen: React.FC = () => {
   }, [dispatch, navigation, route.params.workoutId]);
 
   const closeConfirm = useCallback(() => setConfirm(null), []);
+  const openHistory = useCallback(
+    (exercise: WorkoutExercise) => {
+      navigation.navigate('ExerciseProgress', {
+        exerciseId: exercise.exerciseId,
+        ...(usesMachineSetup(exercise.equipment) ? { machineSetup: exercise.machineSetup } : {}),
+      });
+    },
+    [navigation],
+  );
   const working = workout ? workout.exercises.flatMap((exercise) => exercise.sets.filter(isWorking)) : [];
   const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
   const workingSetCount = working.length;
@@ -112,7 +121,7 @@ export const WorkoutDetailScreen: React.FC = () => {
             <Button label="Duplicate" onPress={handleDuplicate} style={styles.action} />
           </View>
           {workout.exercises.map((exercise) => (
-            <ExerciseSummaryCard exercise={exercise} key={exercise.id} unit={unit} />
+            <ExerciseSummaryCard exercise={exercise} key={exercise.id} onOpenHistory={openHistory} unit={unit} />
           ))}
         </ScrollView>
       )}
@@ -143,7 +152,7 @@ const Summary: React.FC<{ label: string; value: string }> = ({ label, value }) =
 };
 
 /** One exercise as a small table: warmups marked W, working sets numbered on their own. */
-const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit }> = React.memo(function ExerciseSummaryCard({ exercise, unit }) {
+const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit; onOpenHistory: (exercise: WorkoutExercise) => void }> = React.memo(function ExerciseSummaryCard({ exercise, onOpenHistory, unit }) {
   const working = exercise.sets.filter(isWorking);
   const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
   const bestOneRepMax = working.reduce((best, set) => {
@@ -153,15 +162,20 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
   }, 0);
   const session = working.length > 1 ? estimateFromSets(working.map((set) => ({ reps: set.reps ?? 0, rpe: set.rpe, weightKg: set.weightKg ?? 0 }))) : null;
   let workingNumber = 0;
+  const openPastSets = useCallback(() => {
+    onOpenHistory(exercise);
+  }, [exercise, onOpenHistory]);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.exercise}>{exercise.name}</Text>
-      <Text style={styles.meta}>
-        {exercise.muscleGroup} · {exercise.equipment}
-        {exercise.attachment ? ` · ${exercise.attachment}` : ''}
-        {usesMachineSetup(exercise.equipment) ? ` · ${formatMachineSetup(exercise.machineSetup)}` : ''}
-      </Text>
+      <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={openPastSets}>
+        <Text style={styles.exercise}>{exercise.name}</Text>
+        <Text style={styles.meta}>
+          {exercise.muscleGroup} · {exercise.equipment}
+          {exercise.attachment ? ` · ${exercise.attachment}` : ''}
+          {usesMachineSetup(exercise.equipment) ? ` · ${formatMachineSetup(exercise.machineSetup)}` : ''}
+        </Text>
+      </Pressable>
       {exercise.notes.trim() ? (
         <View style={styles.notesWrap}>
           <Text style={styles.notes}>{exercise.notes.trim()}</Text>

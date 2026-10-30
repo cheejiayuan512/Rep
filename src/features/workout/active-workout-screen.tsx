@@ -1001,6 +1001,16 @@ const ActiveWorkoutBody: React.FC = () => {
     [flushPending, navigation, workoutId],
   );
 
+  const handleOpenHistory = useCallback(
+    (exercise: WorkoutExercise) => {
+      navigation.navigate('ExerciseProgress', {
+        exerciseId: exercise.exerciseId,
+        ...(usesMachineSetup(exercise.equipment) ? { machineSetup: exercise.machineSetup } : {}),
+      });
+    },
+    [navigation],
+  );
+
   const handleChangeAttachment = useCallback((workoutExerciseId: string, attachment: CableAttachment | null) => {
     setWorkout((current) =>
       current ? { ...current, exercises: current.exercises.map((exercise) => (exercise.id === workoutExerciseId ? { ...exercise, attachment } : exercise)) } : current,
@@ -1131,6 +1141,7 @@ const ActiveWorkoutBody: React.FC = () => {
                       onChangeWeight={handleChangeWeight}
                       onDeleteSet={handleDeleteSet}
                       onMove={handleMove}
+                      onOpenHistory={handleOpenHistory}
                       onChangeSetType={handleChangeSetType}
                       onRemove={handleRemove}
                       onSwap={handleSwap}

@@ -14,8 +14,9 @@ import { Screen } from '../../components/screen';
 import { getExercise, getExerciseLog } from '../../data/repository';
 import { Chip } from '../../components/chip';
 import { formatDay, formatLoggedLoad } from '../../domain/format';
-import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, metricValue, recordCardsFromSets } from '../../domain/metrics';
-import { extraMachineSetups, formatMachineSetup, machineBrands, usesMachineSetup, type ChartMetric, type Exercise, type LoggedSet } from '../../domain/types';
+import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
+import { extraMachineSetups, formatMachineSetup, machineBrands, setTypeMark, usesMachineSetup, type ChartMetric, type LoggedSet } from '../../domain/types';
+import { formatWeight } from '../../domain/units';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -34,7 +35,7 @@ export const ExerciseProgressScreen: React.FC = () => {
   const exercise = useStored(getExercise, route.params.exerciseId);
   const sets = useStored(getExerciseLog, route.params.exerciseId) ?? NO_SETS;
   const [metric, setMetric] = useState<ChartMetric>('oneRepMax');
-  const [setup, setSetup] = useState<string | null>(() => exercise?.machineSetup ?? null);
+  const [setup, setSetup] = useState<string | null>(() => (route.params.machineSetup !== undefined ? route.params.machineSetup : (exercise?.machineSetup ?? null)));
   const setups = useMemo(() => {
     const used = extraMachineSetups(sets.map((set) => set.machineSetup));
     const named = [...machineBrands.filter((brand) => sets.some((set) => set.machineSetup === brand)), ...used];
@@ -46,6 +47,7 @@ export const ExerciseProgressScreen: React.FC = () => {
   );
 
   const sessions = useMemo(() => buildSessionStats(visibleSets), [visibleSets]);
+  const pastSessions = useMemo(() => groupLoggedSessions(visibleSets), [visibleSets]);
   const cards = useMemo(() => recordCardsFromSets(visibleSets, unit), [unit, visibleSets]);
   const points = useMemo(() => chartValues(sessions, metric, unit), [metric, sessions, unit]);
   const delta = points.length >= 2 ? (points[points.length - 1]?.value ?? 0) - (points[points.length - 2]?.value ?? 0) : null;
@@ -69,6 +71,12 @@ export const ExerciseProgressScreen: React.FC = () => {
               ))}
             </View>
           ) : null}
+          <Text style={styles.pastHeading}>Past sets</Text>
+          {pastSessions.length === 0 ? (
+            <Text style={styles.empty}>Finished sets from earlier workouts show up here.</Text>
+          ) : (
+            pastSessions.map((session) => <PastSession key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />)
+          )}
           <View style={styles.grid}>
             {cards.map((card) => (
               <View key={card.label} style={styles.card}>
@@ -85,17 +93,6 @@ export const ExerciseProgressScreen: React.FC = () => {
           </View>
           <LineChart caption={`${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`} points={points} />
           {delta == null ? <Text style={styles.delta}>Log another session to see the change.</Text> : <DeltaText delta={delta} metric={metric} unit={unit} />}
-          {sessions.slice().reverse().map((session) => (
-            <View key={session.workoutId} style={styles.session}>
-              <View>
-                <Text style={styles.sessionDate}>{formatDay(session.performedAt)}</Text>
-                <Text style={styles.sessionSet}>
-                  {formatLoggedLoad(session.highlightKg, session.highlightReps, unit, false, usesMachineSetup(exercise.equipment) ? setup : undefined)}
-                </Text>
-              </View>
-              <Text style={styles.sessionValue}>{formatMetricValue(metricValue(session, metric, unit), unit, metric)}</Text>
-            </View>
-          ))}
         </ScrollView>
       )}
     </Screen>
@@ -115,6 +112,28 @@ const DeltaText: React.FC<DeltaTextProps> = ({ delta, metric, unit }) => {
       {sign}
       {formatMetricValue(delta, unit, metric)} vs last session
     </Text>
+  );
+};
+
+const PastSession: React.FC<{ performedAt: number; sets: LoggedSet[]; unit: 'kg' | 'lb' }> = ({ performedAt, sets, unit }) => {
+  let workingNumber = 0;
+  return (
+    <View style={styles.session}>
+      <Text style={styles.sessionDate}>{formatDay(performedAt)}</Text>
+      {sets.map((set, index) => {
+        const warmup = set.setType === 'warmup';
+        if (!warmup) {
+          workingNumber += 1;
+        }
+        const mark = setTypeMark(set.setType) ?? String(workingNumber);
+        return (
+          <Text key={`${set.position}-${index}`} style={styles.sessionSet}>
+            {mark}  {formatLoggedLoad(set.weightKg, set.reps, unit)}
+            {set.rpe != null ? `  ·  ${formatWeight(set.rpe)}` : ''}
+          </Text>
+        );
+      })}
+    </View>
   );
 };
 
@@ -171,6 +190,17 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  empty: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  pastHeading: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 20,
+  },
   delta: {
     color: colors.muted,
     fontSize: 14,
@@ -223,11 +253,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   session: {
-    alignItems: 'center',
     borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingVertical: 12,
   },
   sessionDate: {
@@ -237,14 +264,9 @@ const styles = StyleSheet.create({
   },
   sessionSet: {
     color: colors.muted,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  sessionValue: {
-    color: colors.text,
     fontSize: 15,
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
+    marginTop: 4,
   },
   title: {
     color: colors.text,

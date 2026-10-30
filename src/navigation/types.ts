@@ -31,7 +31,7 @@ export type RootStackParamList = {
   ExercisePicker: ExercisePickerParams;
   RoutineEditor: { routineId: string };
   WorkoutDetail: { workoutId: string };
-  ExerciseProgress: { exerciseId: string };
+  ExerciseProgress: { exerciseId: string; machineSetup?: string | null };
   /** `null` creates a new custom exercise. */
   ExerciseEditor: { exerciseId: string | null };
   Analysis: undefined;

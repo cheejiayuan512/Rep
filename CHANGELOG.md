@@ -13,6 +13,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **iPhone Duo.** The iOS build uses the iOS 27.1 SDK, so the app fills the unfolded display. Content stays off the side rail.
 - **Logging pad.** Weight and reps use an in-app keypad with Next, delete, and a nudge (2.5 kg, 5 lb, or 1 rep). RPE opens a 6–10 scale and a line about how many reps were left. Notes still use the system keyboard.
 - **One of something.** Analysis and badge counts say “1 set” and “1 workout” instead of the plural.
+- **Past sets.** Tap an exercise name during a workout, or on a finished workout, to see every finished set and rep for that exercise.
 
 ## 1.5.0 · Android 15 / iOS 22
 

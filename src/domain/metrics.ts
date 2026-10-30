@@ -322,6 +322,37 @@ export function buildSessionStats(sets: LoggedSet[]): SessionStat[] {
   return sessions.sort((left, right) => left.performedAt - right.performedAt);
 }
 
+/** Finished sets of one exercise, newest session first, in the order they were logged. */
+export interface LoggedSession {
+  workoutId: string;
+  performedAt: number;
+  sets: LoggedSet[];
+}
+
+export function groupLoggedSessions(sets: LoggedSet[]): LoggedSession[] {
+  const groups = new Map<string, LoggedSet[]>();
+  for (const set of sets) {
+    if (!set.completed) {
+      continue;
+    }
+    const group = groups.get(set.workoutId) ?? [];
+    group.push(set);
+    groups.set(set.workoutId, group);
+  }
+
+  const sessions: LoggedSession[] = [];
+  for (const [workoutId, group] of groups) {
+    const ordered = [...group].sort((left, right) => left.position - right.position);
+    sessions.push({
+      performedAt: ordered.reduce((latest, set) => Math.max(latest, set.performedAt), 0),
+      sets: ordered,
+      workoutId,
+    });
+  }
+
+  return sessions.sort((left, right) => right.performedAt - left.performedAt);
+}
+
 export function chartValues(sessions: SessionStat[], metric: ChartMetric, unit: WeightUnit): ChartPoint[] {
   const points: ChartPoint[] = [];
   for (const session of sessions) {
