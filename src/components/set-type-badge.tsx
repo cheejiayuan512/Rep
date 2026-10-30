@@ -3,7 +3,7 @@
  * row. The list under the badge does not move.
  */
 import React, { useCallback, useRef, useState } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 
 import type { SetType } from '../domain/types';
 import { setTypeLabel, setTypeMark } from '../domain/types';
@@ -27,7 +27,7 @@ interface SetTypeBadgeProps {
 }
 
 export const SetTypeBadge: React.FC<SetTypeBadgeProps> = React.memo(function SetTypeBadge({ setType, index, onChange }) {
-  const anchorRef = useRef<View>(null);
+  const anchorRef = useRef<ViewInstance>(null);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor>({ height: 0, width: 0, x: 12, y: 12 });
   const mark = setTypeMark(setType);

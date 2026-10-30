@@ -6,6 +6,7 @@
  */
 import React, { useEffect } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -55,6 +56,7 @@ function renderProfileIcon({ color, size }: { color: string; size: number }) {
 }
 
 const Tabs: React.FC = () => {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -65,6 +67,8 @@ const Tabs: React.FC = () => {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
         },
       }}
     >

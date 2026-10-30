@@ -31,7 +31,7 @@ export const RestBar: React.FC<RestBarProps> = ({ endsAt, onSubtract, onAdd, onS
   const remaining = Math.max(0, (endsAt - now) / 1000);
 
   return (
-    <View style={[styles.rest, { bottom: lift, paddingBottom: lift > 0 ? 12 : insets.bottom + 12 }]}>
+    <View style={[styles.rest, { bottom: lift, left: insets.left, paddingBottom: lift > 0 ? 12 : insets.bottom + 12, right: insets.right }]}>
       <View accessibilityLabel={`Rest, ${speakClock(remaining)}`} accessible>
         <Text style={styles.restLabel}>Rest</Text>
         <Text style={styles.restTime}>{formatClock(remaining)}</Text>

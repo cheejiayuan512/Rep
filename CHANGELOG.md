@@ -10,6 +10,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Session records.** Two singles after a best of one single is a personal record. The star is on the set that makes the session bigger. The same applies to a second bodyweight set.
 - **Strength mark.** A small five-bar level sits beside the exercise name on the card and in search, including the set you are typing.
 - **A broken save is kept.** If the on-device log cannot be read, Rep shows an error and leaves the file in place.
+- **iPhone Duo.** The iOS build uses the iOS 27.1 SDK, so the app fills the unfolded display. Content stays off the side rail.
 - **Logging pad.** Weight and reps use an in-app keypad with Next, delete, and a nudge (2.5 kg, 5 lb, or 1 rep). RPE opens a 6–10 scale and a line about how many reps were left. Notes still use the system keyboard.
 
 ## 1.5.0 · Android 15 / iOS 22

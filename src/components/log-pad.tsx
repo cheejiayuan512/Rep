@@ -4,7 +4,7 @@
  * Notes and other screens keep the system keyboard.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Keyboard, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Dimensions, Keyboard, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { backspaceKey, nudgeLogValue, RPE_SCALE, rpeHint, typeKey, type LogFieldKind } from '../domain/log-pad';
@@ -41,7 +41,7 @@ interface LogTarget {
   unit: WeightUnit;
   onChange: (value: string) => void;
   links: FieldLinks;
-  node: View | null;
+  node: ViewInstance | null;
 }
 
 interface LogPadContextValue {
@@ -53,7 +53,7 @@ interface LogPadContextValue {
   activate: (id: string) => void;
   dismiss: () => void;
   snapshot: () => LogTarget | null;
-  scrollRef: React.RefObject<ScrollView | null>;
+  scrollRef: React.RefObject<ScrollViewInstance | null>;
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   typeDigit: (key: string) => void;
   erase: () => void;
@@ -63,7 +63,7 @@ interface LogPadContextValue {
   showEffort: () => void;
   showNumbers: () => void;
   setMeasuredHeight: (height: number) => void;
-  bindPad: (node: View | null) => void;
+  bindPad: (node: ViewInstance | null) => void;
 }
 
 const LogPadContext = createContext<LogPadContextValue | null>(null);
@@ -79,7 +79,7 @@ function useLogPad(): LogPadContextValue {
 export function useLogPadLayout(): {
   open: boolean;
   height: number;
-  scrollRef: React.RefObject<ScrollView | null>;
+  scrollRef: React.RefObject<ScrollViewInstance | null>;
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 } {
   const pad = useLogPad();
@@ -95,9 +95,9 @@ export function useLogPadLayout(): {
 
 export const LogPadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const targets = useRef(new Map<string, React.MutableRefObject<LogTarget>>());
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
   const offsetRef = useRef(0);
-  const padNode = useRef<View | null>(null);
+  const padNode = useRef<ViewInstance | null>(null);
   const heightRef = useRef(0);
   const armedRef = useRef(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export const LogPadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const read = useCallback((id: string | null) => (id ? (targets.current.get(id)?.current ?? null) : null), []);
 
-  const reveal = useCallback((node: View | null) => {
+  const reveal = useCallback((node: ViewInstance | null) => {
     requestAnimationFrame(() => {
       node?.measureInWindow((_x, y, _width, nodeHeight) => {
         const fallbackTop = Dimensions.get('window').height - Math.max(heightRef.current, LOG_PAD_FALLBACK);
@@ -284,7 +284,7 @@ export const LogPadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setHeight(next);
   }, []);
 
-  const bindPad = useCallback((node: View | null) => {
+  const bindPad = useCallback((node: ViewInstance | null) => {
     padNode.current = node;
   }, []);
 
@@ -348,7 +348,7 @@ export const LogValue: React.FC<LogValueProps> = ({ accessibilityLabel, id, kind
   const onPress = useCallback(() => {
     activate(id);
   }, [activate, id]);
-  const setNode = useCallback((node: View | null) => {
+  const setNode = useCallback((node: ViewInstance | null) => {
     targetRef.current.node = node;
   }, []);
 
@@ -492,7 +492,7 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
     [pad],
   );
   const setNode = useCallback(
-    (node: View | null) => {
+    (node: ViewInstance | null) => {
       pad.bindPad(node);
     },
     [pad],
@@ -507,7 +507,7 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
   const label = effort ? 'Effort' : active.kind === 'reps' ? 'Reps' : 'Weight';
 
   return (
-    <View collapsable={false} onLayout={onLayout} ref={setNode} style={[styles.pad, { paddingBottom: safeBottom ? Math.max(insets.bottom, 8) : 8 }]}>
+    <View collapsable={false} onLayout={onLayout} ref={setNode} style={[styles.pad, { left: insets.left, paddingBottom: safeBottom ? Math.max(insets.bottom, 8) : 8, right: insets.right }]}>
       <View style={styles.header}>
         <Text style={styles.field}>{label}</Text>
         <Pressable accessibilityLabel="Hide keyboard" accessibilityRole="button" hitSlop={8} onPress={pad.dismiss} style={styles.hide}>

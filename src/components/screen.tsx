@@ -16,7 +16,21 @@ interface ScreenProps {
 export const Screen: React.FC<ScreenProps> = ({ children, bottomInset = false }) => {
   const insets = useSafeAreaInsets();
 
-  return <View style={[styles.screen, { paddingBottom: bottomInset ? insets.bottom : 0, paddingTop: insets.top }]}>{children}</View>;
+  return (
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingBottom: bottomInset ? insets.bottom : 0,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      {children}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

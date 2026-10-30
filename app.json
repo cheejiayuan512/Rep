@@ -44,7 +44,8 @@
           "bundleIdentifier": "com.cheejiayuan.rep.ExpoWidgetsTarget",
           "groupIdentifier": "group.com.cheejiayuan.rep"
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

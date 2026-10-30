@@ -5,6 +5,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } from '../../state/store';
 import { useWeightUnit } from '../../state/hooks';
@@ -84,6 +85,7 @@ const RoutineEditorBody: React.FC = () => {
   const dispatch = useAppDispatch();
   const { unit } = useWeightUnit();
   const pad = useLogPadLayout();
+  const insets = useSafeAreaInsets();
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
   const [routine, setRoutine] = useState<RoutineDetail | null>(() => getRoutine.now(route.params.routineId));
   const [drafts, setDrafts] = useState<DraftMap>(() => draftsFor(routine, unit));
@@ -573,7 +575,7 @@ const RoutineEditorBody: React.FC = () => {
       </KeyboardAvoidingView>
       <LogPad safeBottom={false} />
       {undo ? (
-        <View pointerEvents="box-none" style={[styles.toasts, pad.open ? { bottom: pad.height + 16 } : null]}>
+        <View pointerEvents="box-none" style={[styles.toasts, { left: 20 + insets.left, right: 20 + insets.right }, pad.open ? { bottom: pad.height + 16 } : null]}>
           <View style={styles.undo}>
             <Text numberOfLines={1} style={styles.undoText}>
               {undo.message}

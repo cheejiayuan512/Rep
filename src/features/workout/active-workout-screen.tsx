@@ -1157,7 +1157,7 @@ const ActiveWorkoutBody: React.FC = () => {
       </KeyboardAvoidingView>
       <LogPad />
       {recordBanner || undo ? (
-        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + (pad.open ? pad.height : insets.bottom) }]}>
+        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + (pad.open ? pad.height : insets.bottom), left: 20 + insets.left, right: 20 + insets.right }]}>
           {recordBanner ? (
             <Pressable accessibilityLiveRegion="polite" accessibilityRole="alert" onPress={dismissRecord} style={styles.record}>
               <Text style={styles.recordTitle}>New PR · {recordBanner.exerciseName}</Text>
