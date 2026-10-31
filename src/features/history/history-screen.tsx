@@ -188,7 +188,7 @@ const HistoryCard: React.FC<HistoryCardProps> = React.memo(function HistoryCard(
       </View>
       <View style={styles.statRow}>
         <StatPill label={formatDuration(workout.startedAt, workout.finishedAt)} />
-        <StatPill label={formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} />
+        <StatPill label={`${workout.volumeRecord ? '★ ' : ''}${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}`} />
         <StatPill label={`${workout.setCount} ${workout.setCount === 1 ? 'set' : 'sets'}`} />
       </View>
       <View style={styles.lines}>

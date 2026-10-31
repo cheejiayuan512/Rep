@@ -203,6 +203,8 @@ export interface WorkoutSummary {
   cardioKm?: number;
   /** Sets in this workout that beat an earlier estimated 1RM. */
   recordCount: number;
+  /** This workout moved more weight than every earlier finished workout. The first one does not count. */
+  volumeRecord: boolean;
 }
 
 export interface ActiveWorkoutSummary {
@@ -232,6 +234,8 @@ export interface RoutineExercise {
   position: number;
   /** The stack this plan is for. Null when unknown or for free weights. */
   machineSetup: string | null;
+  /** The cable attachment this plan uses. Null for none or for a non-cable exercise. */
+  attachment: CableAttachment | null;
   /** Shared with the other exercises in a superset. Null when this card stands alone. */
   supersetId: string | null;
   sets: RoutineSet[];
@@ -269,6 +273,8 @@ export interface LoggedSet {
   completed: boolean;
   /** The stack this set was logged on. Null when unknown or for free weights. */
   machineSetup: string | null;
+  /** The cable attachment on the card. Null for none or for a non-cable exercise. */
+  attachment?: CableAttachment | null;
   /** Present when the stored set had RPE. Older history may omit it. */
   rpe?: number | null;
   durationSeconds?: number | null;
@@ -285,6 +291,24 @@ export function isEquipment(value: string): value is Equipment {
 
 export function isCableAttachment(value: unknown): value is CableAttachment {
   return typeof value === 'string' && (cableAttachments as readonly string[]).includes(value);
+}
+
+/**
+ * One card per exercise, except cable: the same cable exercise can sit on two
+ * cards when the attachments differ. A missing attachment matches only "None".
+ */
+export function sameExerciseSlot(
+  equipment: Equipment,
+  left: { exerciseId: string; attachment: CableAttachment | null },
+  right: { exerciseId: string; attachment: CableAttachment | null },
+): boolean {
+  if (left.exerciseId !== right.exerciseId) {
+    return false;
+  }
+  if (equipment !== 'Cable') {
+    return true;
+  }
+  return left.attachment === right.attachment;
 }
 
 /** Common stack brands. A typed name is also allowed. */

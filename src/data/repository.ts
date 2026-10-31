@@ -5,7 +5,7 @@
  */
 import { LOG_EXPORT_LABEL, parseLogCsv, type LogExportKind } from '../domain/log-import';
 import { buildProfile, type ProfileSnapshot, type ProfileWorkout } from '../domain/profile';
-import { estimateOneRepMax, latestSessionSets, oneRepMaxRecordFlags, scoreLoggedSet } from '../domain/metrics';
+import { estimateOneRepMax, filterSetsByAttachment, latestSessionSets, oneRepMaxRecordFlags, scoreLoggedSet, volumeRecordIds } from '../domain/metrics';
 import type { AnalysisInput, AnalysisSet } from '../domain/stats';
 import { createId } from '../domain/ids';
 import type {
@@ -28,7 +28,7 @@ import type {
   WorkoutExercise,
   WorkoutSummary,
 } from '../domain/types';
-import { isCableAttachment, isEquipment, isMuscleGroup, isWorkingSetType, normalizeMachineSetup, normalizeSetType, sameMachineSetup, usesMachineSetup } from '../domain/types';
+import { isCableAttachment, isEquipment, isMuscleGroup, isWorkingSetType, normalizeMachineSetup, normalizeSetType, sameExerciseSlot, sameMachineSetup, usesMachineSetup } from '../domain/types';
 import type { ExportWorkout } from '../domain/log-export';
 import { filterSetsBySetup } from '../domain/metrics';
 import { warmupsFirst } from '../domain/workout-edits';
@@ -73,6 +73,8 @@ export interface AppSettings extends BodyProfile {
   showRpe: boolean;
   /** True once any set in the log has an RPE. */
   loggedRpe: boolean;
+  /** False until the first-run tutorial is dismissed. */
+  tutorialSeen: boolean;
 }
 
 export interface NewSetInput {
@@ -92,6 +94,7 @@ export const getSettings = reader((db): AppSettings => {
     ...bodyProfileOf(db),
     loggedRpe,
     showRpe: db.settings.showRpe === true || loggedRpe,
+    tutorialSeen: db.settings.tutorialSeen === true,
     warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
     weightUnit: db.settings.weightUnit,
   };
@@ -133,6 +136,12 @@ export async function saveWarmupRestMultiplier(multiplier: number): Promise<void
 export async function saveShowRpe(showRpe: boolean): Promise<void> {
   await writeDatabase((db) => {
     db.settings.showRpe = showRpe;
+  });
+}
+
+export async function saveTutorialSeen(seen: boolean): Promise<void> {
+  await writeDatabase((db) => {
+    db.settings.tutorialSeen = seen;
   });
 }
 
@@ -269,7 +278,7 @@ export const listRoutines = reader((db): RoutineSummary[] =>
   [...db.routines]
     .sort((left, right) => right.createdAt - left.createdAt)
     .map((routine) => ({
-      exerciseNames: routineExerciseRows(db, routine.id).map((exercise) => exerciseName(db, exercise.exerciseId)),
+      exerciseNames: routineExerciseRows(db, routine.id).map((exercise) => displayName(db, exercise.exerciseId, exercise.attachment)),
       id: routine.id,
       name: routine.name,
     })),
@@ -294,11 +303,12 @@ export const getRoutine = reader((db, routineId: string): RoutineDetail | null =
         exerciseId: exercise.exerciseId,
         id: exercise.id,
         muscleGroup: details.muscleGroup,
+        attachment: details.equipment === 'Cable' && isCableAttachment(exercise.attachment) ? exercise.attachment : null,
         machineSetup: usesMachineSetup(details.equipment) ? normalizeMachineSetup(exercise.machineSetup) : null,
         name: details.name,
         position: exercise.position,
         supersetId: exercise.supersetId,
-        previousSets: latestSessionSets(historyForSetup(history[exercise.exerciseId] ?? [], details.equipment, exercise.machineSetup)).map((set) =>
+        previousSets: latestSessionSets(historyForSlot(history[exercise.exerciseId] ?? [], details.equipment, exercise.machineSetup, exercise.attachment)).map((set) =>
           toPrevious(set, details.equipment),
         ),
         sets: routineSetRows(db, exercise.id).map(mapRoutineSet),
@@ -335,18 +345,20 @@ export async function deleteRoutine(routineId: string): Promise<void> {
   });
 }
 
-/** Adds an exercise with its last session's sets as the plan, or one blank set. */
-export async function addExerciseToRoutine(routineId: string, exerciseId: string): Promise<void> {
+/** Adds an exercise with its last session's sets as the plan, or one blank set. A cable exercise can be added again with a different attachment. */
+export async function addExerciseToRoutine(routineId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
   await writeDatabase((db) => {
+    const library = requireExercise(db, exerciseId);
     const rows = db.routineExercises.filter((exercise) => exercise.routineId === routineId);
-    if (rows.some((exercise) => exercise.exerciseId === exerciseId)) {
+    const chosen = chosenAttachment(library.equipment, attachment, defaultAttachment(db, exerciseId));
+    if (slotTaken(rows, exerciseId, library.equipment, chosen)) {
       return;
     }
     const position = nextPosition(rows);
     const routineExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
-    db.routineExercises.push({ exerciseId, id: routineExerciseId, machineSetup, position, routineId, supersetId: null });
-    const previous = latestSessionSets(historyForSetup(historyFor(db, [exerciseId], '')[exerciseId] ?? [], requireExercise(db, exerciseId).equipment, machineSetup));
+    db.routineExercises.push({ attachment: chosen, exerciseId, id: routineExerciseId, machineSetup, position, routineId, supersetId: null });
+    const previous = latestSessionSets(historyForSlot(historyFor(db, [exerciseId], '')[exerciseId] ?? [], library.equipment, machineSetup, chosen));
     const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
     templates.forEach((template, index) => {
       db.routineSets.push({
@@ -377,7 +389,7 @@ export async function restoreRoutineExercise(routineId: string, exercise: Routin
       return;
     }
     const rows = routineExerciseRows(db, routineId);
-    const restored = { exerciseId: exercise.exerciseId, id: exercise.id, machineSetup: exercise.machineSetup, position: 0, routineId, supersetId: exercise.supersetId };
+    const restored = { attachment: exercise.attachment, exerciseId: exercise.exerciseId, id: exercise.id, machineSetup: exercise.machineSetup, position: 0, routineId, supersetId: exercise.supersetId };
     rows.splice(Math.min(index, rows.length), 0, restored);
     rows.forEach((row, position) => {
       row.position = position;
@@ -523,11 +535,13 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
     db.workouts.push({ finishedAt: null, id: workoutId, name: routine.name, routineId: routine.id, startedAt: Date.now() });
     exercises.forEach((exercise, index) => {
       const workoutExerciseId = createId();
-      const machineSetup = usesMachineSetup(requireExercise(db, exercise.exerciseId).equipment)
+      const details = requireExercise(db, exercise.exerciseId);
+      const attachment = details.equipment === 'Cable' && isCableAttachment(exercise.attachment) ? exercise.attachment : null;
+      const machineSetup = usesMachineSetup(details.equipment)
         ? (normalizeMachineSetup(exercise.machineSetup) ?? defaultMachineSetup(db, exercise.exerciseId))
         : null;
       db.workoutExercises.push({
-        attachment: defaultAttachment(db, exercise.exerciseId),
+        attachment,
         exerciseId: exercise.exerciseId,
         id: workoutExerciseId,
         machineSetup,
@@ -542,7 +556,7 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
         addTemplateSets(
           db,
           workoutExerciseId,
-          latestSessionSets(historyForSetup(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? [], requireExercise(db, exercise.exerciseId).equipment, machineSetup)),
+          latestSessionSets(historyForSlot(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? [], details.equipment, machineSetup, attachment)),
         );
         return;
       }
@@ -593,17 +607,17 @@ export const listWorkoutSummaries = reader(workoutSummariesOf);
 
 function workoutSummariesOf(db: DatabaseShape): WorkoutSummary[] {
   const records = recordsByWorkout(db);
-  return db.workouts
+  const summaries = db.workouts
     .filter((workout) => workout.finishedAt != null)
     .sort((left, right) => (right.finishedAt ?? 0) - (left.finishedAt ?? 0))
     .map((workout) => {
       const rows = workoutExerciseRows(db, workout.id);
       const working = workingSets(db, workout.id);
       return {
-        exerciseNames: rows.map((exercise) => exerciseName(db, exercise.exerciseId)),
+        exerciseNames: rows.map((exercise) => displayName(db, exercise.exerciseId, exercise.attachment)),
         exercises: rows.map((row) => {
           const sets = setsOf(db, row.id).filter((set) => set.completed && set.setType !== 'warmup');
-          return { best: bestSet(sets), cardio: cardioBest(sets), name: exerciseName(db, row.exerciseId), sets: sets.length };
+          return { best: bestSet(sets), cardio: cardioBest(sets), name: displayName(db, row.exerciseId, row.attachment), sets: sets.length };
         }),
         finishedAt: workout.finishedAt ?? workout.startedAt,
         id: workout.id,
@@ -614,8 +628,11 @@ function workoutSummariesOf(db: DatabaseShape): WorkoutSummary[] {
         setCount: working.length,
         startedAt: workout.startedAt,
         volumeKg: working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0),
+        volumeRecord: false,
       };
     });
+  const recordsByVolume = volumeRecordIds(summaries);
+  return summaries.map((summary) => ({ ...summary, volumeRecord: recordsByVolume.has(summary.id) }));
 }
 
 /** Everything the Analysis screen needs: finished workouts and their working sets. */
@@ -701,11 +718,11 @@ function recordsByWorkout(db: DatabaseShape): Map<string, number> {
   for (const exerciseId of indexOf(db).rowsByExercise.keys()) {
     const history = (historyFor(db, [exerciseId], '')[exerciseId] ?? []).flatMap((set) => {
       const scored = scoreLoggedSet(set);
-      return scored ? [{ scored, setup: set.machineSetup, workoutId: set.workoutId }] : [];
+      return scored ? [{ attachment: set.attachment ?? null, scored, setup: set.machineSetup, workoutId: set.workoutId }] : [];
     });
     const groups = new Map<string, typeof history>();
     for (const item of history) {
-      const key = item.setup ?? '';
+      const key = `${item.setup ?? ''}\0${item.attachment ?? ''}`;
       const group = groups.get(key);
       if (group) {
         group.push(item);
@@ -728,37 +745,46 @@ function recordsByWorkout(db: DatabaseShape): Map<string, number> {
   return counts;
 }
 
-export async function addExerciseToWorkout(workoutId: string, exerciseId: string): Promise<void> {
+export async function addExerciseToWorkout(workoutId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
   await writeDatabase((db) => {
     if (!db.exercises.some((exercise) => exercise.id === exerciseId)) {
       throw new Error('Exercise not found.');
     }
+    const library = requireExercise(db, exerciseId);
     const rows = db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId);
-    if (rows.some((exercise) => exercise.exerciseId === exerciseId)) {
+    const chosen = chosenAttachment(library.equipment, attachment, defaultAttachment(db, exerciseId));
+    if (slotTaken(rows, exerciseId, library.equipment, chosen)) {
       return;
     }
     const position = nextPosition(rows);
     const workoutExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
-    db.workoutExercises.push({ attachment: defaultAttachment(db, exerciseId), exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), supersetId: null, workoutId });
-    addTemplateSets(db, workoutExerciseId, latestSessionSets(historyForSetup(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? [], requireExercise(db, exerciseId).equipment, machineSetup)));
+    db.workoutExercises.push({ attachment: chosen, exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), supersetId: null, workoutId });
+    addTemplateSets(db, workoutExerciseId, latestSessionSets(historyForSlot(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? [], library.equipment, machineSetup, chosen)));
   });
 }
 
-/** Library exercise ids already in a workout or routine, for the picker's add/remove toggle. */
-export const listTargetExerciseIds = reader((db, target: { workoutId: string } | { routineId: string }): string[] => {
+/** Cards already in a workout or routine. A cable exercise can occupy more than one when the attachments differ. */
+export interface TargetSlot {
+  id: string;
+  exerciseId: string;
+  attachment: CableAttachment | null;
+}
+
+export const listTargetSlots = reader((db, target: { workoutId: string } | { routineId: string }): TargetSlot[] => {
   const rows = 'workoutId' in target ? workoutExerciseRows(db, target.workoutId) : routineExerciseRows(db, target.routineId);
-  return rows.map((row) => row.exerciseId);
+  return rows.map((row) => ({ attachment: isCableAttachment(row.attachment) ? row.attachment : null, exerciseId: row.exerciseId, id: row.id }));
 });
 
 /**
  * Takes an exercise back out of a workout from the picker. An exercise with a
  * completed set stays, so a stray tap cannot throw away logged work.
+ * Pass `attachment` to remove one cable card and leave the others.
  */
-export async function removeExerciseFromWorkout(workoutId: string, exerciseId: string): Promise<'removed' | 'has-sets'> {
+export async function removeExerciseFromWorkout(workoutId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<'removed' | 'has-sets'> {
   let result: 'removed' | 'has-sets' = 'removed';
   await writeDatabase((db) => {
-    const rows = db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId && exercise.exerciseId === exerciseId);
+    const rows = matchingSlots(db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId), exerciseId, requireExercise(db, exerciseId).equipment, attachment);
     const rowIds = new Set(rows.map((row) => row.id));
     if (db.sets.some((set) => rowIds.has(set.workoutExerciseId) && set.completed)) {
       result = 'has-sets';
@@ -770,9 +796,9 @@ export async function removeExerciseFromWorkout(workoutId: string, exerciseId: s
   return result;
 }
 
-export async function removeExerciseFromRoutine(routineId: string, exerciseId: string): Promise<void> {
+export async function removeExerciseFromRoutine(routineId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
   await writeDatabase((db) => {
-    const rowIds = new Set(db.routineExercises.filter((exercise) => exercise.routineId === routineId && exercise.exerciseId === exerciseId).map((exercise) => exercise.id));
+    const rowIds = new Set(matchingSlots(db.routineExercises.filter((exercise) => exercise.routineId === routineId), exerciseId, requireExercise(db, exerciseId).equipment, attachment).map((exercise) => exercise.id));
     db.routineSets = db.routineSets.filter((set) => !rowIds.has(set.routineExerciseId));
     db.routineExercises = db.routineExercises.filter((exercise) => !rowIds.has(exercise.id));
   });
@@ -934,19 +960,27 @@ export async function updateWorkoutExerciseRest(workoutExerciseId: string, restS
   });
 }
 
-/** Sets the attachment for this workout and makes it the exercise's default for the next one. */
-export async function updateWorkoutExerciseAttachment(workoutExerciseId: string, attachment: CableAttachment | null): Promise<void> {
+/** Sets the attachment for this workout and makes it the exercise's default for the next one. A cable attachment already on another card is left unchanged. */
+export async function updateWorkoutExerciseAttachment(workoutExerciseId: string, attachment: CableAttachment | null): Promise<boolean> {
+  let saved = false;
   await writeDatabase((db) => {
     const row = db.workoutExercises.find((item) => item.id === workoutExerciseId);
     if (!row) {
       return;
     }
-    row.attachment = attachment;
+    const library = requireExercise(db, row.exerciseId);
+    const chosen = library.equipment === 'Cable' && isCableAttachment(attachment) ? attachment : null;
+    if (slotTaken(db.workoutExercises.filter((item) => item.workoutId === row.workoutId), row.exerciseId, library.equipment, chosen, row.id)) {
+      return;
+    }
+    saved = true;
+    row.attachment = chosen;
     const exercise = db.exercises.find((item) => item.id === row.exerciseId);
     if (exercise?.equipment === 'Cable') {
-      exercise.attachment = attachment;
+      exercise.attachment = chosen;
     }
   });
+  return saved;
 }
 
 /** Sets the stack for this workout and makes it the exercise's default for the next one. */
@@ -973,7 +1007,8 @@ export async function switchWorkoutExerciseSetup(workoutExerciseId: string, mach
       return;
     }
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
-    addTemplateSets(db, row.id, latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], row.workoutId)[row.exerciseId] ?? [], requireExercise(db, row.exerciseId).equipment, row.machineSetup)));
+    const details = requireExercise(db, row.exerciseId);
+    addTemplateSets(db, row.id, latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], row.workoutId)[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment)));
     next = setsOf(db, row.id).map(mapSet);
   });
   return next;
@@ -1032,7 +1067,8 @@ export async function switchRoutineExerciseSetup(routineExerciseId: string, mach
       return;
     }
     db.routineSets = db.routineSets.filter((set) => set.routineExerciseId !== row.id);
-    const previous = latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? [], requireExercise(db, row.exerciseId).equipment, row.machineSetup));
+    const details = requireExercise(db, row.exerciseId);
+    const previous = latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment));
     const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
     templates.forEach((template, index) => {
       db.routineSets.push({
@@ -1077,11 +1113,12 @@ export async function swapWorkoutExercise(workoutExerciseId: string, exerciseId:
     if (!db.exercises.some((exercise) => exercise.id === exerciseId)) {
       throw new Error('Exercise not found.');
     }
-    if (db.workoutExercises.some((item) => item.workoutId === row.workoutId && item.exerciseId === exerciseId)) {
-      throw new Error('That exercise is already in this workout.');
+    const library = requireExercise(db, exerciseId);
+    const attachment = defaultAttachment(db, exerciseId);
+    if (slotTaken(db.workoutExercises.filter((item) => item.workoutId === row.workoutId), exerciseId, library.equipment, attachment, row.id)) {
+      throw new Error(library.equipment === 'Cable' ? 'That attachment is already in this workout.' : 'That exercise is already in this workout.');
     }
     const restSeconds = lastRestFor(db, exerciseId);
-    const attachment = defaultAttachment(db, exerciseId);
     const machineSetup = defaultMachineSetup(db, exerciseId);
     row.exerciseId = exerciseId;
     row.restSeconds = restSeconds;
@@ -1092,7 +1129,7 @@ export async function swapWorkoutExercise(workoutExerciseId: string, exerciseId:
       return;
     }
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
-    addTemplateSets(db, row.id, latestSessionSets(historyForSetup(historyFor(db, [exerciseId], row.workoutId)[exerciseId] ?? [], requireExercise(db, exerciseId).equipment, machineSetup)));
+    addTemplateSets(db, row.id, latestSessionSets(historyForSlot(historyFor(db, [exerciseId], row.workoutId)[exerciseId] ?? [], library.equipment, machineSetup, attachment)));
   });
 }
 
@@ -1457,15 +1494,17 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
     const sets = setsOf(db, row.id).filter(isWorkingSet);
     const loaded = sets.filter((set) => (set.reps ?? 0) > 0);
     const estimate = estimateFromSets(loaded.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })));
-    return { best: bestSet(sets), cardio: cardioBest(sets), name: exerciseName(db, row.exerciseId), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
+    return { best: bestSet(sets), cardio: cardioBest(sets), name: displayName(db, row.exerciseId, row.attachment), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
   });
   const records: WorkoutRecap['records'] = [];
   for (const row of rows) {
+    const details = requireExercise(db, row.exerciseId);
+    const attachment = details.equipment === 'Cable' && isCableAttachment(row.attachment) ? row.attachment : null;
     const history = (historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? []).flatMap((set) => {
       const scored = scoreLoggedSet(set);
-      return scored ? [{ scored, setup: set.machineSetup, workoutId: set.workoutId }] : [];
+      return scored ? [{ attachment: set.attachment ?? null, scored, setup: set.machineSetup, workoutId: set.workoutId }] : [];
     });
-    const group = history.filter((item) => sameMachineSetup(item.setup, row.machineSetup));
+    const group = history.filter((item) => sameMachineSetup(item.setup, row.machineSetup) && (details.equipment !== 'Cable' || item.attachment === attachment));
     let best = 0;
     oneRepMaxRecordFlags(group.map((item) => item.scored)).forEach((beat, position) => {
       const item = group[position];
@@ -1474,7 +1513,7 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
       }
     });
     if (best > 0) {
-      records.push({ name: exerciseName(db, row.exerciseId), oneRepMaxKg: best });
+      records.push({ name: displayName(db, row.exerciseId, row.attachment), oneRepMaxKg: best });
     }
   }
   const now = Date.now();
@@ -1579,6 +1618,7 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
     const bucket = grouped[exercise.exerciseId] ?? [];
     for (const set of setsOf(db, exercise.id)) {
       bucket.push({
+        attachment: isCableAttachment(exercise.attachment) ? exercise.attachment : null,
         completed: set.completed,
         exerciseId: exercise.exerciseId,
         machineSetup: exercise.machineSetup ?? null,
@@ -1623,7 +1663,7 @@ function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous:
 
 function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workoutId: string): WorkoutExercise {
   const exercise = requireExercise(db, row.exerciseId);
-  const previous = latestSessionSets(historyForSetup(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? [], exercise.equipment, row.machineSetup)).map((set) =>
+  const previous = latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? [], exercise.equipment, row.machineSetup, row.attachment)).map((set) =>
     toPrevious(set, exercise.equipment),
   );
   const mapped = setsOf(db, row.id).map(mapSet);
@@ -1818,6 +1858,61 @@ function toPrevious(set: LoggedSet, equipment: Equipment): PreviousSet {
 
 function historyForSetup(sets: LoggedSet[], equipment: Equipment, setup: string | null | undefined): LoggedSet[] {
   return usesMachineSetup(equipment) ? filterSetsBySetup(sets, normalizeMachineSetup(setup)) : sets;
+}
+
+function historyForSlot(sets: LoggedSet[], equipment: Equipment, setup: string | null | undefined, attachment: CableAttachment | null | undefined): LoggedSet[] {
+  const bySetup = historyForSetup(sets, equipment, setup);
+  return equipment === 'Cable' ? filterSetsByAttachment(bySetup, isCableAttachment(attachment) ? attachment : null) : bySetup;
+}
+
+function chosenAttachment(equipment: Equipment, requested: CableAttachment | null | undefined, fallback: CableAttachment | null): CableAttachment | null {
+  if (equipment !== 'Cable') {
+    return null;
+  }
+  if (requested === undefined) {
+    return fallback;
+  }
+  return isCableAttachment(requested) ? requested : null;
+}
+
+function slotTaken(
+  rows: Array<{ id: string; exerciseId: string; attachment: CableAttachment | null }>,
+  exerciseId: string,
+  equipment: Equipment,
+  attachment: CableAttachment | null,
+  exceptId?: string,
+): boolean {
+  return rows.some(
+    (row) =>
+      row.id !== exceptId &&
+      sameExerciseSlot(equipment, { attachment: isCableAttachment(row.attachment) ? row.attachment : null, exerciseId: row.exerciseId }, { attachment, exerciseId }),
+  );
+}
+
+function matchingSlots<T extends { id: string; exerciseId: string; attachment: CableAttachment | null }>(
+  rows: T[],
+  exerciseId: string,
+  equipment: Equipment,
+  attachment: CableAttachment | null | undefined,
+): T[] {
+  return rows.filter((row) => {
+    if (row.exerciseId !== exerciseId) {
+      return false;
+    }
+    if (equipment !== 'Cable' || attachment === undefined) {
+      return true;
+    }
+    const current = isCableAttachment(row.attachment) ? row.attachment : null;
+    return current === (isCableAttachment(attachment) ? attachment : null);
+  });
+}
+
+function displayName(db: DatabaseShape, exerciseId: string, attachment: CableAttachment | null | undefined): string {
+  const name = exerciseName(db, exerciseId);
+  if (requireExercise(db, exerciseId).equipment === 'Cable' && isCableAttachment(attachment)) {
+    return `${name} · ${attachment}`;
+  }
+  return name;
 }
 
 function defaultMachineSetup(db: DatabaseShape, exerciseId: string): string | null {

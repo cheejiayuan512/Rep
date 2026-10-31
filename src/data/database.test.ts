@@ -7,6 +7,7 @@ import { assertEqual, assertThrows, assertTrue, test } from '../domain/test-supp
 test('a first launch is an empty log that still needs saving', () => {
   const loaded = loadStoredDocument(null);
   assertEqual(loaded.shouldPersist, true);
+  assertEqual(loaded.database.settings.tutorialSeen, false);
   assertEqual(loaded.database.workouts.length, 0);
   assertTrue(loaded.database.exercises.some((exercise) => exercise.id === 'back-squat'), 'missing seeded squat');
 });
@@ -28,6 +29,7 @@ test('an older log keeps its sets when newer fields are missing', () => {
   assertEqual(loaded.database.sets[0]?.rpe, null);
   assertEqual(loaded.database.routineSets, []);
   assertEqual(loaded.database.workoutExercises[0]?.notes, '');
+  assertEqual(loaded.database.settings.tutorialSeen, true);
   assertEqual(loaded.shouldPersist, true);
 });
 

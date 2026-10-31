@@ -16,8 +16,8 @@ import { Chip } from '../../components/chip';
 import { ExerciseAnimation } from '../../components/exercise-animation';
 import { formatCardioEffort, formatDistance, isCardioExercise } from '../../domain/cardio';
 import { formatClock, formatDay, formatLoggedLoad } from '../../domain/format';
-import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
-import { extraMachineSetups, formatMachineSetup, machineBrands, setTypeMark, usesMachineSetup, type ChartMetric, type LoggedSet } from '../../domain/types';
+import { buildSessionStats, chartValues, filterSetsByAttachment, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
+import { cableAttachments, extraMachineSetups, formatMachineSetup, isCableAttachment, machineBrands, setTypeMark, usesMachineSetup, type CableAttachment, type ChartMetric, type LoggedSet } from '../../domain/types';
 import { formatDecimal, formatWeight, kmToDisplay } from '../../domain/units';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -38,15 +38,36 @@ export const ExerciseProgressScreen: React.FC = () => {
   const sets = useStored(getExerciseLog, route.params.exerciseId) ?? NO_SETS;
   const [metric, setMetric] = useState<ChartMetric>('oneRepMax');
   const [setup, setSetup] = useState<string | null>(() => (route.params.machineSetup !== undefined ? route.params.machineSetup : (exercise?.machineSetup ?? null)));
+  const [attachment, setAttachment] = useState<CableAttachment | null>(() => {
+    if (route.params.attachment !== undefined) {
+      return route.params.attachment ?? null;
+    }
+    const latest = [...(getExerciseLog.now(route.params.exerciseId) ?? [])].sort((left, right) => right.performedAt - left.performedAt)[0];
+    return isCableAttachment(latest?.attachment) ? latest.attachment : null;
+  });
   const setups = useMemo(() => {
     const used = extraMachineSetups(sets.map((set) => set.machineSetup));
     const named = [...machineBrands.filter((brand) => sets.some((set) => set.machineSetup === brand)), ...used];
     return named;
   }, [sets]);
-  const visibleSets = useMemo(
-    () => (exercise && usesMachineSetup(exercise.equipment) ? filterSetsBySetup(sets, setup) : sets),
-    [exercise, sets, setup],
-  );
+  const attachments = useMemo(() => {
+    const used = new Set(sets.flatMap((set) => (isCableAttachment(set.attachment) ? [set.attachment] : [])));
+    if (isCableAttachment(attachment)) {
+      used.add(attachment);
+    }
+    return cableAttachments.filter((name) => used.has(name));
+  }, [attachment, sets]);
+  const showAttachments = exercise?.equipment === 'Cable' && (attachments.length > 1 || sets.some((set) => (set.attachment ?? null) == null) && attachments.length > 0);
+  const visibleSets = useMemo(() => {
+    let next = sets;
+    if (exercise && usesMachineSetup(exercise.equipment)) {
+      next = filterSetsBySetup(next, setup);
+    }
+    if (exercise?.equipment === 'Cable' && showAttachments) {
+      next = filterSetsByAttachment(next, attachment);
+    }
+    return next;
+  }, [attachment, exercise, sets, setup, showAttachments]);
 
   const cardio = isCardioExercise(exercise?.id ?? '', exercise?.name ?? '');
   const [cardioMetric, setCardioMetric] = useState<'duration' | 'distance'>('duration');
@@ -80,6 +101,14 @@ export const ExerciseProgressScreen: React.FC = () => {
               <Chip label={formatMachineSetup(null)} onSelect={setSetup} selected={setup == null} value={null} />
               {setups.map((name) => (
                 <Chip key={name} label={name} onSelect={setSetup} selected={setup === name} value={name} />
+              ))}
+            </View>
+          ) : null}
+          {showAttachments ? (
+            <View style={styles.setups}>
+              <Chip label="None" onSelect={setAttachment} selected={attachment == null} value={null} />
+              {attachments.map((name) => (
+                <Chip key={name} label={name} onSelect={setAttachment} selected={attachment === name} value={name} />
               ))}
             </View>
           ) : null}

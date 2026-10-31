@@ -93,6 +93,7 @@ export const WorkoutDetailScreen: React.FC = () => {
     (exercise: WorkoutExercise) => {
       navigation.navigate('ExerciseProgress', {
         exerciseId: exercise.exerciseId,
+        ...(exercise.equipment === 'Cable' ? { attachment: exercise.attachment } : {}),
         ...(usesMachineSetup(exercise.equipment) ? { machineSetup: exercise.machineSetup } : {}),
       });
     },

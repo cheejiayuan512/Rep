@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rep",
     "slug": "Rep",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -42,7 +42,26 @@
         "expo-widgets",
         {
           "bundleIdentifier": "com.cheejiayuan.rep.ExpoWidgetsTarget",
-          "groupIdentifier": "group.com.cheejiayuan.rep"
+          "groupIdentifier": "group.com.cheejiayuan.rep",
+          "enableAndroid": true,
+          "widgets": [
+            {
+              "name": "RepWidget",
+              "displayName": "Rep",
+              "description": "This week's workouts, volume, and streak",
+              "ios": {
+                "supportedFamilies": ["systemSmall", "systemMedium", "accessoryRectangular"],
+                "initialLayout": "./src/components/home-widget.ios.tsx"
+              },
+              "android": {
+                "initialLayout": "./src/components/home-widget.android.tsx",
+                "minWidth": 180,
+                "minHeight": 110,
+                "targetCellWidth": 4,
+                "targetCellHeight": 2
+              }
+            }
+          ]
         }
       ],
       "expo-status-bar"

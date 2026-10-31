@@ -4,16 +4,18 @@
  * slides in on top of them, such as the workout you are logging.
  * On startup this opens the saved log, then shows the tabs.
  */
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import { bootFailed, bootstrapped, useAppDispatch, useAppSelector } from '../state/store';
+import { bootFailed, bootstrapped, tutorialClosed, useAppDispatch, useAppSelector } from '../state/store';
 import { HistoryIcon, ProfileIcon, ProgressIcon, WorkoutIcon } from '../components/icons';
-import { getInProgressWorkoutId, getSettings, getWorkout } from '../data/repository';
+import { getInProgressWorkoutId, getSettings, getWorkout, saveTutorialSeen } from '../data/repository';
+import { syncHomeWidget } from '../components/home-widget-sync';
+import { TutorialModal } from '../components/tutorial-modal';
 import { flushDatabase, initDatabase } from '../data/database';
 import { endWorkoutActivity, showWorkoutActivity } from '../components/workout-live-activity';
 import { activityPropsFor, installCompleteSetListener } from '../features/workout/workout-activity-sync';
@@ -93,7 +95,7 @@ export const RootNavigator: React.FC = () => {
         const settings = await getSettings();
         const activeWorkoutId = await getInProgressWorkoutId();
         if (!cancel) {
-          dispatch(bootstrapped({ activeWorkoutId, warmupRestMultiplier: settings.warmupRestMultiplier, weightUnit: settings.weightUnit }));
+          dispatch(bootstrapped({ activeWorkoutId, showTutorial: !settings.tutorialSeen, warmupRestMultiplier: settings.warmupRestMultiplier, weightUnit: settings.weightUnit }));
         }
       } catch (error) {
         if (!cancel) {
@@ -122,6 +124,19 @@ export const RootNavigator: React.FC = () => {
 
   const activeWorkoutId = useAppSelector((state) => state.app.activeWorkoutId);
   const unit = useAppSelector((state) => state.app.weightUnit);
+  const revision = useAppSelector((state) => state.app.revision);
+  const tutorialOpen = useAppSelector((state) => state.app.tutorialOpen);
+  const closeTutorial = useCallback(() => {
+    dispatch(tutorialClosed());
+    void saveTutorialSeen(true);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+    syncHomeWidget();
+  }, [activeWorkoutId, ready, revision, unit]);
   useEffect(() => {
     if (!ready) {
       return;
@@ -161,6 +176,7 @@ export const RootNavigator: React.FC = () => {
 
   return (
     <NavigationContainer theme={navigationTheme}>
+      {tutorialOpen ? <TutorialModal onClose={closeTutorial} /> : null}
       <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
         <Stack.Screen component={Tabs} name="Tabs" />
         <Stack.Screen

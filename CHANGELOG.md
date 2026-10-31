@@ -2,6 +2,13 @@
 
 What changed in Rep, newest first. Store builds are listed as Android version code / iOS build number. Add a section here with every change you ship.
 
+## 1.6.0
+
+- **Cable twice.** The same cable exercise can be added again when the attachment is different. Previous, records, and the chart stay with that attachment.
+- **Volume PR.** A workout that moves more weight than every earlier one is marked on History and on the finish screen. The first workout is not a record.
+- **Home screen widget.** iPhone and Android can show this week's workouts, volume, and streak. An open workout takes its place until you finish.
+- **Tutorial.** A new log walks through starting, logging, cable attachments, and finishing. Profile can show it again.
+
 ## 1.5.1 · Android 16 / iOS 23
 
 - **Cardio sets.** Running, cycling, rowing, and the same kind of effort log time and distance instead of weight and reps. A Hevy run imports into those fields.

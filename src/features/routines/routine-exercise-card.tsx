@@ -119,6 +119,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
             <Text style={styles.name}>{exercise.name}</Text>
             <Text style={styles.meta}>
               {exercise.muscleGroup} · {exercise.equipment}
+              {exercise.equipment === 'Cable' ? ` · ${exercise.attachment ?? 'No attachment'}` : ''}
             </Text>
           </View>
           <View

@@ -2,7 +2,7 @@
  * Personal records and chart numbers. A set counts only when it is completed,
  * not a warmup, and has at least one rep. The first set is saved but not announced.
  */
-import type { ChartMetric, LoggedSet, SetType } from './types';
+import type { CableAttachment, ChartMetric, LoggedSet, SetType } from './types';
 import { isWorkingSetType, sameMachineSetup } from './types';
 import type { WeightUnit } from './types';
 import { formatLoggedLoad } from './format';
@@ -270,6 +270,35 @@ export function filterSetsBySetup(sets: LoggedSet[], setup: string | null): Logg
   return sets.filter((set) => sameMachineSetup(set.machineSetup, setup));
 }
 
+/** Sets logged with the same cable attachment. Null matches "None". */
+export function filterSetsByAttachment(sets: LoggedSet[], attachment: string | null): LoggedSet[] {
+  return sets.filter((set) => (set.attachment ?? null) === attachment);
+}
+
+/**
+ * Finished workouts that moved more weight than every earlier one.
+ * The first workout with any volume sets the bar and is not a record.
+ */
+export function volumeRecordIds(workouts: Array<{ id: string; finishedAt: number; volumeKg: number }>): Set<string> {
+  const ordered = [...workouts].sort((left, right) => left.finishedAt - right.finishedAt || left.id.localeCompare(right.id));
+  const ids = new Set<string>();
+  let best = 0;
+  let seen = false;
+  for (const workout of ordered) {
+    if (workout.volumeKg <= 0) {
+      continue;
+    }
+    if (seen && workout.volumeKg > best + VOLUME_EPSILON_KG) {
+      ids.add(workout.id);
+    }
+    if (!seen || workout.volumeKg > best) {
+      best = workout.volumeKg;
+      seen = true;
+    }
+  }
+  return ids;
+}
+
 export function latestSessionSets(sets: LoggedSet[]): LoggedSet[] {
   const completed = sets.filter((set) => set.completed);
   const first = completed[0];
@@ -411,9 +440,10 @@ export function toLoggedSet(input: {
   reps: number | null;
   completed: boolean;
   machineSetup?: string | null;
+  attachment?: CableAttachment | null;
   rpe?: number | null;
 }): LoggedSet {
-  return { ...input, machineSetup: input.machineSetup ?? null, rpe: input.rpe ?? null };
+  return { ...input, attachment: input.attachment ?? null, machineSetup: input.machineSetup ?? null, rpe: input.rpe ?? null };
 }
 
 function card(label: string, value: string | null, detail: string, achievedAt: number | null): RecordCard {

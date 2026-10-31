@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp, NavigatorScreenParams, RouteProp } from '@react-navigation/native';
 
+import type { CableAttachment } from '../domain/types';
 import { colors } from '../theme/colors';
 
 export type TabParamList = {
@@ -31,7 +32,7 @@ export type RootStackParamList = {
   ExercisePicker: ExercisePickerParams;
   RoutineEditor: { routineId: string };
   WorkoutDetail: { workoutId: string };
-  ExerciseProgress: { exerciseId: string; machineSetup?: string | null };
+  ExerciseProgress: { exerciseId: string; machineSetup?: string | null; attachment?: CableAttachment | null };
   /** `null` creates a new custom exercise. */
   ExerciseEditor: { exerciseId: string | null };
   Analysis: undefined;

@@ -1,9 +1,9 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsBySetup, groupLoggedSessions, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, type ScoredSet } from './metrics';
+import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsByAttachment, filterSetsBySetup, groupLoggedSessions, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, volumeRecordIds, type ScoredSet } from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
-import type { LoggedSet } from './types';
+import { sameExerciseSlot, type LoggedSet } from './types';
 
 function logged(overrides: Partial<LoggedSet>): LoggedSet {
   return {
@@ -232,6 +232,28 @@ test('previous and records stay on the same stack', () => {
   const mixedPrior = [scoreLoggedSet(precor), scoreLoggedSet(life)].filter((set): set is ScoredSet => set != null);
   assertEqual(detectRecord(current, lifePrior, 'kg')?.kind, 'oneRepMax');
   assertEqual(detectRecord(current, mixedPrior, 'kg'), null);
+});
+
+test('a cable exercise can repeat only when the attachment changes', () => {
+  const rope = { attachment: 'Rope' as const, exerciseId: 'cable-curl' };
+  const bar = { attachment: 'Straight bar' as const, exerciseId: 'cable-curl' };
+  assertTrue(sameExerciseSlot('Cable', rope, { ...rope }), 'same attachment is the same card');
+  assertTrue(!sameExerciseSlot('Cable', rope, bar), 'a different attachment is another card');
+  assertTrue(sameExerciseSlot('Barbell', { attachment: null, exerciseId: 'squat' }, { attachment: null, exerciseId: 'squat' }), 'a barbell stays one card');
+  assertEqual(filterSetsByAttachment([logged({ attachment: 'Rope' }), logged({ attachment: 'Straight bar' })], 'Rope').length, 1);
+});
+
+test('workout volume is a record only after a previous best', () => {
+  const ids = volumeRecordIds([
+    { finishedAt: 1, id: 'first', volumeKg: 1000 },
+    { finishedAt: 2, id: 'lighter', volumeKg: 800 },
+    { finishedAt: 3, id: 'bigger', volumeKg: 1500 },
+    { finishedAt: 4, id: 'cardio', volumeKg: 0 },
+  ]);
+  assertTrue(!ids.has('first'), 'the first workout is not a volume record');
+  assertTrue(!ids.has('lighter'), 'a lighter workout is not a volume record');
+  assertTrue(ids.has('bigger'), 'a heavier workout is a volume record');
+  assertTrue(!ids.has('cardio'), 'a workout with no volume is not a volume record');
 });
 
 test('record counting skips the first set and ties', () => {

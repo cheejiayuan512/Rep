@@ -30,10 +30,10 @@ import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../
 import { Screen } from '../../components/screen';
 import { QuickAdd } from '../../components/quick-add';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
-import { detectRecords, filterSetsBySetup, latestSessionSets, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
+import { detectRecords, filterSetsByAttachment, filterSetsBySetup, latestSessionSets, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
 import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { machineSetupOptions } from '../../domain/machine-setup';
-import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
+import { formatMachineSetup, sameExerciseSlot, usesMachineSetup } from '../../domain/types';
 import { createId } from '../../domain/ids';
 import { findNextSet, findSet, moveById, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from '../../domain/workout-edits';
 import { bestWorkingOneRepMax, rateLift, type StrengthRating } from '../../domain/strength';
@@ -114,8 +114,11 @@ function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set:
   );
 }
 
-function previousFromHistory(history: LoggedSet[], equipment: WorkoutExercise['equipment'], setup: string | null): PreviousSet[] {
-  const sets = usesMachineSetup(equipment) ? filterSetsBySetup(history, setup) : history;
+function previousFromHistory(history: LoggedSet[], equipment: WorkoutExercise['equipment'], setup: string | null, attachment: CableAttachment | null): PreviousSet[] {
+  let sets = usesMachineSetup(equipment) ? filterSetsBySetup(history, setup) : history;
+  if (equipment === 'Cable') {
+    sets = filterSetsByAttachment(sets, attachment);
+  }
   return latestSessionSets(sets).map((set) => ({
     machineSetup: usesMachineSetup(equipment) ? (set.machineSetup ?? null) : undefined,
     reps: set.reps,
@@ -125,7 +128,8 @@ function previousFromHistory(history: LoggedSet[], equipment: WorkoutExercise['e
 }
 
 function matchingHistory(history: LoggedSet[], exercise: WorkoutExercise): LoggedSet[] {
-  return usesMachineSetup(exercise.equipment) ? filterSetsBySetup(history, exercise.machineSetup) : history;
+  const bySetup = usesMachineSetup(exercise.equipment) ? filterSetsBySetup(history, exercise.machineSetup) : history;
+  return exercise.equipment === 'Cable' ? filterSetsByAttachment(bySetup, exercise.attachment) : bySetup;
 }
 
 const ActiveWorkoutBody: React.FC = () => {
@@ -1065,6 +1069,7 @@ const ActiveWorkoutBody: React.FC = () => {
     (exercise: WorkoutExercise) => {
       navigation.navigate('ExerciseProgress', {
         exerciseId: exercise.exerciseId,
+        ...(exercise.equipment === 'Cable' ? { attachment: exercise.attachment } : {}),
         ...(usesMachineSetup(exercise.equipment) ? { machineSetup: exercise.machineSetup } : {}),
       });
     },
@@ -1072,9 +1077,27 @@ const ActiveWorkoutBody: React.FC = () => {
   );
 
   const handleChangeAttachment = useCallback((workoutExerciseId: string, attachment: CableAttachment | null) => {
-    setWorkout((current) =>
-      current ? { ...current, exercises: current.exercises.map((exercise) => (exercise.id === workoutExerciseId ? { ...exercise, attachment } : exercise)) } : current,
-    );
+    const current = workoutRef.current;
+    const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+    if (!current || !exercise || exercise.attachment === attachment) {
+      return;
+    }
+    if (
+      current.exercises.some(
+        (item) =>
+          item.id !== workoutExerciseId &&
+          sameExerciseSlot(exercise.equipment, { attachment: item.attachment, exerciseId: item.exerciseId }, { attachment, exerciseId: exercise.exerciseId }),
+      )
+    ) {
+      setBanner('That attachment is already on another card.');
+      return;
+    }
+    const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, exercise.machineSetup, attachment);
+    setWorkout({
+      ...current,
+      exercises: current.exercises.map((item) => (item.id === workoutExerciseId ? { ...item, attachment, previousSets } : item)),
+    });
+    setBanner(null);
     void updateWorkoutExerciseAttachment(workoutExerciseId, attachment);
   }, []);
 
@@ -1092,7 +1115,7 @@ const ActiveWorkoutBody: React.FC = () => {
     snapshot.sets.forEach((set) => clearPending(set.id));
     void (async () => {
       const sets = await switchWorkoutExerciseSetup(workoutExerciseId, setup);
-      const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup);
+      const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup, exercise.attachment);
       setWorkout((workout) =>
         workout
           ? {

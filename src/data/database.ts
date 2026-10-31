@@ -41,6 +41,8 @@ export interface StoredRoutineExercise {
   exerciseId: string;
   position: number;
   machineSetup: string | null;
+  /** Cable attachment for this plan. Null for none or for a non-cable exercise. */
+  attachment: CableAttachment | null;
   /** Shared by the exercises in one superset. Null when the card is alone. */
   supersetId: string | null;
 }
@@ -111,6 +113,8 @@ export interface DatabaseShape {
     sex: BodySex | null;
     /** When true, set rows show the RPE column even if none has been logged. */
     showRpe: boolean;
+    /** False until the first-run tutorial is dismissed. Existing logs with workouts count as seen. */
+    tutorialSeen: boolean;
   };
 }
 
@@ -312,6 +316,10 @@ function normalizeStored(db: DatabaseShape): boolean {
     db.settings.showRpe = db.sets.some((set) => set.rpe != null);
     changed = true;
   }
+  if (typeof db.settings.tutorialSeen !== 'boolean') {
+    db.settings.tutorialSeen = db.workouts.length > 0;
+    changed = true;
+  }
   for (const exercise of db.workoutExercises) {
     if (exercise.attachment !== null && !isCableAttachment(exercise.attachment)) {
       exercise.attachment = null;
@@ -339,6 +347,11 @@ function normalizeStored(db: DatabaseShape): boolean {
     }
   }
   for (const exercise of db.routineExercises) {
+    if (!isCableAttachment(exercise.attachment) && exercise.attachment !== null) {
+      const library = db.exercises.find((item) => item.id === exercise.exerciseId);
+      exercise.attachment = library?.equipment === 'Cable' && isCableAttachment(library.attachment) ? library.attachment : null;
+      changed = true;
+    }
     const setup = normalizeMachineSetup(exercise.machineSetup);
     if (exercise.machineSetup !== setup) {
       exercise.machineSetup = setup;
@@ -443,7 +456,7 @@ function ensureSeed(db: DatabaseShape): boolean {
 }
 
 function defaultSettings(): DatabaseShape['settings'] {
-  return { ageYears: null, bodyweightKg: null, sex: null, showRpe: false, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
+  return { ageYears: null, bodyweightKg: null, sex: null, showRpe: false, tutorialSeen: false, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
 }
 
 /** Copies every row one level deep. Mutators edit row fields, and readers still hold the old rows. */

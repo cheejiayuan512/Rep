@@ -102,10 +102,10 @@ export const WorkoutCompleteScreen: React.FC = () => {
           <TextButton label="View workout" onPress={handleView} />
         </View>
       </ScrollView>
-      {recap && recap.records.length > 0 ? (
+      {recap && (recap.records.length > 0 || recap.workout.volumeRecord) ? (
         <Pressable accessibilityRole="button" onPress={toggleRecords} style={styles.pill}>
           <Text style={styles.pillText}>
-            ★ {recap.records.length} Personal {recap.records.length === 1 ? 'Record' : 'Records'}
+            ★ {recap.records.length + (recap.workout.volumeRecord ? 1 : 0)} Personal {recap.records.length + (recap.workout.volumeRecord ? 1 : 0) === 1 ? 'Record' : 'Records'}
           </Text>
         </Pressable>
       ) : null}
@@ -130,15 +130,15 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
         <Text style={styles.date}>{formatLongDate(workout.startedAt)}</Text>
         <View style={styles.metrics}>
           <Metric label={formatDuration(workout.startedAt, workout.finishedAt)} />
-          <Metric label={formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} />
+          <Metric label={`${workout.volumeRecord ? '★ ' : ''}${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}`} />
           <Metric label={`${workout.recordCount} PRs`} />
         </View>
         <View style={styles.tableHead}>
           <Text style={styles.tableLabel}>Exercise</Text>
           <Text style={styles.tableLabel}>Best Set</Text>
         </View>
-        {recap.exercises.map((exercise) => (
-          <View key={exercise.name} style={styles.tableRow}>
+        {recap.exercises.map((exercise, index) => (
+          <View key={`${exercise.name}-${index}`} style={styles.tableRow}>
             <Text style={styles.exerciseName}>
               {exercise.sets} × {exercise.name}
             </Text>
@@ -151,6 +151,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
             </Text>
           </View>
         ))}
+        {recordsOpen && workout.volumeRecord ? <Text style={styles.recordLine}>Volume PR · {formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}</Text> : null}
         {recordsOpen
           ? recap.records.map((record) => (
               <Text key={record.name} style={styles.recordLine}>

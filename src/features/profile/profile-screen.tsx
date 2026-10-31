@@ -29,6 +29,7 @@ import { STRENGTH_LEVELS } from '../../domain/strength';
 import { formatDecimal, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
+import { tutorialRequested, useAppDispatch } from '../../state/store';
 import { useBodyProfile, useProfile, useShowRpe, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
 
@@ -261,12 +262,14 @@ const ExerciseArtCredit: React.FC = () => {
 };
 
 const Settings: React.FC = () => {
+  const dispatch = useAppDispatch();
   const { setUnit, unit } = useWeightUnit();
   const { setWarmupMultiplier, warmupMultiplier } = useWarmupRestMultiplier();
   const { loggedRpe, setShowRpe, showRpe } = useShowRpe();
   const { body, setBody } = useBodyProfile();
   const selectMultiplier = useCallback((value: string) => setWarmupMultiplier(Number(value)), [setWarmupMultiplier]);
   const selectRpe = useCallback((value: string) => setShowRpe(value === 'on'), [setShowRpe]);
+  const showTutorial = useCallback(() => dispatch(tutorialRequested()), [dispatch]);
   return (
     <View>
       <Text style={styles.section}>Settings</Text>
@@ -292,6 +295,10 @@ const Settings: React.FC = () => {
           ))}
         </View>
       </View>
+      <Pressable accessibilityLabel="Show tutorial" accessibilityRole="button" onPress={showTutorial} style={styles.settingRow}>
+        <Text style={styles.contributionLabel}>Tutorial</Text>
+        <Text style={styles.sheetCloseText}>Show again</Text>
+      </Pressable>
       <Text style={styles.settingCaption}>For strength levels</Text>
       <BodyProfileForm body={body} onChange={setBody} unit={unit} />
     </View>

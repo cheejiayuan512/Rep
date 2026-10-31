@@ -18,6 +18,8 @@ interface AppState {
   warmupRestMultiplier: number;
   activeWorkoutId: string | null;
   revision: number;
+  /** The first-run tutorial, also opened again from Profile. */
+  tutorialOpen: boolean;
 }
 
 const initialState: AppState = {
@@ -25,6 +27,7 @@ const initialState: AppState = {
   bootError: null,
   ready: false,
   revision: 0,
+  tutorialOpen: false,
   warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER,
   weightUnit: 'kg',
 };
@@ -40,12 +43,19 @@ const appSlice = createSlice({
       state.bootError = action.payload;
       state.ready = false;
     },
-    bootstrapped(state, action: PayloadAction<{ weightUnit: WeightUnit; warmupRestMultiplier: number; activeWorkoutId: string | null }>) {
+    bootstrapped(state, action: PayloadAction<{ weightUnit: WeightUnit; warmupRestMultiplier: number; activeWorkoutId: string | null; showTutorial: boolean }>) {
       state.activeWorkoutId = action.payload.activeWorkoutId;
       state.bootError = null;
       state.ready = true;
+      state.tutorialOpen = action.payload.showTutorial;
       state.warmupRestMultiplier = action.payload.warmupRestMultiplier;
       state.weightUnit = action.payload.weightUnit;
+    },
+    tutorialClosed(state) {
+      state.tutorialOpen = false;
+    },
+    tutorialRequested(state) {
+      state.tutorialOpen = true;
     },
     dataChanged(state) {
       state.revision += 1;
@@ -59,7 +69,7 @@ const appSlice = createSlice({
   },
 });
 
-export const { activeWorkoutChanged, bootFailed, bootstrapped, dataChanged, warmupRestMultiplierChanged, weightUnitChanged } = appSlice.actions;
+export const { activeWorkoutChanged, bootFailed, bootstrapped, dataChanged, tutorialClosed, tutorialRequested, warmupRestMultiplierChanged, weightUnitChanged } = appSlice.actions;
 
 export const store = configureStore({
   reducer: {
