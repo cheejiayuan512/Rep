@@ -2,6 +2,7 @@
  * Finding an exercise from where you feel it, what you hold, and how you stand.
  */
 import { seedExercises } from '../data/seed-exercises';
+import { guideSlugFor } from './guide-art';
 import { findExercises, movementCue } from './exercise-finder';
 import { assertEqual, assertTrue, test } from './test-support';
 import type { Exercise } from './types';
@@ -39,6 +40,6 @@ test('not sure answers match everything in the muscle group', () => {
 });
 
 test('every built-in exercise describes its movement', () => {
-  const missing = seedExercises.filter((seed) => movementCue(seed.id) == null).map((seed) => seed.id);
+  const missing = seedExercises.filter((seed) => movementCue(seed.id) == null && guideSlugFor(seed.id) == null).map((seed) => seed.id);
   assertEqual(missing, []);
 });

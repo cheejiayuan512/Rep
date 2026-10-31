@@ -4,7 +4,7 @@
  * Settings live here too: kg or lb, warmup rest, and bodyweight for strength levels.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { BadgeGlyph } from '../../components/badge-icons';
@@ -67,6 +67,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <ProfileBody metric={metric} onMetric={setMetric} onOpenLibrary={openLibrary} onOpenRecent={openRecent} onOpenStrength={openStrength} profile={profile} unit={unit} />
         ) : null}
         <Settings />
+        <ExerciseArtCredit />
       </ScrollView>
     </Screen>
   );
@@ -233,6 +234,29 @@ const StrengthSummary: React.FC<{ onOpen: () => void; unit: WeightUnit }> = ({ o
       </View>
       <Text style={styles.chevron}>›</Text>
     </Pressable>
+  );
+};
+
+const CreditLink: React.FC<{ href: string; label: string }> = ({ href, label }) => {
+  const open = useCallback(() => {
+    void Linking.openURL(href);
+  }, [href]);
+  return (
+    <Text accessibilityRole="link" onPress={open} style={styles.artLink}>
+      {label}
+    </Text>
+  );
+};
+
+const ExerciseArtCredit: React.FC = () => {
+  return (
+    <View style={styles.credit}>
+      <Text style={styles.section}>Exercise drawings</Text>
+      <Text style={styles.hint}>
+        Drawings by <CreditLink href="https://github.com/everkinetic/data" label="Everkinetic" />, adapted by <CreditLink href="https://bryllim.com" label="Bryl Lim" /> for{' '}
+        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. Used under <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Rep shows each drawing smaller. The pictures are unchanged apart from that.
+      </Text>
+    </View>
   );
 };
 
@@ -661,6 +685,12 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '700',
     marginBottom: 16,
+  },
+  artLink: {
+    color: colors.accent,
+  },
+  credit: {
+    marginBottom: 28,
   },
   hint: {
     color: colors.faint,

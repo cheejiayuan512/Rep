@@ -4,6 +4,7 @@
  * Custom exercises the user creates are stored separately and are not listed here.
  */
 import type { CableAttachment, Equipment, MuscleGroup } from '../domain/types';
+import { guideExercises } from './guide-seeds';
 
 export interface SeedExercise {
   id: string;
@@ -13,7 +14,7 @@ export interface SeedExercise {
   attachment?: CableAttachment;
 }
 
-export const seedExercises: SeedExercise[] = [
+const builtInExercises: SeedExercise[] = [
   { id: 'barbell-bench-press', name: 'Barbell Bench Press', muscleGroup: 'Chest', equipment: 'Barbell' },
   { id: 'incline-barbell-bench-press', name: 'Incline Barbell Bench Press', muscleGroup: 'Chest', equipment: 'Barbell' },
   { id: 'decline-barbell-bench-press', name: 'Decline Barbell Bench Press', muscleGroup: 'Chest', equipment: 'Barbell' },
@@ -142,3 +143,6 @@ export const seedExercises: SeedExercise[] = [
   { id: 'burpee', name: 'Burpee', muscleGroup: 'Full body', equipment: 'Bodyweight' },
   { id: 'box-jump', name: 'Box Jump', muscleGroup: 'Full body', equipment: 'Other' },
 ];
+
+/** The original library, plus every Workout Guide exercise that was not already in it. */
+export const seedExercises: SeedExercise[] = [...builtInExercises, ...guideExercises];

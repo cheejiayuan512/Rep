@@ -3,9 +3,34 @@
  * on an incline, or with dumbbells. The picker folds each family into one row.
  * Custom exercises and moves with no listed family stay on their own row.
  */
+import { extraFamilyMembers } from './guide-families';
 import type { Exercise } from './types';
 
-const families: Record<string, string[]> = {
+function mergeFamilies(base: Record<string, readonly string[]>, extra: Record<string, readonly string[]>): Record<string, string[]> {
+  const merged: Record<string, string[]> = {};
+  const claimed = new Set<string>();
+  for (const ids of Object.values(base)) {
+    for (const id of ids) {
+      claimed.add(id);
+    }
+  }
+  for (const [family, ids] of Object.entries(base)) {
+    merged[family] = [...ids];
+  }
+  for (const [family, ids] of Object.entries(extra)) {
+    const next = merged[family] ?? [];
+    for (const id of ids) {
+      if (!claimed.has(id)) {
+        claimed.add(id);
+        next.push(id);
+      }
+    }
+    merged[family] = next;
+  }
+  return merged;
+}
+
+const baseFamilies: Record<string, readonly string[]> = {
   'Bench Press': [
     'barbell-bench-press',
     'incline-barbell-bench-press',
@@ -53,9 +78,36 @@ const families: Record<string, string[]> = {
     'machine-triceps-extension',
     'bench-dip',
   ],
+  Dip: ['dip', 'assisted-dip', 'chair-dip', 'chest-dip', 'weighted-dip'],
+  'Push-up': [
+    'push-up',
+    'archer-push-up',
+    'decline-push-up',
+    'diamond-push-up',
+    'explosive-push-up',
+    'feet-elevated-pike-push-up',
+    'handstand-push-up',
+    'hindu-push-up',
+    'incline-push-up',
+    'knee-push-up',
+    'pike-push-up',
+    'push-up-shoulder-tap',
+    'scapular-push-up',
+    'typewriter-push-up',
+    'wall-handstand-push-up',
+    'wall-push-up',
+    'weighted-push-up',
+    'wide-push-up',
+  ],
 };
 
+const families = mergeFamilies(baseFamilies, extraFamilyMembers);
+
 const familyById = new Map<string, string>(Object.entries(families).flatMap(([family, ids]) => ids.map((id) => [id, family] as const)));
+
+export function exercisesInFamily(family: string): readonly string[] {
+  return families[family] ?? [];
+}
 
 export function movementFamily(exerciseId: string): string | null {
   return familyById.get(exerciseId) ?? null;

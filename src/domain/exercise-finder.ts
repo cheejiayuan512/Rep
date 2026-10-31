@@ -1,7 +1,8 @@
 /**
  * Find an exercise from the movement when you do not know its name:
  * where you feel it, what you are holding, and how your body is placed.
- * Built-in exercises carry a body position and a one-line description of the move.
+ * The original library carries a body position and a one-line description.
+ * Exercises added from Workout Guide are described by their drawing.
  * Custom exercises match on muscle and equipment only.
  */
 import type { Equipment, Exercise, MuscleGroup } from './types';
@@ -191,7 +192,7 @@ export function bodyPositionOf(exerciseId: string): BodyPosition | null {
   return moves[exerciseId]?.position ?? null;
 }
 
-const RESULT_LIMIT = 8;
+const RESULT_LIMIT = 24;
 
 /**
  * The muscle answer filters; equipment and position rank. Exact matches come

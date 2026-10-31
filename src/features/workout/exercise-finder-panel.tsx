@@ -7,9 +7,8 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { TextButton } from '../../components/header';
-import { MovementFigure } from '../../components/movement-figure';
+import { ExerciseAnimation } from '../../components/exercise-animation';
 import { StrengthMark } from '../../components/strength-mark';
-import { poseForExercise } from '../../domain/movement-pose';
 import type { StrengthRating } from '../../domain/strength';
 import { bodyPositions, feelLabels, findExercises, movementCue, usingLabels, type FinderAnswers, type FinderMatch } from '../../domain/exercise-finder';
 import { equipmentTypes, muscleGroups, type Exercise } from '../../domain/types';
@@ -172,7 +171,7 @@ const FinderResult: React.FC<FinderResultProps> = React.memo(function FinderResu
       onPress={handlePress}
       style={styles.result}
     >
-      <MovementFigure pose={poseForExercise(exercise.id, exercise.name)} />
+      <ExerciseAnimation exerciseId={exercise.id} name={exercise.name} />
       <View style={styles.resultCopy}>
         <View style={styles.nameRow}>
           <Text numberOfLines={1} style={styles.name}>

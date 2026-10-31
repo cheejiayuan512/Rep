@@ -3,7 +3,7 @@
  * only change which number the line is plotting.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { useStored, useWeightUnit } from '../../state/hooks';
@@ -13,8 +13,8 @@ import { LineChart } from '../../components/line-chart';
 import { Screen } from '../../components/screen';
 import { getExercise, getExerciseLog } from '../../data/repository';
 import { Chip } from '../../components/chip';
-import { MovementFigure } from '../../components/movement-figure';
-import { poseForExercise } from '../../domain/movement-pose';
+import { ExerciseAnimation } from '../../components/exercise-animation';
+import { guideSlugFor } from '../../domain/guide-art';
 import { formatDay, formatLoggedLoad } from '../../domain/format';
 import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
 import { extraMachineSetups, formatMachineSetup, machineBrands, setTypeMark, usesMachineSetup, type ChartMetric, type LoggedSet } from '../../domain/types';
@@ -23,6 +23,10 @@ import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
 const NO_SETS: LoggedSet[] = [];
+
+function openArtLicense(): void {
+  void Linking.openURL('https://creativecommons.org/licenses/by-sa/4.0/');
+}
 
 const metrics: Array<{ id: ChartMetric; label: string }> = [
   { id: 'oneRepMax', label: '1RM' },
@@ -62,7 +66,7 @@ export const ExerciseProgressScreen: React.FC = () => {
       ) : (
         <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
           <View style={styles.heading}>
-            <MovementFigure pose={poseForExercise(exercise.id, exercise.name)} size={72} />
+            <ExerciseAnimation exerciseId={exercise.id} name={exercise.name} size={72} />
             <View style={styles.headingCopy}>
               <Text style={styles.title}>{exercise.name}</Text>
               <Text style={styles.meta}>
@@ -70,6 +74,15 @@ export const ExerciseProgressScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+          {guideSlugFor(exercise.id, exercise.name) ? (
+            <Text style={styles.artCredit}>
+              Drawing by Everkinetic and Bryl Lim,{' '}
+              <Text accessibilityRole="link" onPress={openArtLicense} style={styles.artLink}>
+                CC BY-SA 4.0
+              </Text>
+              . Shown smaller.
+            </Text>
+          ) : null}
           {usesMachineSetup(exercise.equipment) ? (
             <View style={styles.setups}>
               <Chip label={formatMachineSetup(null)} onSelect={setSetup} selected={setup == null} value={null} />
@@ -230,6 +243,15 @@ const styles = StyleSheet.create({
   },
   headingCopy: {
     flex: 1,
+  },
+  artCredit: {
+    color: colors.faint,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  artLink: {
+    color: colors.accent,
   },
   meta: {
     color: colors.muted,

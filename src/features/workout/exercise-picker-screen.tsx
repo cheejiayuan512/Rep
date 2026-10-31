@@ -24,9 +24,8 @@ import {
 } from '../../data/repository';
 import { groupExercises, movementFamily, type ExerciseListItem } from '../../domain/exercise-families';
 import type { StrengthRating } from '../../domain/strength';
-import { MovementFigure } from '../../components/movement-figure';
+import { ExerciseAnimation } from '../../components/exercise-animation';
 import { StrengthMark } from '../../components/strength-mark';
-import { poseForExercise, poseForFamily } from '../../domain/movement-pose';
 import { useStrengthOverview } from '../../state/hooks';
 import { ExerciseFinderPanel } from './exercise-finder-panel';
 import type { Equipment, Exercise, MuscleGroup } from '../../domain/types';
@@ -414,7 +413,7 @@ const FamilyRow: React.FC<FamilyRowProps> = React.memo(function FamilyRow({ fami
       onPress={handlePress}
       style={styles.row}
     >
-      <MovementFigure pose={poseForFamily(family)} />
+      <ExerciseAnimation family={family} />
       <View style={styles.rowCopy}>
         <View style={styles.nameRow}>
           <Text numberOfLines={1} style={styles.name}>
@@ -457,7 +456,7 @@ const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function Exerci
       onPress={handlePress}
       style={[styles.row, nested && styles.nested]}
     >
-      <MovementFigure pose={poseForExercise(exercise.id, exercise.name)} />
+      <ExerciseAnimation exerciseId={exercise.id} name={exercise.name} />
       <View style={styles.rowCopy}>
         <View style={styles.nameRow}>
           <Text numberOfLines={1} style={styles.name}>

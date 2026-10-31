@@ -7,6 +7,7 @@ import './exercise-families.test';
 import './exercise-finder.test';
 import './format.test';
 import './fuzzy-search.test';
+import './guide-art.test';
 import './hevy-import.test';
 import './log-export.test';
 import './log-import.test';
