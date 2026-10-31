@@ -50,7 +50,11 @@
               "displayName": "Rep",
               "description": "This week's workouts, volume, and streak",
               "ios": {
-                "supportedFamilies": ["systemSmall", "systemMedium", "accessoryRectangular"],
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "accessoryRectangular"
+                ],
                 "initialLayout": "./src/components/home-widget.ios.tsx"
               },
               "android": {
@@ -64,7 +68,8 @@
           ]
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

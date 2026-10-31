@@ -7,11 +7,12 @@ import { Alert, Pressable, SectionList, Share, StyleSheet, Text, View, type Sect
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { importWorkoutCsv, listWorkoutsForExport } from '../../data/repository';
+import { exportLogBackup, getInProgressWorkoutId, getSettings, importWorkoutCsv, listWorkoutsForExport, openLogBackup, restoreLogBackup } from '../../data/repository';
 import { formatSessionLoad } from '../../domain/cardio';
 import { workoutsToCsv } from '../../domain/log-export';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
-import { dataChanged, useAppDispatch } from '../../state/store';
+import { activeWorkoutChanged, dataChanged, useAppDispatch, warmupRestMultiplierChanged, weightUnitChanged } from '../../state/store';
+import { shareBackupFile } from './share-backup';
 import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
 import { formatDuration, formatLoggedLoad, formatMonth, formatWorkoutWhen } from '../../domain/format';
@@ -36,7 +37,7 @@ export const HistoryScreen: React.FC = () => {
   const workouts = useWorkoutSummaries();
   const { unit } = useWeightUnit();
   const sections = useMemo(() => groupByMonth(workouts), [workouts]);
-  const [importing, setImporting] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const handleOpen = useCallback(
     (workoutId: string) => {
@@ -46,7 +47,7 @@ export const HistoryScreen: React.FC = () => {
   );
 
   const handleImportCsv = useCallback(async () => {
-    if (importing) {
+    if (busy) {
       return;
     }
     try {
@@ -59,7 +60,7 @@ export const HistoryScreen: React.FC = () => {
         return;
       }
 
-      setImporting(true);
+      setBusy(true);
       const response = await fetch(picked.assets[0].uri);
       const csvText = await response.text();
       const summary = await importWorkoutCsv(csvText);
@@ -82,9 +83,9 @@ export const HistoryScreen: React.FC = () => {
       const message = error instanceof Error ? error.message : 'Could not import that file.';
       Alert.alert('Import failed', message);
     } finally {
-      setImporting(false);
+      setBusy(false);
     }
-  }, [dispatch, importing]);
+  }, [busy, dispatch]);
 
   const handleExportCsv = useCallback(async () => {
     const rows = listWorkoutsForExport.now();
@@ -102,6 +103,91 @@ export const HistoryScreen: React.FC = () => {
     }
   }, []);
 
+  const handleBackup = useCallback(async () => {
+    if (busy) {
+      return;
+    }
+    try {
+      setBusy(true);
+      const file = await exportLogBackup();
+      await shareBackupFile(file.filename, file.contents);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message && !/cancel|abort|did not share/i.test(message)) {
+        Alert.alert('Backup failed', message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [busy]);
+
+  const applyBackup = useCallback(
+    async (raw: string) => {
+      const next = openLogBackup(raw);
+      await restoreLogBackup(next);
+      const settings = getSettings.now();
+      if (settings) {
+        dispatch(weightUnitChanged(settings.weightUnit));
+        dispatch(warmupRestMultiplierChanged(settings.warmupRestMultiplier));
+      }
+      dispatch(activeWorkoutChanged(getInProgressWorkoutId.now()));
+      dispatch(dataChanged());
+      Alert.alert('Backup restored', 'The log on this phone now matches that file.');
+    },
+    [dispatch],
+  );
+
+  const handleRestore = useCallback(async () => {
+    if (busy) {
+      return;
+    }
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+        type: ['application/json', 'text/json', '*/*'],
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) {
+        return;
+      }
+      const response = await fetch(picked.assets[0].uri);
+      const raw = await response.text();
+      openLogBackup(raw);
+      Alert.alert('Replace this log?', 'This backup overwrites the workouts, routines, and settings on this phone.', [
+        { style: 'cancel', text: 'Cancel' },
+        {
+          onPress: () => {
+            setBusy(true);
+            void applyBackup(raw)
+              .catch((error: unknown) => {
+                const message = error instanceof Error ? error.message : 'Could not restore that file.';
+                Alert.alert('Restore failed', message);
+              })
+              .finally(() => setBusy(false));
+          },
+          style: 'destructive',
+          text: 'Restore',
+        },
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not restore that file.';
+      Alert.alert('Restore failed', message);
+    }
+  }, [applyBackup, busy]);
+
+  const pressExportCsv = useCallback(() => {
+    void handleExportCsv();
+  }, [handleExportCsv]);
+  const pressImportCsv = useCallback(() => {
+    void handleImportCsv();
+  }, [handleImportCsv]);
+  const pressBackup = useCallback(() => {
+    void handleBackup();
+  }, [handleBackup]);
+  const pressRestore = useCallback(() => {
+    void handleRestore();
+  }, [handleRestore]);
+
   const renderItem = useCallback(
     ({ item }: SectionListRenderItemInfo<WorkoutSummary, HistorySection>) => <HistoryCard onOpen={handleOpen} unit={unit} workout={item} />,
     [handleOpen, unit],
@@ -112,23 +198,27 @@ export const HistoryScreen: React.FC = () => {
   return (
     <Screen>
       <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>History</Text>
-          <View style={styles.headerActions}>
-            <Pressable accessibilityRole="button" onPress={() => void handleExportCsv()} style={styles.importButton}>
-              <Text style={styles.importLabel}>Export CSV</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" disabled={importing} onPress={() => void handleImportCsv()} style={styles.importButton}>
-              <Text style={styles.importLabel}>{importing ? 'Importing…' : 'Import CSV'}</Text>
-            </Pressable>
-          </View>
+        <Text style={styles.title}>History</Text>
+        <View style={styles.tools}>
+          <Pressable accessibilityLabel="Export workouts as CSV" accessibilityRole="button" disabled={busy} onPress={pressExportCsv} style={styles.importButton}>
+            <Text style={styles.importLabel}>Export CSV</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Import workouts from CSV" accessibilityRole="button" disabled={busy} onPress={pressImportCsv} style={styles.importButton}>
+            <Text style={styles.importLabel}>Import CSV</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Save a full backup" accessibilityRole="button" disabled={busy} onPress={pressBackup} style={styles.importButton}>
+            <Text style={styles.importLabel}>Backup</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Replace this log with a backup" accessibilityRole="button" disabled={busy} onPress={pressRestore} style={styles.importButton}>
+            <Text style={styles.importLabel}>Restore</Text>
+          </Pressable>
         </View>
       </View>
       <SectionList
         style={styles.fill}
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
-        ListEmptyComponent={<EmptyState message="Finish a workout or import a CSV and the sessions will land here." title="No workouts yet" />}
+        ListEmptyComponent={<EmptyState message="Finish a workout, import a CSV, or restore a backup and the sessions will land here." title="No workouts yet" />}
         initialNumToRender={6}
         maxToRenderPerBatch={8}
         removeClippedSubviews
@@ -341,14 +431,10 @@ const styles = StyleSheet.create({
   title: {
     ...screenTitle,
   },
-  headerActions: {
-    alignSelf: 'center',
+  tools: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-  },
-  titleRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    marginTop: 12,
   },
 });

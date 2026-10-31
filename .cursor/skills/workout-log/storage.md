@@ -24,6 +24,10 @@ A file that is not a log throws `CorruptLogError` and is left on disk. Do not re
 
 `writeDatabase` commits in memory and saves after a short delay. `flushDatabase` (or `saveNow` in the repository) waits for queued writes and saves immediately.
 
+## Backup
+
+History → Backup writes a `rep.backup` JSON file: `format`, `exportedAt`, and `document`. `document` is the on-device log, including routines, deletions, settings, and any key this version does not know. Restore replaces the log on the phone. It does not run the change stamp, so `updatedAt` stays as it was in the file. A raw log, without the wrapper, restores too. CSV import is a separate path and still drops fields.
+
 ## Adding a field
 
 1. Add it to the stored interface and to `normalizeStored` with a safe default.

@@ -39,7 +39,8 @@ import { fuzzyFilter } from '../domain/fuzzy-search';
 import { rateLift, STRENGTH_LIFTS, STRENGTH_MAX_REPS, type StrengthRating } from '../domain/strength';
 import type { BodyProfile } from '../domain/types';
 import { isBodySex, parseAgeYears } from '../domain/types';
-import { flushDatabase, isCommitted, peekDatabase, readDatabase, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import { backupFilename, encodeBackup, readBackupDocument } from '../domain/log-backup';
+import { CorruptLogError, flushDatabase, isCommitted, loadStoredDocument, peekDatabase, readDatabase, replaceStoredDocument, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
 
 /** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
 export interface Reader<A extends unknown[], R> {
@@ -1366,6 +1367,28 @@ export async function importWorkoutCsv(csvText: string): Promise<HevyImportSumma
     source: parsed.source,
     sourceLabel: LOG_EXPORT_LABEL[parsed.source],
   };
+}
+
+/** The whole log as a Rep backup file. Clocks and deletions are copied as they are. */
+export async function exportLogBackup(now = Date.now()): Promise<{ contents: string; filename: string }> {
+  return { contents: encodeBackup(await readDatabase(), now), filename: backupFilename(now) };
+}
+
+/** Reads a backup, or a raw log file, and refuses anything else. Does not save. */
+export function openLogBackup(raw: string): DatabaseShape {
+  try {
+    return loadStoredDocument(readBackupDocument(raw)).database;
+  } catch (error) {
+    if (error instanceof CorruptLogError || error instanceof SyntaxError) {
+      throw new Error('That file is not a Rep backup.');
+    }
+    throw error;
+  }
+}
+
+/** Replaces the log on this phone with a backup. Does not stamp the rows. */
+export async function restoreLogBackup(database: DatabaseShape): Promise<void> {
+  await replaceStoredDocument(database);
 }
 
 // History and progress: finished workouts and the sets that count.

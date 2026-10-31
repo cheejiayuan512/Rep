@@ -210,6 +210,22 @@ export function prepareWrite(current: DatabaseShape, mutator: (db: DatabaseShape
   return draft;
 }
 
+/**
+ * Swaps in a whole document, such as a backup, and saves it now.
+ * This does not stamp rows, so clocks and deletions stay as they are in `next`.
+ */
+export function replaceStoredDocument(next: DatabaseShape): Promise<void> {
+  return enqueue(async () => {
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    await persisting;
+    commit(next);
+    await persist();
+  });
+}
+
 /** Waits for queued writes, then saves the latest document now. Call before the app may be suspended. */
 export async function flushDatabase(): Promise<void> {
   await enqueue(async () => undefined);

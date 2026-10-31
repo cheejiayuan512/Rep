@@ -10,6 +10,7 @@ import './format.test';
 import './fuzzy-search.test';
 import './guide-art.test';
 import './hevy-import.test';
+import './log-backup.test';
 import './log-export.test';
 import './log-import.test';
 import './log-pad.test';
