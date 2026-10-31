@@ -23,6 +23,7 @@ import './rest.test';
 import './stats.test';
 import './strength.test';
 import './units.test';
+import './whats-new.test';
 import './workout-edits.test';
 import './workout-name.test';
 import { runAll } from './test-support';

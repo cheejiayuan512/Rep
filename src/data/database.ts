@@ -15,7 +15,7 @@ import { seedExercises } from './seed-exercises';
 /** Shape of the on-device document. The storage key stays put so an older file is not orphaned. */
 export const SCHEMA_VERSION = 2;
 
-export const settingKeys = ['ageYears', 'bodyweightKg', 'sex', 'showRpe', 'tutorialSeen', 'warmupRestMultiplier', 'weightUnit'] as const;
+export const settingKeys = ['ageYears', 'bodyweightKg', 'seenWhatsNewId', 'sex', 'showRpe', 'tutorialSeen', 'warmupRestMultiplier', 'weightUnit'] as const;
 export type SettingKey = (typeof settingKeys)[number];
 
 /** Collections a later sync can merge by id. */
@@ -133,6 +133,8 @@ export interface StoredSettings {
   showRpe: boolean;
   /** False until the first-run tutorial is dismissed. Existing logs with workouts count as seen. */
   tutorialSeen: boolean;
+  /** Id of the last remote "what's new" notice that was dismissed. Empty until the first dismiss. */
+  seenWhatsNewId: string;
   /** When each setting last changed. 0 means it was already stored before change tracking. */
   settingsUpdatedAt: Record<SettingKey, number>;
 }
@@ -382,6 +384,10 @@ function normalizeStored(db: DatabaseShape): boolean {
     db.settings.tutorialSeen = db.workouts.length > 0;
     changed = true;
   }
+  if (typeof db.settings.seenWhatsNewId !== 'string') {
+    db.settings.seenWhatsNewId = '';
+    changed = true;
+  }
   for (const exercise of db.workoutExercises) {
     if (exercise.attachment !== null && !isCableAttachment(exercise.attachment)) {
       exercise.attachment = null;
@@ -528,6 +534,7 @@ function defaultSettings(): StoredSettings {
   return {
     ageYears: null,
     bodyweightKg: null,
+    seenWhatsNewId: '',
     settingsUpdatedAt: blankSettingTimes(),
     sex: null,
     showRpe: false,
@@ -538,7 +545,7 @@ function defaultSettings(): StoredSettings {
 }
 
 function blankSettingTimes(): Record<SettingKey, number> {
-  return { ageYears: 0, bodyweightKg: 0, sex: 0, showRpe: 0, tutorialSeen: 0, warmupRestMultiplier: 0, weightUnit: 0 };
+  return { ageYears: 0, bodyweightKg: 0, seenWhatsNewId: 0, sex: 0, showRpe: 0, tutorialSeen: 0, warmupRestMultiplier: 0, weightUnit: 0 };
 }
 
 /** Fills clocks that an older file does not have. 0 means the value predates change tracking. */

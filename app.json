@@ -74,7 +74,8 @@
     "extra": {
       "eas": {
         "projectId": "59e0c5e1-67ce-4904-9e10-d1eaf43b4592"
-      }
+      },
+      "whatsNewUrl": "https://raw.githubusercontent.com/cheejiayuan512/Rep/master/whats-new.json"
     }
   }
 }

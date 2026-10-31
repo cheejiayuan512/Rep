@@ -4,8 +4,9 @@
  * slides in on top of them, such as the workout you are logging.
  * On startup this opens the saved log, then shows the tabs.
  */
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
+import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,9 +14,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { bootFailed, bootstrapped, tutorialClosed, useAppDispatch, useAppSelector } from '../state/store';
 import { HistoryIcon, ProfileIcon, ProgressIcon, WorkoutIcon } from '../components/icons';
-import { getInProgressWorkoutId, getSettings, getWorkout, saveTutorialSeen } from '../data/repository';
+import { getInProgressWorkoutId, getSettings, getWorkout, saveSeenWhatsNewId, saveTutorialSeen } from '../data/repository';
 import { syncHomeWidget } from '../components/home-widget-sync';
 import { TutorialModal } from '../components/tutorial-modal';
+import { WhatsNewModal } from '../components/whats-new-modal';
+import { DEFAULT_WHATS_NEW_URL, fetchWhatsNew, shouldShowWhatsNew, type WhatsNewNotice } from '../domain/whats-new';
 import { flushDatabase, initDatabase } from '../data/database';
 import { endWorkoutActivity, showWorkoutActivity } from '../components/workout-live-activity';
 import { activityPropsFor, installCompleteSetListener } from '../features/workout/workout-activity-sync';
@@ -126,10 +129,40 @@ export const RootNavigator: React.FC = () => {
   const unit = useAppSelector((state) => state.app.weightUnit);
   const revision = useAppSelector((state) => state.app.revision);
   const tutorialOpen = useAppSelector((state) => state.app.tutorialOpen);
+  const [whatsNew, setWhatsNew] = useState<WhatsNewNotice | null>(null);
   const closeTutorial = useCallback(() => {
     dispatch(tutorialClosed());
     void saveTutorialSeen(true);
   }, [dispatch]);
+  const closeWhatsNew = useCallback(() => {
+    const notice = whatsNew;
+    setWhatsNew(null);
+    if (notice) {
+      void saveSeenWhatsNewId(notice.id);
+    }
+  }, [whatsNew]);
+
+  useEffect(() => {
+    if (!ready || tutorialOpen) {
+      return;
+    }
+    let cancel = false;
+    void (async () => {
+      const settings = await getSettings();
+      const extra = Constants.expoConfig?.extra as { whatsNewUrl?: unknown } | undefined;
+      const url = typeof extra?.whatsNewUrl === 'string' && extra.whatsNewUrl.trim() !== '' ? extra.whatsNewUrl.trim() : DEFAULT_WHATS_NEW_URL;
+      const notice = await fetchWhatsNew(url);
+      if (cancel || !notice) {
+        return;
+      }
+      if (shouldShowWhatsNew(notice, settings.seenWhatsNewId)) {
+        setWhatsNew(notice);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [ready, tutorialOpen]);
 
   useEffect(() => {
     if (!ready) {
@@ -177,6 +210,7 @@ export const RootNavigator: React.FC = () => {
   return (
     <NavigationContainer theme={navigationTheme}>
       {tutorialOpen ? <TutorialModal onClose={closeTutorial} /> : null}
+      {!tutorialOpen && whatsNew ? <WhatsNewModal notice={whatsNew} onClose={closeWhatsNew} /> : null}
       <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
         <Stack.Screen component={Tabs} name="Tabs" />
         <Stack.Screen

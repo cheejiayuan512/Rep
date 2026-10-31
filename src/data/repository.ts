@@ -76,6 +76,8 @@ export interface AppSettings extends BodyProfile {
   loggedRpe: boolean;
   /** False until the first-run tutorial is dismissed. */
   tutorialSeen: boolean;
+  /** Last dismissed remote what's-new id. Empty until the first dismiss. */
+  seenWhatsNewId: string;
 }
 
 export interface NewSetInput {
@@ -94,6 +96,7 @@ export const getSettings = reader((db): AppSettings => {
   return {
     ...bodyProfileOf(db),
     loggedRpe,
+    seenWhatsNewId: typeof db.settings.seenWhatsNewId === 'string' ? db.settings.seenWhatsNewId : '',
     showRpe: db.settings.showRpe === true || loggedRpe,
     tutorialSeen: db.settings.tutorialSeen === true,
     warmupRestMultiplier: isWarmupMultiplier(db.settings.warmupRestMultiplier) ? db.settings.warmupRestMultiplier : DEFAULT_WARMUP_MULTIPLIER,
@@ -143,6 +146,13 @@ export async function saveShowRpe(showRpe: boolean): Promise<void> {
 export async function saveTutorialSeen(seen: boolean): Promise<void> {
   await writeDatabase((db) => {
     db.settings.tutorialSeen = seen;
+  });
+}
+
+/** Marks a remote what's-new notice as dismissed (or seeds the first fetch). */
+export async function saveSeenWhatsNewId(id: string): Promise<void> {
+  await writeDatabase((db) => {
+    db.settings.seenWhatsNewId = id;
   });
 }
 

@@ -67,6 +67,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 
 - kg / lb, warmup rest, Show RPE, bodyweight, age, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it. Show RPE disappears after any set has an RPE, because the column stays on.
 - A fresh log opens a four-step tutorial. Dismissing it sets `settings.tutorialSeen`. A log that already has workouts does not show it on its own. Profile → Tutorial → Show again opens it any time.
+- Remote what's new: edit `whats-new.json` on `master` (`id`, `title`, `bullets`). Empty `id` or no bullets means nothing to show. The app fetches it after boot (and after the tutorial closes), fails silently offline, and stores `settings.seenWhatsNewId` when the user taps Got it. Override the URL with `app.json` `extra.whatsNewUrl`.
 - Profile does not list workouts. Finished sessions live on the History tab. The Workouts number on Profile is the count.
 - The home screen widget (`RepWidget`, iOS and Android) shows this week's workouts, volume, and streak, or the open workout while one is in progress. It updates when the log changes. It is separate from the Lock Screen Live Activity.
 - 20 levels (`LEVEL_FLOORS` in `src/domain/profile.ts`) with titles. Show "Level N of 20", the title, XP in this level, and XP to the next. `XP_RULES` lists how XP is earned and is shown under "How XP works".
