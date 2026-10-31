@@ -1,6 +1,6 @@
 /**
- * Plays the three Workout Guide frames for an exercise. A lift with no
- * drawing falls back to the simple pose. The frames are decorative.
+ * Plays the two Workout Guide frames for an exercise. The heavier source
+ * frame is left out. A lift with no drawing falls back to the simple pose.
  */
 import React, { useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Image, StyleSheet, View } from 'react-native';
@@ -36,7 +36,7 @@ function startTimer(): void {
     return;
   }
   timer = setInterval(() => {
-    frame = (frame + 1) % 3;
+    frame = (frame + 1) % 2;
     notify();
   }, FRAME_MS);
 }
@@ -91,6 +91,7 @@ export const ExerciseAnimation: React.FC<ExerciseAnimationProps> = React.memo(fu
   if (!sources) {
     return <MovementFigure pose={family ? poseForFamily(family) : poseForExercise(exerciseId, name)} size={size} />;
   }
+  const shown = frameIndex % sources.length;
   const radius = size > 48 ? 16 : 10;
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.frame, { borderRadius: radius, height: size, width: size }]}>
@@ -99,7 +100,7 @@ export const ExerciseAnimation: React.FC<ExerciseAnimationProps> = React.memo(fu
           key={index}
           resizeMode="contain"
           source={source}
-          style={{ height: size, left: 0, opacity: index === frameIndex ? 1 : 0, position: 'absolute', top: 0, width: size }}
+          style={{ height: size, left: 0, opacity: index === shown ? 1 : 0, position: 'absolute', top: 0, width: size }}
         />
       ))}
     </View>

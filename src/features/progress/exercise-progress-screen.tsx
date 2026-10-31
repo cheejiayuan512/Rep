@@ -80,7 +80,7 @@ export const ExerciseProgressScreen: React.FC = () => {
               <Text accessibilityRole="link" onPress={openArtLicense} style={styles.artLink}>
                 CC BY-SA 4.0
               </Text>
-              . Shown smaller.
+              . Shown smaller, without the heavier frame.
             </Text>
           ) : null}
           {usesMachineSetup(exercise.equipment) ? (

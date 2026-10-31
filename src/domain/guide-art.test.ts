@@ -29,7 +29,7 @@ test('every family row has a drawing or its own pose', () => {
   assertEqual(missing, []);
 });
 
-test('every added guide exercise keeps its own three-frame slug', () => {
+test('every added guide exercise keeps its own drawing', () => {
   assertTrue(guideExercises.length > 100, 'the guide catalog should be added');
   const missing = guideExercises.filter((seed) => guideSlugFor(seed.id) !== seed.id).map((seed) => seed.id);
   assertEqual(missing, []);

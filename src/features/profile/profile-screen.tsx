@@ -254,7 +254,7 @@ const ExerciseArtCredit: React.FC = () => {
       <Text style={styles.section}>Exercise drawings</Text>
       <Text style={styles.hint}>
         Drawings by <CreditLink href="https://github.com/everkinetic/data" label="Everkinetic" />, adapted by <CreditLink href="https://bryllim.com" label="Bryl Lim" /> for{' '}
-        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. Used under <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Rep shows each drawing smaller. The pictures are unchanged apart from that.
+        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. Used under <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Rep shows each drawing smaller and leaves out the heavier source frame. The two frames that play are not redrawn.
       </Text>
     </View>
   );
