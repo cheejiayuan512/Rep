@@ -1,6 +1,7 @@
 /**
- * One small pose per movement. Every figure uses the same head, limb weight,
- * and lime bar, so the set reads as icons rather than sketches.
+ * A side or front view of the lift. The head stays a separate circle, larger
+ * than the stroke, so the pose still reads as a person at list size.
+ * The lime mark is the bar, cable, or dumbbell.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -19,7 +20,7 @@ const body = {
   stroke: colors.text,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
-  strokeWidth: 3.4,
+  strokeWidth: 2.6,
 };
 
 const limb = {
@@ -27,7 +28,7 @@ const limb = {
   stroke: colors.text,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
-  strokeWidth: 2.8,
+  strokeWidth: 2.3,
 };
 
 const bar = {
@@ -43,14 +44,14 @@ const stage = {
   stroke: colors.faint,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
-  strokeWidth: 1.6,
+  strokeWidth: 2,
 };
 
-export const MovementFigure: React.FC<MovementFigureProps> = React.memo(function MovementFigure({ pose, size = 40 }) {
-  const art = size - 4;
+export const MovementFigure: React.FC<MovementFigureProps> = React.memo(function MovementFigure({ pose, size = 44 }) {
+  const art = size - 6;
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.frame, { borderRadius: size > 48 ? 16 : 10, height: size, width: size }]}>
-      <Svg fill="none" height={art} viewBox="0 0 24 24" width={art}>
+      <Svg fill="none" height={art} viewBox="0 0 64 64" width={art}>
         {draw(pose)}
       </Svg>
     </View>
@@ -58,43 +59,11 @@ export const MovementFigure: React.FC<MovementFigureProps> = React.memo(function
 });
 
 function head(cx: number, cy: number): React.ReactNode {
-  return <Circle cx={cx} cy={cy} fill={colors.text} r={1.85} />;
+  return <Circle cx={cx} cy={cy} fill={colors.text} r={4.2} />;
 }
 
-function stand(extra: React.ReactNode): React.ReactNode {
-  return (
-    <>
-      {head(12, 4.2)}
-      <Path d="M12 5.9 V12.4" {...body} />
-      <Path d="M12 12.4 L9.1 20.4" {...limb} />
-      <Path d="M12 12.4 L14.9 20.4" {...limb} />
-      {extra}
-    </>
-  );
-}
-
-function hinge(extra: React.ReactNode): React.ReactNode {
-  return (
-    <>
-      {head(16.4, 6.4)}
-      <Path d="M15.6 8 L10.2 12.6" {...body} />
-      <Path d="M10.2 12.6 L12.4 20.6" {...limb} />
-      <Path d="M10.2 12.6 L16.6 20.6" {...limb} />
-      {extra}
-    </>
-  );
-}
-
-function lying(extra: React.ReactNode): React.ReactNode {
-  return (
-    <>
-      <Path d="M3 17.2 H21" {...stage} />
-      {head(5.8, 13.5)}
-      <Path d="M7.5 13.7 H16" {...body} />
-      <Path d="M16 13.7 L20.4 16.2" {...limb} />
-      {extra}
-    </>
-  );
+function plates(x1: number, x2: number, y: number): React.ReactNode {
+  return <Path d={`M${x1} ${y - 5} V${y + 5} M${x2} ${y - 5} V${y + 5}`} {...bar} />;
 }
 
 function draw(pose: MovementPose): React.ReactNode {
@@ -102,388 +71,463 @@ function draw(pose: MovementPose): React.ReactNode {
     case 'squat':
       return (
         <>
-          {head(14.2, 4.6)}
-          <Path d="M14 6.2 L12.4 11.2" {...body} />
-          <Path d="M12.4 11.2 L7 14 L9.2 20.6" {...limb} />
-          <Path d="M12.4 11.2 L17.2 14.6 L15.4 20.6" {...limb} />
-          <Path d="M8.2 6.6 H18.6" {...bar} />
+          {head(40, 14)}
+          <Path d="M39 18.5 V32" {...body} />
+          <Path d="M39 32 L24 40 L28 54" {...limb} />
+          <Path d="M39 32 L50 42 L47 54" {...limb} />
+          <Path d="M26 22 H52" {...bar} />
+          {plates(26, 52, 22)}
         </>
       );
     case 'bench':
-      return lying(
+      return (
         <>
-          <Path d="M11.6 13.4 V7.2" {...limb} />
-          <Path d="M8 6.4 H15.4" {...bar} />
-        </>,
+          <Path d="M6 44 H58" {...stage} />
+          {head(16, 36)}
+          <Path d="M22 38 H44" {...body} />
+          <Path d="M32 38 V20" {...limb} />
+          <Path d="M20 18 H44" {...bar} />
+          {plates(20, 44, 18)}
+          <Path d="M44 38 L54 50 L46 56" {...limb} />
+        </>
       );
     case 'deadlift':
-      return hinge(
+      return (
         <>
-          <Path d="M12.6 10.2 L8.2 16.8" {...limb} />
-          <Path d="M4.4 17.2 H13.6" {...bar} />
-        </>,
+          {head(46, 18)}
+          <Path d="M43 22 L26 36" {...body} />
+          <Path d="M34 28 L18 46" {...limb} />
+          <Path d="M8 48 H32" {...bar} />
+          {plates(8, 32, 48)}
+          <Path d="M26 36 L30 56" {...limb} />
+          <Path d="M26 36 L42 56" {...limb} />
+        </>
       );
     case 'row':
-      return hinge(
+      return (
         <>
-          <Path d="M13 10.4 L9.6 13.6 L14.6 14.6" {...limb} />
-          <Path d="M8.8 14.8 H17.2" {...bar} />
-        </>,
+          {head(48, 18)}
+          <Path d="M45 22 L26 34" {...body} />
+          <Path d="M36 27 L24 38 L38 40" {...limb} />
+          <Path d="M16 42 H46" {...bar} />
+          <Path d="M26 34 L30 56" {...limb} />
+          <Path d="M26 34 L40 56" {...limb} />
+        </>
       );
     case 'press':
       return (
         <>
-          <Path d="M6.2 3.4 H17.8" {...bar} />
-          <Path d="M8 4.4 L11 9.2" {...limb} />
-          <Path d="M16 4.4 L13 9.2" {...limb} />
-          {head(12, 10.6)}
-          <Path d="M12 12.2 V16" {...body} />
-          <Path d="M12 16 L9.2 21" {...limb} />
-          <Path d="M12 16 L14.8 21" {...limb} />
+          {head(32, 26)}
+          <Path d="M32 31 V44" {...body} />
+          <Path d="M32 44 L24 58" {...limb} />
+          <Path d="M32 44 L40 58" {...limb} />
+          <Path d="M24 34 L18 14" {...limb} />
+          <Path d="M40 34 L46 14" {...limb} />
+          <Path d="M12 12 H52" {...bar} />
+          {plates(12, 52, 12)}
         </>
       );
     case 'curl':
-      return stand(
+      return (
         <>
-          <Path d="M10.6 8 V12.6" {...limb} />
-          <Path d="M10.6 12.6 L16.2 9.2" {...limb} />
-          <Path d="M15 8.4 H19.4" {...bar} />
-        </>,
+          {head(26, 12)}
+          <Path d="M26 17 V38" {...body} />
+          <Path d="M26 38 L18 56" {...limb} />
+          <Path d="M26 38 L34 56" {...limb} />
+          <Path d="M22 22 V34" {...limb} />
+          <Path d="M22 34 L38 22" {...limb} />
+          <Path d="M34 18 H50" {...bar} />
+        </>
       );
     case 'pulldown':
       return (
         <>
-          <Path d="M12 1.8 V4.6" {...bar} />
-          <Path d="M6.4 5 H17.6" {...bar} />
-          <Path d="M8 6 L11 10" {...limb} />
-          <Path d="M16 6 L13 10" {...limb} />
-          {head(12, 9.2)}
-          <Path d="M12 10.8 V15.4" {...body} />
-          <Path d="M7.5 16.6 H16.5" {...stage} />
-          <Path d="M12 15.4 L17.2 16.6" {...limb} />
+          <Path d="M32 4 V12" {...bar} />
+          <Path d="M14 14 H50" {...bar} />
+          <Path d="M18 16 L28 28" {...limb} />
+          <Path d="M46 16 L36 28" {...limb} />
+          {head(32, 30)}
+          <Path d="M32 35 V46" {...body} />
+          <Path d="M18 50 H46" {...stage} />
+          <Path d="M32 46 L46 50" {...limb} />
         </>
       );
     case 'pullup':
       return (
         <>
-          <Path d="M4.5 3.2 H19.5" {...bar} />
-          <Path d="M7.4 3.6 L10.2 8.4" {...limb} />
-          <Path d="M16.6 3.6 L13.8 8.4" {...limb} />
-          {head(12, 8.6)}
-          <Path d="M12 10.2 V15" {...body} />
-          <Path d="M12 15 L8.6 18.2 L10.2 21" {...limb} />
-          <Path d="M12 15 L15.2 19" {...limb} />
+          <Path d="M8 8 H56" {...bar} />
+          {plates(8, 56, 8)}
+          <Path d="M18 10 L28 24" {...limb} />
+          <Path d="M46 10 L36 24" {...limb} />
+          {head(32, 28)}
+          <Path d="M32 33 V46" {...body} />
+          <Path d="M32 46 L22 54 L26 60" {...limb} />
+          <Path d="M32 46 L42 56" {...limb} />
         </>
       );
     case 'lunge':
       return (
         <>
-          {head(11, 4)}
-          <Path d="M11 5.6 V11.6" {...body} />
-          <Path d="M11 11.6 L16.8 15.2 L15.2 21" {...limb} />
-          <Path d="M11 11.6 L6.2 16.4 L4.8 21" {...limb} />
+          {head(28, 10)}
+          <Path d="M28 15 V32" {...body} />
+          <Path d="M28 32 L44 42 L40 56" {...limb} />
+          <Path d="M28 32 L14 44 L10 56" {...limb} />
         </>
       );
     case 'thrust':
       return (
         <>
-          <Path d="M3 12.5 H9.5 V18.5 H3 Z" {...stage} />
-          {head(18.6, 10.2)}
-          <Path d="M9.2 12.2 H16.8" {...body} />
-          <Path d="M14.2 12.2 L12.4 18.6 H17" {...limb} />
-          <Path d="M12.4 10.6 H19.6" {...bar} />
+          <Path d="M6 28 H24 V46 H6 Z" {...stage} />
+          {head(50, 24)}
+          <Path d="M22 30 H44" {...body} />
+          <Path d="M36 30 L30 48 H42" {...limb} />
+          <Path d="M30 26 H52" {...bar} />
+          {plates(30, 52, 26)}
         </>
       );
     case 'calf':
       return (
         <>
-          {head(12, 3.8)}
-          <Path d="M12 5.4 V16.2" {...body} />
-          <Path d="M12 16.2 L9.2 14.4" {...limb} />
-          <Path d="M12 16.2 V18.4" {...limb} />
-          <Path d="M7.5 19.2 H16.5 V21.4 H7.5 Z" {...stage} />
+          {head(32, 10)}
+          <Path d="M32 15 V44" {...body} />
+          <Path d="M32 44 L24 40" {...limb} />
+          <Path d="M32 44 V50" {...limb} />
+          <Path d="M18 52 H46 V58 H18 Z" {...stage} />
         </>
       );
     case 'crunch':
       return (
         <>
-          <Path d="M3 19.6 H21" {...stage} />
-          <Path d="M14.2 19.2 L17.6 13.6 L12.4 12.6" {...limb} />
-          <Path d="M13 15.2 L8 11.6" {...body} />
-          {head(6.6, 11)}
+          <Path d="M6 50 H58" {...stage} />
+          <Path d="M36 48 L48 34 L32 30" {...limb} />
+          <Path d="M34 36 L18 26" {...body} />
+          {head(14, 24)}
         </>
       );
     case 'fly':
-      return lying(
+      return (
         <>
-          <Path d="M11.4 13.2 L6.4 8.6" {...limb} />
-          <Path d="M12.2 13.2 L17.6 9.2" {...limb} />
-          <Circle cx="5.6" cy="8" fill="none" r="1.35" stroke={colors.accent} strokeWidth={2} />
-          <Circle cx="18.4" cy="8.6" fill="none" r="1.35" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          <Path d="M8 46 H56" {...stage} />
+          {head(16, 36)}
+          <Path d="M22 38 H42" {...body} />
+          <Path d="M30 38 L16 22" {...limb} />
+          <Path d="M32 38 L50 24" {...limb} />
+          <Circle cx="14" cy="20" fill="none" r="3.2" stroke={colors.accent} strokeWidth={2.4} />
+          <Circle cx="52" cy="22" fill="none" r="3.2" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'lateral':
-      return stand(
+      return (
         <>
-          <Path d="M12 8.2 L5.2 10.4" {...limb} />
-          <Path d="M12 8.2 L18.8 10.4" {...limb} />
-          <Circle cx="4.4" cy="10.6" fill="none" r="1.25" stroke={colors.accent} strokeWidth={2} />
-          <Circle cx="19.6" cy="10.6" fill="none" r="1.25" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          {head(32, 12)}
+          <Path d="M32 17 V40" {...body} />
+          <Path d="M32 40 L24 56" {...limb} />
+          <Path d="M32 40 L40 56" {...limb} />
+          <Path d="M32 24 L12 30" {...limb} />
+          <Path d="M32 24 L52 30" {...limb} />
+          <Circle cx="10" cy="31" fill="none" r="3" stroke={colors.accent} strokeWidth={2.4} />
+          <Circle cx="54" cy="31" fill="none" r="3" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'shrug':
       return (
         <>
-          {head(12, 4.6)}
-          <Path d="M8.4 8.2 H15.6" {...body} />
-          <Path d="M9.2 8.2 V12.4" {...limb} />
-          <Path d="M14.8 8.2 V12.4" {...limb} />
-          <Path d="M6 12.6 H18" {...bar} />
-          <Path d="M12 9.4 V14.2" {...body} />
-          <Path d="M12 14.2 L9.2 21" {...limb} />
-          <Path d="M12 14.2 L14.8 21" {...limb} />
+          {head(32, 14)}
+          <Path d="M20 24 H44" {...body} />
+          <Path d="M24 24 V36" {...limb} />
+          <Path d="M40 24 V36" {...limb} />
+          <Path d="M14 38 H50" {...bar} />
+          {plates(14, 50, 38)}
+          <Path d="M32 28 V42" {...body} />
+          <Path d="M32 42 L24 56" {...limb} />
+          <Path d="M32 42 L40 56" {...limb} />
         </>
       );
     case 'legcurl':
       return (
         <>
-          <Path d="M3 14.2 H17.5 V17.6 H3 Z" {...stage} />
-          {head(5.2, 11.6)}
-          <Path d="M7 12.4 H15.2" {...body} />
-          <Path d="M15.2 12.4 C18.4 12.4 19.6 8.6 17.8 7" {...limb} />
+          <Path d="M6 36 H46 V46 H6 Z" {...stage} />
+          {head(14, 28)}
+          <Path d="M18 32 H40" {...body} />
+          <Path d="M40 32 C50 32 54 20 46 16" {...limb} />
         </>
       );
     case 'pushdown':
       return (
         <>
-          <Path d="M15.5 2 V7.2" {...bar} />
-          <Path d="M12.2 7.6 H18.8" {...bar} />
-          {head(9.2, 6.4)}
-          <Path d="M9.4 8.4 V14.2" {...body} />
-          <Path d="M10.6 9.6 V12.2" {...limb} />
-          <Path d="M10.6 12.2 L15.2 14.6" {...limb} />
-          <Path d="M9.4 14.2 L7.2 21" {...limb} />
-          <Path d="M9.4 14.2 L12 21" {...limb} />
+          <Path d="M40 4 V18" {...bar} />
+          <Path d="M28 20 H52" {...bar} />
+          {head(24, 16)}
+          <Path d="M24 21 V40" {...body} />
+          <Path d="M28 24 V34" {...limb} />
+          <Path d="M28 34 L40 42" {...limb} />
+          <Path d="M24 40 L16 56" {...limb} />
+          <Path d="M24 40 L32 56" {...limb} />
         </>
       );
     case 'pushup':
       return (
         <>
-          <Path d="M3 18.6 H21" {...stage} />
-          {head(5.2, 10.2)}
-          <Path d="M7 11.2 L18.4 16.2" {...body} />
-          <Path d="M10.2 12.6 L11.2 18.2" {...limb} />
-          <Path d="M18.4 16.2 V18.6" {...limb} />
+          <Path d="M6 50 H58" {...stage} />
+          {head(14, 28)}
+          <Path d="M18 30 L50 44" {...body} />
+          <Path d="M28 34 L30 50" {...limb} />
+          <Path d="M50 44 V50" {...limb} />
         </>
       );
     case 'dip':
       return (
         <>
-          <Path d="M5.5 3.5 V20.5" {...bar} />
-          <Path d="M18.5 3.5 V20.5" {...bar} />
-          {head(12, 6.2)}
-          <Path d="M12 7.8 V13.2" {...body} />
-          <Path d="M12 9.2 L7.2 12.4" {...limb} />
-          <Path d="M12 9.2 L16.8 12.4" {...limb} />
-          <Path d="M12 13.2 L9.2 17.4 L10.6 20.4" {...limb} />
+          <Path d="M12 8 V56" {...bar} />
+          <Path d="M52 8 V56" {...bar} />
+          {head(32, 16)}
+          <Path d="M32 21 V38" {...body} />
+          <Path d="M32 26 L16 36" {...limb} />
+          <Path d="M32 26 L48 36" {...limb} />
+          <Path d="M32 38 L24 50 L28 56" {...limb} />
         </>
       );
     case 'legpress':
       return (
         <>
-          <Path d="M3 12.5 H11 V20.5 H3 Z" {...stage} />
-          {head(6.2, 11)}
-          <Path d="M9.5 13.4 L15.6 8.8 L20 12" {...limb} />
-          <Path d="M14.6 6.8 H21.2" {...bar} />
+          <Path d="M6 30 H28 V54 H6 Z" {...stage} />
+          {head(16, 24)}
+          <Path d="M24 34 L40 20 L52 28" {...limb} />
+          <Path d="M36 14 H56" {...bar} />
+          {plates(36, 56, 14)}
         </>
       );
     case 'legextension':
       return (
         <>
-          <Path d="M3 14 H12 V21 H3 Z" {...stage} />
-          {head(6.4, 12)}
-          <Path d="M10.5 14.2 H19.2" {...limb} />
-          <Path d="M17.6 12.4 H21.4" {...bar} />
+          <Path d="M6 34 H30 V54 H6 Z" {...stage} />
+          {head(16, 28)}
+          <Path d="M26 36 H50" {...limb} />
+          <Path d="M46 30 H58" {...bar} />
         </>
       );
     case 'plank':
       return (
         <>
-          <Path d="M3 18.4 H21" {...stage} />
-          {head(5.4, 12.6)}
-          <Path d="M7.2 13.2 H18.4" {...body} />
-          <Path d="M10 13.2 V18" {...limb} />
-          <Path d="M18.4 13.2 V18.4" {...limb} />
+          <Path d="M6 48 H58" {...stage} />
+          {head(14, 32)}
+          <Path d="M18 34 H50" {...body} />
+          <Path d="M26 34 V48" {...limb} />
+          <Path d="M50 34 V48" {...limb} />
         </>
       );
     case 'legraise':
       return (
         <>
-          <Path d="M5.5 3.2 H18.5" {...bar} />
-          <Path d="M8.2 3.6 V7.4" {...limb} />
-          <Path d="M15.8 3.6 V7.4" {...limb} />
-          {head(12, 8.4)}
-          <Path d="M12 10 V14.2" {...body} />
-          <Path d="M12 14.2 L18.6 10.6" {...limb} />
+          <Path d="M12 8 H52" {...bar} />
+          <Path d="M20 10 V22" {...limb} />
+          <Path d="M44 10 V22" {...limb} />
+          {head(32, 26)}
+          <Path d="M32 31 V42" {...body} />
+          <Path d="M32 42 L50 30" {...limb} />
         </>
       );
     case 'twist':
-      return stand(
+      return (
         <>
-          <Path d="M12 8.4 L17.6 11" {...limb} />
-          <Circle cx="18.8" cy="11.4" fill="none" r="1.7" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          {head(26, 14)}
+          <Path d="M26 19 V40" {...body} />
+          <Path d="M26 40 L18 56" {...limb} />
+          <Path d="M26 40 L36 56" {...limb} />
+          <Path d="M26 26 L44 34" {...limb} />
+          <Circle cx="48" cy="36" fill="none" r="4" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'swing':
-      return hinge(
+      return (
         <>
-          <Path d="M12.4 10.4 L11.2 16.2" {...limb} />
-          <Circle cx="10.6" cy="17.6" fill="none" r="1.7" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          {head(46, 16)}
+          <Path d="M43 21 L28 36" {...body} />
+          <Path d="M34 28 L30 46" {...limb} />
+          <Path d="M28 36 L32 56" {...limb} />
+          <Path d="M28 36 L42 56" {...limb} />
+          <Circle cx="26" cy="48" fill="none" r="4.5" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'carry':
-      return stand(
+      return (
         <>
-          <Path d="M12 8.2 L8.2 13" {...limb} />
-          <Path d="M12 8.2 L15.8 13" {...limb} />
-          <Path d="M6.2 12.2 H9.4 V17 H6.2 Z" {...bar} />
-          <Path d="M14.6 12.2 H17.8 V17 H14.6 Z" {...bar} />
-        </>,
+          {head(32, 12)}
+          <Path d="M32 17 V40" {...body} />
+          <Path d="M32 40 L24 56" {...limb} />
+          <Path d="M32 40 L40 56" {...limb} />
+          <Path d="M32 24 L20 36" {...limb} />
+          <Path d="M32 24 L44 36" {...limb} />
+          <Path d="M14 34 H22 V46 H14 Z" {...bar} />
+          <Path d="M42 34 H50 V46 H42 Z" {...bar} />
+        </>
       );
     case 'clean':
-      return stand(
+      return (
         <>
-          <Path d="M8.6 9.6 H15.4" {...bar} />
-          <Path d="M9.2 9.6 L7.6 7.2" {...limb} />
-          <Path d="M14.8 9.6 L16.4 7.2" {...limb} />
-        </>,
+          {head(32, 14)}
+          <Path d="M32 19 V40" {...body} />
+          <Path d="M32 40 L24 56" {...limb} />
+          <Path d="M32 40 L40 56" {...limb} />
+          <Path d="M18 30 H46" {...bar} />
+          {plates(18, 46, 30)}
+          <Path d="M22 30 L16 22" {...limb} />
+          <Path d="M42 30 L48 22" {...limb} />
+        </>
       );
     case 'jump':
       return (
         <>
-          <Path d="M13.5 16.2 H21.2 V21.4 H13.5 Z" {...stage} />
-          {head(8.4, 4.2)}
-          <Path d="M8.4 6.1 V9.2" {...body} />
-          <Path d="M8.4 9.2 L5.4 12.4 L7.2 14.6" {...limb} />
-          <Path d="M8.4 9.2 L11.8 12.2 L10.2 14.8" {...limb} />
+          <Path d="M36 40 H58 V58 H36 Z" {...stage} />
+          {head(22, 12)}
+          <Path d="M22 17 V26" {...body} />
+          <Path d="M22 26 L12 34 L16 40" {...limb} />
+          <Path d="M22 26 L32 34 L28 40" {...limb} />
         </>
       );
     case 'kick':
       return (
         <>
-          <Path d="M3.5 18.8 H12" {...stage} />
-          {head(5.6, 12.2)}
-          <Path d="M7.2 13.6 H14.2" {...body} />
-          <Path d="M9.2 13.8 V18.6" {...limb} />
-          <Path d="M14.2 13.2 L20.4 9.2" {...limb} />
-          <Path d="M14 14.2 V18.8" {...limb} />
+          <Path d="M6 50 H28" {...stage} />
+          {head(14, 30)}
+          <Path d="M18 34 H36" {...body} />
+          <Path d="M24 34 V50" {...limb} />
+          <Path d="M36 32 L54 20" {...limb} />
+          <Path d="M36 36 V50" {...limb} />
         </>
       );
     case 'abduct':
       return (
         <>
-          <Path d="M4 15 H13 V21 H4 Z" {...stage} />
-          {head(7.6, 9.4)}
-          <Path d="M8.4 11 V14.6" {...body} />
-          <Path d="M8.6 14 L5.4 17.2" {...limb} />
-          <Path d="M9.4 14 L15.6 12.2" {...limb} />
-          <Path d="M14.2 10.6 H18.4" {...bar} />
+          <Path d="M8 38 H32 V56 H8 Z" {...stage} />
+          {head(18, 22)}
+          <Path d="M20 27 V38" {...body} />
+          <Path d="M20 36 L10 46" {...limb} />
+          <Path d="M24 36 L44 30" {...limb} />
+          <Path d="M40 26 H54" {...bar} />
         </>
       );
     case 'rollout':
       return (
         <>
-          <Path d="M3.5 18.6 H11" {...stage} />
-          {head(8, 14)}
-          <Path d="M9.4 15.2 L17.2 12.2" {...body} />
-          <Circle cx="18.6" cy="11.8" fill="none" r="1.8" stroke={colors.accent} strokeWidth={2} />
+          <Path d="M6 50 H26" {...stage} />
+          {head(18, 36)}
+          <Path d="M22 40 L44 32" {...body} />
+          <Circle cx="50" cy="30" fill="none" r="5" stroke={colors.accent} strokeWidth={2.4} />
+          <Path d="M50 25 V35" {...bar} />
         </>
       );
     case 'facepull':
-      return stand(
+      return (
         <>
-          <Path d="M21 8.6 H16.4" {...bar} />
-          <Path d="M13.2 8.2 L17.6 6.4" {...limb} />
-          <Path d="M13.2 9.4 L17.6 11.2" {...limb} />
-        </>,
+          {head(24, 22)}
+          <Path d="M24 27 V44" {...body} />
+          <Path d="M24 44 L16 58" {...limb} />
+          <Path d="M24 44 L34 58" {...limb} />
+          <Path d="M28 30 L48 24" {...limb} />
+          <Path d="M28 34 L48 40" {...limb} />
+          <Path d="M48 22 V42" {...bar} />
+        </>
       );
     case 'pullover':
-      return lying(
+      return (
         <>
-          <Path d="M9.5 13.2 L5.2 8.4" {...limb} />
-          <Circle cx="4.4" cy="7.6" fill="none" r="1.35" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          <Path d="M10 46 H54" {...stage} />
+          {head(44, 34)}
+          <Path d="M38 36 H22" {...body} />
+          <Path d="M26 36 L12 20" {...limb} />
+          <Circle cx="10" cy="17" fill="none" r="3.4" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'upright':
-      return stand(
+      return (
         <>
-          <Path d="M9.2 6.2 L12 10.4" {...limb} />
-          <Path d="M14.8 6.2 L12 10.4" {...limb} />
-          <Path d="M7.4 10.6 H16.6" {...bar} />
-        </>,
+          {head(32, 12)}
+          <Path d="M32 17 V40" {...body} />
+          <Path d="M32 40 L24 56" {...limb} />
+          <Path d="M32 40 L40 56" {...limb} />
+          <Path d="M22 16 L32 30" {...limb} />
+          <Path d="M42 16 L32 30" {...limb} />
+          <Path d="M16 32 H48" {...bar} />
+        </>
       );
     case 'frontraise':
-      return stand(
+      return (
         <>
-          <Path d="M12 8 L18.4 5.4" {...limb} />
-          <Circle cx="19.4" cy="4.8" fill="none" r="1.25" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          {head(26, 14)}
+          <Path d="M26 19 V40" {...body} />
+          <Path d="M26 40 L18 56" {...limb} />
+          <Path d="M26 40 L34 56" {...limb} />
+          <Path d="M26 26 L46 16" {...limb} />
+          <Circle cx="50" cy="14" fill="none" r="3.2" stroke={colors.accent} strokeWidth={2.4} />
+        </>
       );
     case 'reardelt':
-      return hinge(
+      return (
         <>
-          <Path d="M13.2 10.2 L7.4 8" {...limb} />
-          <Path d="M12.8 11 L7.6 14.2" {...limb} />
-          <Circle cx="6.6" cy="7.6" fill="none" r="1.15" stroke={colors.accent} strokeWidth={2} />
-          <Circle cx="6.8" cy="14.6" fill="none" r="1.15" stroke={colors.accent} strokeWidth={2} />
-        </>,
+          {head(48, 20)}
+          <Path d="M44 25 L26 36" {...body} />
+          <Path d="M34 30 L16 22" {...limb} />
+          <Path d="M34 32 L16 42" {...limb} />
+          <Circle cx="14" cy="20" fill="none" r="2.8" stroke={colors.accent} strokeWidth={2.2} />
+          <Circle cx="14" cy="44" fill="none" r="2.8" stroke={colors.accent} strokeWidth={2.2} />
+          <Path d="M26 36 L30 56" {...limb} />
+          <Path d="M26 36 L40 56" {...limb} />
+        </>
       );
     case 'skull':
-      return lying(
+      return (
         <>
-          <Path d="M12 13.2 V8" {...limb} />
-          <Path d="M12 8 L8.2 9.8" {...limb} />
-          <Path d="M6.6 9 H12.4" {...bar} />
-        </>,
+          <Path d="M6 46 H58" {...stage} />
+          {head(16, 36)}
+          <Path d="M22 38 H44" {...body} />
+          <Path d="M32 38 V22" {...limb} />
+          <Path d="M32 22 L20 28" {...limb} />
+          <Path d="M14 26 H32" {...bar} />
+        </>
       );
     case 'overhead':
       return (
         <>
-          {head(11.2, 8.8)}
-          <Path d="M11.4 10.4 V16.2" {...body} />
-          <Path d="M11.4 16.2 L8.8 21" {...limb} />
-          <Path d="M11.4 16.2 L14.2 21" {...limb} />
-          <Path d="M12.2 11.2 V5.2" {...limb} />
-          <Path d="M12.2 5.2 L15.6 7.6" {...limb} />
-          <Circle cx="16.6" cy="8.2" fill="none" r="1.35" stroke={colors.accent} strokeWidth={2} />
+          {head(28, 22)}
+          <Path d="M28 27 V42" {...body} />
+          <Path d="M28 42 L20 56" {...limb} />
+          <Path d="M28 42 L36 56" {...limb} />
+          <Path d="M30 30 V12" {...limb} />
+          <Path d="M30 12 L42 20" {...limb} />
+          <Circle cx="46" cy="22" fill="none" r="3.4" stroke={colors.accent} strokeWidth={2.4} />
         </>
       );
     case 'backext':
       return (
         <>
-          <Path d="M7 14 H18 V18 H7 Z" {...stage} />
-          {head(5.6, 10.2)}
-          <Path d="M7.2 11.6 L14.6 13.6" {...body} />
-          <Path d="M15.5 14.2 L19.6 20.2" {...limb} />
+          <Path d="M16 36 H48 V48 H16 Z" {...stage} />
+          {head(12, 26)}
+          <Path d="M16 30 L40 36" {...body} />
+          <Path d="M42 40 L54 54" {...limb} />
         </>
       );
     case 'deadbug':
       return (
         <>
-          <Path d="M3 18.4 H21" {...stage} />
-          {head(6.2, 14.6)}
-          <Path d="M8 15.4 H16" {...body} />
-          <Path d="M11 14.8 L8.2 10" {...limb} />
-          <Path d="M14.2 15.6 L18.6 11.2" {...limb} />
+          <Path d="M6 48 H58" {...stage} />
+          {head(14, 36)}
+          <Path d="M18 38 H42" {...body} />
+          <Path d="M26 36 L18 22" {...limb} />
+          <Path d="M36 40 L50 26" {...limb} />
         </>
       );
     case 'generic':
-      return stand(
+      return (
         <>
-          <Path d="M12 8.6 L8.4 12.4" {...limb} />
-          <Path d="M12 8.6 L15.6 12.4" {...limb} />
-          <Path d="M6.6 12.6 H17.4" {...bar} />
-        </>,
+          {head(32, 12)}
+          <Path d="M32 17 V40" {...body} />
+          <Path d="M32 40 L24 56" {...limb} />
+          <Path d="M32 40 L40 56" {...limb} />
+          <Path d="M32 26 L20 36" {...limb} />
+          <Path d="M32 26 L44 36" {...limb} />
+          <Path d="M14 38 H50" {...bar} />
+        </>
       );
     default: {
       const forgotten: never = pose;
