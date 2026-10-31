@@ -4,7 +4,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 
 ## 1.5.1 · Android 16 / iOS 23
 
-- **Movement poses.** A small drawing of the lift sits beside each exercise in the picker and next to the name on the exercise page.
+- **Movement poses.** A heavier icon of the lift sits beside each exercise in the picker and next to the name on the exercise page.
 - **Set type menu.** Normal, Warm-up, Drop, and Failure open over the row. The sets underneath stay put.
 - **RPE pad.** The rest bar sits on the effort keyboard. It no longer leaves a gap under the shorter keys.
 - **Dynamic Island.** While you are not resting, the island shows how much of the workout is checked off. Rest still shows the countdown.
