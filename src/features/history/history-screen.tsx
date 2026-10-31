@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { importWorkoutCsv, listWorkoutsForExport } from '../../data/repository';
+import { formatSessionLoad } from '../../domain/cardio';
 import { workoutsToCsv } from '../../domain/log-export';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
 import { dataChanged, useAppDispatch } from '../../state/store';
@@ -187,7 +188,7 @@ const HistoryCard: React.FC<HistoryCardProps> = React.memo(function HistoryCard(
       </View>
       <View style={styles.statRow}>
         <StatPill label={formatDuration(workout.startedAt, workout.finishedAt)} />
-        <StatPill label={`${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit}`} />
+        <StatPill label={formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} />
         <StatPill label={`${workout.setCount} ${workout.setCount === 1 ? 'set' : 'sets'}`} />
       </View>
       <View style={styles.lines}>

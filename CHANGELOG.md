@@ -4,6 +4,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 
 ## 1.5.1 · Android 16 / iOS 23
 
+- **Cardio sets.** Running, cycling, rowing, and the same kind of effort log time and distance instead of weight and reps. A Hevy run imports into those fields.
 - **Exercise animations.** Each exercise plays a two-frame drawing of the movement, in the picker and on the exercise page. The heavier of the three source frames is left out. The drawings are from Everkinetic and Bryl Lim (Workout Guide), under CC BY-SA 4.0, and the credit is on Profile.
 - **Set type menu.** Normal, Warm-up, Drop, and Failure open over the row. The sets underneath stay put.
 - **RPE pad.** The rest bar sits on the effort keyboard. It no longer leaves a gap under the shorter keys.

@@ -13,6 +13,7 @@ import { CloseIcon, ShareIcon } from '../../components/icons';
 import { Screen } from '../../components/screen';
 import { getWorkoutRecap, unfinishWorkout, type WorkoutRecap } from '../../data/repository';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
+import { formatCardioEffort, formatSessionLoad } from '../../domain/cardio';
 import { formatDuration, formatLoggedLoad, formatLongDate, formatOrdinal } from '../../domain/format';
 import type { ProfileBadge } from '../../domain/profile';
 import { formatEstimate, formatVolume, kgToDisplay } from '../../domain/units';
@@ -63,9 +64,13 @@ export const WorkoutCompleteScreen: React.FC = () => {
     const lines = [
       workout.name,
       formatLongDate(workout.startedAt),
-      `${formatDuration(workout.startedAt, workout.finishedAt)} · ${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit} · ${workout.recordCount} PRs`,
+      `${formatDuration(workout.startedAt, workout.finishedAt)} · ${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} · ${workout.recordCount} PRs`,
       ...recap.exercises.map((exercise) => {
-        const best = exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—';
+        const best = exercise.best
+          ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit)
+          : exercise.cardio
+            ? formatCardioEffort(exercise.cardio.durationSeconds, exercise.cardio.distanceKm, unit)
+            : '—';
         return `${exercise.sets} × ${exercise.name} · ${best}`;
       }),
     ];
@@ -125,7 +130,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
         <Text style={styles.date}>{formatLongDate(workout.startedAt)}</Text>
         <View style={styles.metrics}>
           <Metric label={formatDuration(workout.startedAt, workout.finishedAt)} />
-          <Metric label={`${formatVolume(kgToDisplay(workout.volumeKg, unit))} ${unit}`} />
+          <Metric label={formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} />
           <Metric label={`${workout.recordCount} PRs`} />
         </View>
         <View style={styles.tableHead}>
@@ -137,7 +142,13 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
             <Text style={styles.exerciseName}>
               {exercise.sets} × {exercise.name}
             </Text>
-            <Text style={styles.bestSet}>{exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—'}</Text>
+            <Text style={styles.bestSet}>
+              {exercise.best
+                ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit)
+                : exercise.cardio
+                  ? formatCardioEffort(exercise.cardio.durationSeconds, exercise.cardio.distanceKm, unit)
+                  : '—'}
+            </Text>
           </View>
         ))}
         {recordsOpen

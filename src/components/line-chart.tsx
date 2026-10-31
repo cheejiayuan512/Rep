@@ -15,11 +15,12 @@ interface LineChartProps {
   /** What the line measures, including the unit. Read instead of the drawn marks. */
   caption: string;
   points: ChartPoint[];
+  emptyLabel?: string;
 }
 
 const HEIGHT = 208;
 
-export const LineChart: React.FC<LineChartProps> = ({ caption, points }) => {
+export const LineChart: React.FC<LineChartProps> = ({ caption, emptyLabel = 'Complete a weighted set to plot this.', points }) => {
   const [width, setWidth] = useState(0);
   const handleLayout = useCallback((widthNext: number) => {
     setWidth(widthNext);
@@ -32,7 +33,7 @@ export const LineChart: React.FC<LineChartProps> = ({ caption, points }) => {
   );
 
   if (points.length === 0) {
-    return <Text style={styles.empty}>Complete a weighted set to plot this.</Text>;
+    return <Text style={styles.empty}>{emptyLabel}</Text>;
   }
 
   return (

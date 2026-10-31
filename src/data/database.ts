@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
+import { cleanDistance, cleanDuration } from '../domain/cardio';
 import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
 import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, normalizeSetType, parseAgeYears, usesMachineSetup } from '../domain/types';
 import { seedExercises } from './seed-exercises';
@@ -52,6 +53,8 @@ export interface StoredRoutineSet {
   setType: SetType;
   weightKg: number | null;
   reps: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
 }
 
 export interface StoredWorkout {
@@ -84,6 +87,8 @@ export interface StoredSet {
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
   completed: boolean;
 }
 
@@ -357,11 +362,31 @@ function normalizeStored(db: DatabaseShape): boolean {
       set.setType = setType;
       changed = true;
     }
+    const durationSeconds = cleanDuration(set.durationSeconds);
+    if (set.durationSeconds !== durationSeconds) {
+      set.durationSeconds = durationSeconds;
+      changed = true;
+    }
+    const distanceKm = cleanDistance(set.distanceKm);
+    if (set.distanceKm !== distanceKm) {
+      set.distanceKm = distanceKm;
+      changed = true;
+    }
   }
   for (const set of db.routineSets) {
     const setType = normalizeSetType(set.setType);
     if (set.setType !== setType) {
       set.setType = setType;
+      changed = true;
+    }
+    const durationSeconds = cleanDuration(set.durationSeconds);
+    if (set.durationSeconds !== durationSeconds) {
+      set.durationSeconds = durationSeconds;
+      changed = true;
+    }
+    const distanceKm = cleanDistance(set.distanceKm);
+    if (set.distanceKm !== distanceKm) {
+      set.distanceKm = distanceKm;
       changed = true;
     }
   }

@@ -14,10 +14,11 @@ import { Screen } from '../../components/screen';
 import { getExercise, getExerciseLog } from '../../data/repository';
 import { Chip } from '../../components/chip';
 import { ExerciseAnimation } from '../../components/exercise-animation';
-import { formatDay, formatLoggedLoad } from '../../domain/format';
+import { formatCardioEffort, formatDistance, isCardioExercise } from '../../domain/cardio';
+import { formatClock, formatDay, formatLoggedLoad } from '../../domain/format';
 import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
 import { extraMachineSetups, formatMachineSetup, machineBrands, setTypeMark, usesMachineSetup, type ChartMetric, type LoggedSet } from '../../domain/types';
-import { formatWeight } from '../../domain/units';
+import { formatDecimal, formatWeight, kmToDisplay } from '../../domain/units';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -47,11 +48,16 @@ export const ExerciseProgressScreen: React.FC = () => {
     [exercise, sets, setup],
   );
 
+  const cardio = isCardioExercise(exercise?.id ?? '', exercise?.name ?? '');
+  const [cardioMetric, setCardioMetric] = useState<'duration' | 'distance'>('duration');
   const sessions = useMemo(() => buildSessionStats(visibleSets), [visibleSets]);
   const pastSessions = useMemo(() => groupLoggedSessions(visibleSets), [visibleSets]);
   const cards = useMemo(() => recordCardsFromSets(visibleSets, unit), [unit, visibleSets]);
   const points = useMemo(() => chartValues(sessions, metric, unit), [metric, sessions, unit]);
-  const delta = points.length >= 2 ? (points[points.length - 1]?.value ?? 0) - (points[points.length - 2]?.value ?? 0) : null;
+  const cardioPoints = useMemo(() => cardioSessionPoints(visibleSets, cardioMetric, unit), [cardioMetric, unit, visibleSets]);
+  const cardioCards = useMemo(() => cardioRecordCards(visibleSets, unit), [unit, visibleSets]);
+  const shownPoints = cardio ? cardioPoints : points;
+  const delta = shownPoints.length >= 2 ? (shownPoints[shownPoints.length - 1]?.value ?? 0) - (shownPoints[shownPoints.length - 2]?.value ?? 0) : null;
 
   return (
     <Screen bottomInset>
@@ -81,10 +87,10 @@ export const ExerciseProgressScreen: React.FC = () => {
           {pastSessions.length === 0 ? (
             <Text style={styles.empty}>Finished sets from earlier workouts show up here.</Text>
           ) : (
-            pastSessions.map((session) => <PastSession key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />)
+            pastSessions.map((session) => <PastSession cardio={cardio} key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />)
           )}
           <View style={styles.grid}>
-            {cards.map((card) => (
+            {(cardio ? cardioCards : cards).map((card) => (
               <View key={card.label} style={styles.card}>
                 <Text style={styles.cardLabel}>{card.label}</Text>
                 <Text style={styles.cardValue}>{card.value}</Text>
@@ -93,12 +99,29 @@ export const ExerciseProgressScreen: React.FC = () => {
             ))}
           </View>
           <View style={styles.metricRow}>
-            {metrics.map((item) => (
-              <MetricChip key={item.id} metric={item.id} label={item.label} onSelect={setMetric} selected={metric === item.id} />
-            ))}
+            {cardio ? (
+              <>
+                <MetricChip label="Time" metric="oneRepMax" onSelect={() => setCardioMetric('duration')} selected={cardioMetric === 'duration'} />
+                <MetricChip label="Distance" metric="topSet" onSelect={() => setCardioMetric('distance')} selected={cardioMetric === 'distance'} />
+              </>
+            ) : (
+              metrics.map((item) => <MetricChip key={item.id} label={item.label} metric={item.id} onSelect={setMetric} selected={metric === item.id} />)
+            )}
           </View>
-          <LineChart caption={`${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`} points={points} />
-          {delta == null ? <Text style={styles.delta}>Log another session to see the change.</Text> : <DeltaText delta={delta} metric={metric} unit={unit} />}
+          <LineChart
+            caption={cardio ? (cardioMetric === 'duration' ? 'Time in minutes' : `Distance in ${unit === 'lb' ? 'mi' : 'km'}`) : `${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`}
+            emptyLabel={cardio ? 'Complete a set with a time or distance to plot this.' : undefined}
+            points={shownPoints}
+          />
+          {delta == null ? (
+            <Text style={styles.delta}>Log another session to see the change.</Text>
+          ) : cardio ? (
+            <Text style={[styles.delta, delta > 0 ? styles.up : delta < 0 ? styles.down : null]}>
+              {cardioMetric === 'duration' ? formatSignedMinutes(delta) : `${delta > 0 ? '+' : ''}${formatDecimal(delta, 2)} ${unit === 'lb' ? 'mi' : 'km'}`} vs last session
+            </Text>
+          ) : (
+            <DeltaText delta={delta} metric={metric} unit={unit} />
+          )}
         </ScrollView>
       )}
     </Screen>
@@ -121,7 +144,7 @@ const DeltaText: React.FC<DeltaTextProps> = ({ delta, metric, unit }) => {
   );
 };
 
-const PastSession: React.FC<{ performedAt: number; sets: LoggedSet[]; unit: 'kg' | 'lb' }> = ({ performedAt, sets, unit }) => {
+const PastSession: React.FC<{ cardio?: boolean; performedAt: number; sets: LoggedSet[]; unit: 'kg' | 'lb' }> = ({ cardio = false, performedAt, sets, unit }) => {
   let workingNumber = 0;
   return (
     <View style={styles.session}>
@@ -134,7 +157,7 @@ const PastSession: React.FC<{ performedAt: number; sets: LoggedSet[]; unit: 'kg'
         const mark = setTypeMark(set.setType) ?? String(workingNumber);
         return (
           <Text key={`${set.position}-${index}`} style={styles.sessionSet}>
-            {mark}  {formatLoggedLoad(set.weightKg, set.reps, unit)}
+            {mark}  {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
             {set.rpe != null ? `  ·  ${formatWeight(set.rpe)}` : ''}
           </Text>
         );
@@ -148,6 +171,44 @@ interface MetricChipProps {
   label: string;
   selected: boolean;
   onSelect: (metric: ChartMetric) => void;
+}
+
+function cardioSessionPoints(sets: LoggedSet[], metric: 'duration' | 'distance', unit: 'kg' | 'lb'): Array<{ at: number; value: number }> {
+  const groups = new Map<string, { at: number; distance: number; duration: number }>();
+  for (const set of sets) {
+    if (!set.completed || set.setType === 'warmup' || ((set.durationSeconds ?? 0) <= 0 && (set.distanceKm ?? 0) <= 0)) {
+      continue;
+    }
+    const group = groups.get(set.workoutId) ?? { at: 0, distance: 0, duration: 0 };
+    group.at = Math.max(group.at, set.performedAt);
+    group.distance += set.distanceKm ?? 0;
+    group.duration += set.durationSeconds ?? 0;
+    groups.set(set.workoutId, group);
+  }
+  return [...groups.values()]
+    .sort((left, right) => left.at - right.at)
+    .map((group) => ({ at: group.at, value: metric === 'duration' ? group.duration / 60 : kmToDisplay(group.distance, unit) }));
+}
+
+function cardioRecordCards(sets: LoggedSet[], unit: 'kg' | 'lb'): Array<{ label: string; value: string; detail: string }> {
+  let longest = 0;
+  let farthest = 0;
+  for (const set of sets) {
+    if (!set.completed || set.setType === 'warmup') {
+      continue;
+    }
+    longest = Math.max(longest, set.durationSeconds ?? 0);
+    farthest = Math.max(farthest, set.distanceKm ?? 0);
+  }
+  return [
+    { detail: longest > 0 ? 'one set' : 'No time yet', label: 'Longest', value: longest > 0 ? formatClock(longest) : '—' },
+    { detail: farthest > 0 ? 'one set' : 'No distance yet', label: 'Farthest', value: farthest > 0 ? formatDistance(farthest, unit) : '—' },
+  ];
+}
+
+function formatSignedMinutes(minutes: number): string {
+  const sign = minutes > 0 ? '+' : minutes < 0 ? '−' : '';
+  return `${sign}${formatClock(Math.abs(Math.round(minutes * 60)))}`;
 }
 
 const MetricChip: React.FC<MetricChipProps> = ({ metric, label, selected, onSelect }) => {

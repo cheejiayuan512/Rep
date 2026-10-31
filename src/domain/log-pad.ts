@@ -2,10 +2,12 @@
  * Keystrokes for the logging pad. Weight and reps take digits.
  * RPE is a half-step scale. The pad asks these functions what the box should say next.
  */
+import { backspaceDuration, parseDurationText, typeDurationKey } from './cardio';
+import { formatClock } from './format';
 import type { WeightUnit } from './types';
-import { formatWeight, parseDecimal, parseReps, parseRpe } from './units';
+import { formatDecimal, formatWeight, parseDecimal, parseReps, parseRpe } from './units';
 
-export type LogFieldKind = 'weight' | 'reps' | 'rpe';
+export type LogFieldKind = 'weight' | 'reps' | 'rpe' | 'duration' | 'distance';
 
 /** The efforts a lifter actually picks. Lower than 6 still steps in with minus. */
 export const RPE_SCALE = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10] as const;
@@ -44,10 +46,14 @@ export function rpeHint(value: number | null): string {
  * One keypad key. `replace` is the first key after the field is opened, so it
  * overwrites the old number. Returns null when the key does not fit.
  */
-export function typeKey(current: string, key: string, kind: 'weight' | 'reps', replace: boolean): string | null {
+export function typeKey(current: string, key: string, kind: 'weight' | 'reps' | 'distance' | 'duration', replace: boolean): string | null {
+  if (kind === 'duration') {
+    return typeDurationKey(current, key, replace);
+  }
+  const decimal = kind === 'weight' || kind === 'distance';
   if (replace) {
     if (key === '.') {
-      return kind === 'weight' ? '0.' : null;
+      return decimal ? '0.' : null;
     }
     if (!/^[0-9]$/.test(key)) {
       return null;
@@ -55,7 +61,7 @@ export function typeKey(current: string, key: string, kind: 'weight' | 'reps', r
     return key;
   }
 
-  if (kind === 'reps') {
+  if (!decimal) {
     if (!/^[0-9]$/.test(key)) {
       return null;
     }
@@ -90,7 +96,10 @@ export function typeKey(current: string, key: string, kind: 'weight' | 'reps', r
 }
 
 /** The first delete after opening a field clears it. Later deletes remove one character. */
-export function backspaceKey(current: string, replace: boolean): string {
+export function backspaceKey(current: string, replace: boolean, kind: LogFieldKind = 'weight'): string {
+  if (kind === 'duration') {
+    return backspaceDuration(current, replace);
+  }
   if (replace || current.length <= 1) {
     return '';
   }
@@ -109,6 +118,18 @@ export function nudgeLogValue(current: string, direction: -1 | 1, kind: LogField
   if (kind === 'reps') {
     const parsed = parseReps(current) ?? 0;
     return String(Math.min(999, Math.max(0, parsed + direction)));
+  }
+
+  if (kind === 'duration') {
+    const parsed = parseDurationText(current) ?? 0;
+    const next = Math.min(99 * 3600 + 59 * 60 + 59, Math.max(0, parsed + direction * 15));
+    return next === 0 ? '' : formatClock(next);
+  }
+
+  if (kind === 'distance') {
+    const parsed = parseDecimal(current) ?? 0;
+    const next = Math.min(999, Math.max(0, Math.round((parsed + direction * 0.1) * 100) / 100));
+    return next === 0 ? '' : formatDecimal(next, 2);
   }
 
   const step = unit === 'lb' ? 5 : 2.5;

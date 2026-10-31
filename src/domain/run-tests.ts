@@ -2,6 +2,7 @@
  * Loads every domain test, then runs them. `npm test` starts here.
  */
 import '../data/database.test';
+import './cardio.test';
 import './drafts.test';
 import './exercise-families.test';
 import './exercise-finder.test';

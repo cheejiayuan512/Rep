@@ -21,7 +21,7 @@ test('matchHevyExercise maps Hevy titles onto the seeded library', () => {
   assertEqual(matchHevyExercise('Sit Up (Weighted)', library).exerciseId, null);
 });
 
-test('parseHevyCsv groups one session, keeps warmups, and skips cardio', () => {
+test('parseHevyCsv groups one session, keeps warmups, and keeps a run', () => {
   const csv = [
     'title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe',
     'Morning workout 🏋️,20 Oct 2026, 18:42,20 Oct 2026, 20:41,,Chin Up (Weighted),,go next,0,normal,10,6,,,',
@@ -33,11 +33,11 @@ test('parseHevyCsv groups one session, keeps warmups, and skips cardio', () => {
 
   const result = parseHevyCsv(csv, library);
   assertEqual(result.workouts.length, 2);
-  assertEqual(result.skippedCardioRows, 1);
+  assertEqual(result.skippedCardioRows, 0);
 
   const morning = result.workouts.find((workout) => workout.name === 'Morning workout');
   assertEqual(Boolean(morning), true);
-  assertEqual(morning?.exercises.length, 2);
+  assertEqual(morning?.exercises.length, 3);
   assertEqual(morning?.exercises[0].matchedExerciseId, 'chin-up');
   assertEqual(morning?.exercises[0].sets.length, 2);
   assertEqual(morning?.exercises[0].sets[0].weightKg, 10);
@@ -45,6 +45,10 @@ test('parseHevyCsv groups one session, keeps warmups, and skips cardio', () => {
   assertEqual(morning?.exercises[0].sets[1].setType, 'warmup');
   assertEqual(morning?.exercises[1].matchedExerciseId, 'incline-barbell-bench-press');
   assertEqual(morning?.exercises[1].notes, 'try 80 then 90');
+  assertEqual(morning?.exercises[2].name, 'Running');
+  assertEqual(morning?.exercises[2].sets[0].durationSeconds, 1800);
+  assertEqual(morning?.exercises[2].sets[0].distanceKm, 5);
+  assertEqual(morning?.exercises[2].sets[0].reps, null);
 
   const night = result.workouts.find((workout) => workout.name === 'Late night workout');
   assertEqual(night?.exercises[0].matchedExerciseId, 'back-squat');
@@ -61,10 +65,10 @@ test('parseHevyCsv keeps columns when Hevy already quoted the dates', () => {
 
   const result = parseHevyCsv(csv, library);
   assertEqual(result.workouts.length, 1);
-  assertEqual(result.skippedCardioRows, 1);
+  assertEqual(result.skippedCardioRows, 0);
   const morning = result.workouts[0];
   assertEqual(morning?.name, 'Morning workout');
-  assertEqual(morning?.exercises.length, 2);
+  assertEqual(morning?.exercises.length, 3);
   assertEqual(morning?.exercises[0].sets.length, 2);
   assertEqual(morning?.exercises[0].sets[1].setType, 'warmup');
   assertEqual(morning?.exercises[0].notes, 'go 11.25 next, rpe8.5');

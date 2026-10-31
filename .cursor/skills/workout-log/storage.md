@@ -12,7 +12,7 @@ Reads and writes are serialized on a promise queue. `writeDatabase` clones, muta
 - `workouts`: `finishedAt: null` means in progress
 - `workoutExercises`: `notes` is a string, `''` when empty. `restSeconds` is a number or `null` for the exercise's default rest. `attachment` is a cable attachment or `null`. `machineSetup` is the stack used in that session, or `null` when unknown. `supersetId` groups exercises, or `null`
 - `routineExercises.supersetId` is the same kind of group on a routine, or `null`
-- `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `setType` (`normal`, `warmup`, `drop`, or `failure`), `completed`
+- `sets`: `weightKg`, `reps`, `rpe` (`null` when blank), `durationSeconds` and `distanceKm` (`null` on a lifting set; seconds and kilometers on a cardio set), `setType` (`normal`, `warmup`, `drop`, or `failure`), `completed`
 - `settings`: `weightUnit`, `warmupRestMultiplier` (0.25, 0.5, 0.75, or 1; default 0.5), `bodyweightKg` (kilograms or `null`), `ageYears` (14–80 or `null`; scales strength levels), `sex` (`male`, `female`, or `null`; picks the strength standards), `showRpe` (show the RPE column before any RPE is logged). Older documents also carry an unused `restSeconds`
 
 Old documents may omit `notes`, `rpe`, `restSeconds`, `attachment`, `machineSetup`, `warmupRestMultiplier`, `bodyweightKg`, `ageYears`, `sex`, `showRpe`, or `routineSets`. `normalizeStored` fills those on load (seeded cable exercises get their seed attachment; missing setups become `null`; missing `showRpe` becomes true if any set has an RPE). Keep that path when adding a field.

@@ -133,9 +133,13 @@ function nextSupersetExercise(exercises: WorkoutExercise[], current: WorkoutExer
   return undefined;
 }
 
-/** True when at least one set was checked off with reps. A blank session can be discarded. */
-export function workoutHasLoggedSet(workout: { exercises: Array<{ sets: Array<{ completed: boolean; reps: number | null }> }> }): boolean {
-  return workout.exercises.some((exercise) => exercise.sets.some((set) => set.completed && (set.reps ?? 0) > 0));
+/** True when at least one set was checked off with reps, time, or distance. A blank session can be discarded. */
+export function workoutHasLoggedSet(workout: {
+  exercises: Array<{ sets: Array<{ completed: boolean; reps: number | null; durationSeconds?: number | null; distanceKm?: number | null }> }>;
+}): boolean {
+  return workout.exercises.some((exercise) =>
+    exercise.sets.some((set) => set.completed && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0)),
+  );
 }
 
 export type SupersetRole = 'single' | 'start' | 'middle' | 'end';

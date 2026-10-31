@@ -294,6 +294,8 @@ function parseSetRows(
         }
         sets.push({
           completed: true,
+          distanceKm: null,
+          durationSeconds: null,
           position: sets.length,
           reps,
           rpe: parseOptionalRpe(row.rpe),

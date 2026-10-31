@@ -36,6 +36,7 @@ import {
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { machineSetupOptions } from '../../domain/machine-setup';
 import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
+import { distanceTextToKm, durationTextToSeconds, isCardioExercise, parseDurationText } from '../../domain/cardio';
 import { parseDecimal, repsTextToNumber, weightTextToKg } from '../../domain/units';
 import { createId } from '../../domain/ids';
 import { moveById, supersetRole, toggleSupersetWithNext, warmupsFirst } from '../../domain/workout-edits';
@@ -46,6 +47,8 @@ import { RoutineExerciseCard } from './routine-exercise-card';
 interface PendingSet {
   weightKg: number | null;
   reps: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
 }
 
 interface UndoToast {
@@ -236,16 +239,18 @@ const RoutineEditorBody: React.FC = () => {
   }, [navigation, route.params.routineId]);
 
   /** The set's numbers with what is typed in its boxes applied. */
-  const readSetNumbers = useCallback((set: RoutineSet, override?: { weightText?: string; repsText?: string }): PendingSet => {
+  const readSetNumbers = useCallback((set: RoutineSet, override?: { weightText?: string; repsText?: string; durationText?: string; distanceText?: string }): PendingSet => {
     const draft = draftsRef.current[set.id];
     return {
+      distanceKm: distanceTextToKm(override?.distanceText ?? draft?.distanceText ?? '', unitRef.current, set.distanceKm ?? null),
+      durationSeconds: durationTextToSeconds(override?.durationText ?? draft?.durationText ?? '', set.durationSeconds ?? null),
       reps: repsTextToNumber(override?.repsText ?? draft?.repsText ?? '', set.reps),
       weightKg: weightTextToKg(override?.weightText ?? draft?.weightText ?? '', unitRef.current, set.weightKg),
     };
   }, []);
 
   const applyNumbers = useCallback(
-    (setId: string, override: { weightText?: string; repsText?: string }) => {
+    (setId: string, override: { weightText?: string; repsText?: string; durationText?: string; distanceText?: string }) => {
       const current = routineRef.current;
       const located = findSet(current, setId);
       if (!current || !located) {
@@ -279,6 +284,28 @@ const RoutineEditorBody: React.FC = () => {
         return;
       }
       applyNumbers(setId, { repsText: value });
+    },
+    [applyNumbers],
+  );
+
+  const handleChangeDuration = useCallback(
+    (setId: string, value: string) => {
+      setDrafts((previous) => ({ ...previous, [setId]: withDraft(previous[setId], { durationText: value }) }));
+      if (value.trim() !== '' && parseDurationText(value) == null) {
+        return;
+      }
+      applyNumbers(setId, { durationText: value });
+    },
+    [applyNumbers],
+  );
+
+  const handleChangeDistance = useCallback(
+    (setId: string, value: string) => {
+      setDrafts((previous) => ({ ...previous, [setId]: withDraft(previous[setId], { distanceText: value }) }));
+      if (value.trim() !== '' && parseDecimal(value) == null) {
+        return;
+      }
+      applyNumbers(setId, { distanceText: value });
     },
     [applyNumbers],
   );
@@ -366,7 +393,9 @@ const RoutineEditorBody: React.FC = () => {
         return;
       }
       const last = exercise.sets[exercise.sets.length - 1];
-      const created = await addRoutineSet(routineExerciseId, last ? readSetNumbers(last) : { reps: null, weightKg: null });
+      const numbers = last ? readSetNumbers(last) : { distanceKm: null, durationSeconds: null, reps: null, weightKg: null };
+      const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
+      const created = await addRoutineSet(routineExerciseId, cardio ? { ...numbers, reps: null, weightKg: null } : { ...numbers, distanceKm: null, durationSeconds: null });
       const latest = routineRef.current;
       if (latest) {
         applyRoutine(mapSets(latest, routineExerciseId, (sets) => [...sets, created]));
@@ -530,6 +559,8 @@ const RoutineEditorBody: React.FC = () => {
         drafts={drafts}
         exercise={exercise}
         onAddSet={pressAddSet}
+        onChangeDistance={handleChangeDistance}
+        onChangeDuration={handleChangeDuration}
         onChangeReps={handleChangeReps}
         onChangeSetType={handleChangeSetType}
         onChangeSetup={handleChangeSetup}

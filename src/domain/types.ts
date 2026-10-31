@@ -132,12 +132,18 @@ export interface SetRecord {
   reps: number | null;
   /** Optional effort from 0 to 10. Null means the lifter left RPE blank. */
   rpe: number | null;
+  /** Seconds on a cardio set. Null on a lifting set. */
+  durationSeconds?: number | null;
+  /** Kilometers on a cardio set. Null on a lifting set. */
+  distanceKm?: number | null;
   completed: boolean;
 }
 
 export interface PreviousSet {
   weightKg: number | null;
   reps: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
   setType: SetType;
   /** Set when this previous row came from a machine or cable. Null means Unknown brand. */
   machineSetup?: string | null;
@@ -179,6 +185,8 @@ export interface WorkoutSummaryExercise {
   sets: number;
   /** The set with the highest estimated 1RM, or the most reps when everything was bodyweight. */
   best: { weightKg: number; reps: number } | null;
+  /** The farthest or longest cardio set, when this exercise was not loaded. */
+  cardio?: { durationSeconds: number; distanceKm: number } | null;
 }
 
 export interface WorkoutSummary {
@@ -190,6 +198,9 @@ export interface WorkoutSummary {
   exercises: WorkoutSummaryExercise[];
   setCount: number;
   volumeKg: number;
+  /** Sum of completed cardio time and distance in this workout. Zero for a lifting session. */
+  cardioSeconds?: number;
+  cardioKm?: number;
   /** Sets in this workout that beat an earlier estimated 1RM. */
   recordCount: number;
 }
@@ -208,6 +219,8 @@ export interface RoutineSet {
   setType: SetType;
   weightKg: number | null;
   reps: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
 }
 
 export interface RoutineExercise {
@@ -258,6 +271,8 @@ export interface LoggedSet {
   machineSetup: string | null;
   /** Present when the stored set had RPE. Older history may omit it. */
   rpe?: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
 }
 
 export function isMuscleGroup(value: string): value is MuscleGroup {

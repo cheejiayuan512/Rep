@@ -14,6 +14,7 @@ import { EmptyState } from '../../components/empty-state';
 import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { deleteWorkout, duplicateWorkout, getWorkout } from '../../data/repository';
+import { formatCardioEffort, isCardioExercise } from '../../domain/cardio';
 import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domain/format';
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
@@ -153,8 +154,11 @@ const Summary: React.FC<{ label: string; value: string }> = ({ label, value }) =
 
 /** One exercise as a small table: warmups marked W, working sets numbered on their own. */
 const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit; onOpenHistory: (exercise: WorkoutExercise) => void }> = React.memo(function ExerciseSummaryCard({ exercise, onOpenHistory, unit }) {
+  const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
   const working = exercise.sets.filter(isWorking);
   const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+  const cardioSeconds = working.reduce((sum, set) => sum + (set.durationSeconds ?? 0), 0);
+  const cardioKm = working.reduce((sum, set) => sum + (set.distanceKm ?? 0), 0);
   const bestOneRepMax = working.reduce((best, set) => {
     const weight = set.weightKg ?? 0;
     const reps = set.reps ?? 0;
@@ -183,9 +187,9 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
       ) : null}
       <View style={[styles.row, styles.headRow]}>
         <Text style={[styles.colSet, styles.head]}>Set</Text>
-        <Text style={[styles.colLoad, styles.head]}>{unit} × reps</Text>
-        <Text style={[styles.colRpe, styles.head]}>RPE</Text>
-        <Text style={[styles.colMax, styles.head]}>e1RM</Text>
+        <Text style={[styles.colLoad, styles.head]}>{cardio ? 'Time · distance' : `${unit} × reps`}</Text>
+        {cardio ? null : <Text style={[styles.colRpe, styles.head]}>RPE</Text>}
+        {cardio ? null : <Text style={[styles.colMax, styles.head]}>e1RM</Text>}
       </View>
       {exercise.sets.map((set) => {
         const warmup = set.setType === 'warmup';
@@ -200,23 +204,25 @@ const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUni
             <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup, set.setType === 'failure' && styles.failure, set.setType === 'drop' && styles.drop]}>
               {setTypeMark(set.setType) ?? (set.completed ? workingNumber : '–')}
             </Text>
-            <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>{formatLoggedLoad(set.weightKg, set.reps, unit)}</Text>
-            <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>
-            <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
+            <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>
+              {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
+            </Text>
+            {cardio ? null : <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>}
+            {cardio ? null : <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>}
           </View>
         );
       })}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          {working.length} working {working.length === 1 ? 'set' : 'sets'} · {formatVolume(kgToDisplay(volumeKg, unit))} {unit}
+          {working.length} working {working.length === 1 ? 'set' : 'sets'} · {cardio ? formatCardioEffort(cardioSeconds, cardioKm, unit) : `${formatVolume(kgToDisplay(volumeKg, unit))} ${unit}`}
         </Text>
-        {bestOneRepMax > 0 ? (
+        {!cardio && bestOneRepMax > 0 ? (
           <Text style={styles.footerStrong}>
             Best e1RM {formatEstimate(kgToDisplay(bestOneRepMax, unit))} {unit}
           </Text>
         ) : null}
       </View>
-      {session && session.used > 1 ? (
+      {!cardio && session && session.used > 1 ? (
         <Text style={styles.sessionLine}>
           Session 1RM {formatEstimate(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
         </Text>

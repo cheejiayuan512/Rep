@@ -80,6 +80,8 @@ export interface NewSetInput {
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
+  durationSeconds?: number | null;
+  distanceKm?: number | null;
 }
 
 // Settings: kg/lb and how long warmups rest.
@@ -348,6 +350,8 @@ export async function addExerciseToRoutine(routineId: string, exerciseId: string
     const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
     templates.forEach((template, index) => {
       db.routineSets.push({
+        distanceKm: template?.distanceKm ?? null,
+        durationSeconds: template?.durationSeconds ?? null,
         id: createId(),
         position: index,
         reps: template?.reps ?? null,
@@ -385,8 +389,20 @@ export async function restoreRoutineExercise(routineId: string, exercise: Routin
   });
 }
 
-export async function addRoutineSet(routineExerciseId: string, input: { weightKg: number | null; reps: number | null }): Promise<RoutineSet> {
-  const created: StoredRoutineSet = { id: createId(), position: 0, reps: input.reps, routineExerciseId, setType: 'normal', weightKg: input.weightKg };
+export async function addRoutineSet(
+  routineExerciseId: string,
+  input: { weightKg: number | null; reps: number | null; durationSeconds?: number | null; distanceKm?: number | null },
+): Promise<RoutineSet> {
+  const created: StoredRoutineSet = {
+    distanceKm: input.distanceKm ?? null,
+    durationSeconds: input.durationSeconds ?? null,
+    id: createId(),
+    position: 0,
+    reps: input.reps,
+    routineExerciseId,
+    setType: 'normal',
+    weightKg: input.weightKg,
+  };
   await writeDatabase((db) => {
     created.position = nextPosition(db.routineSets.filter((set) => set.routineExerciseId === routineExerciseId));
     db.routineSets.push({ ...created });
@@ -394,7 +410,10 @@ export async function addRoutineSet(routineExerciseId: string, input: { weightKg
   return mapRoutineSet(created);
 }
 
-export async function updateRoutineSet(setId: string, patch: Partial<Pick<RoutineSet, 'weightKg' | 'reps' | 'setType' | 'position'>>): Promise<void> {
+export async function updateRoutineSet(
+  setId: string,
+  patch: Partial<Pick<RoutineSet, 'weightKg' | 'reps' | 'setType' | 'position' | 'durationSeconds' | 'distanceKm'>>,
+): Promise<void> {
   await writeDatabase((db) => {
     const set = db.routineSets.find((item) => item.id === setId);
     if (set) {
@@ -528,7 +547,18 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
         return;
       }
       planned.forEach((set, position) => {
-        db.sets.push({ completed: false, id: createId(), position, reps: set.reps, rpe: null, setType: set.setType, weightKg: set.weightKg, workoutExerciseId });
+        db.sets.push({
+          completed: false,
+          distanceKm: set.distanceKm ?? null,
+          durationSeconds: set.durationSeconds ?? null,
+          id: createId(),
+          position,
+          reps: set.reps,
+          rpe: null,
+          setType: set.setType,
+          weightKg: set.weightKg,
+          workoutExerciseId,
+        });
       });
     });
   });
@@ -573,12 +603,14 @@ function workoutSummariesOf(db: DatabaseShape): WorkoutSummary[] {
         exerciseNames: rows.map((exercise) => exerciseName(db, exercise.exerciseId)),
         exercises: rows.map((row) => {
           const sets = setsOf(db, row.id).filter((set) => set.completed && set.setType !== 'warmup');
-          return { best: bestSet(sets), name: exerciseName(db, row.exerciseId), sets: sets.length };
+          return { best: bestSet(sets), cardio: cardioBest(sets), name: exerciseName(db, row.exerciseId), sets: sets.length };
         }),
         finishedAt: workout.finishedAt ?? workout.startedAt,
         id: workout.id,
         name: workout.name,
         recordCount: records.get(workout.id) ?? 0,
+        cardioKm: working.reduce((sum, set) => sum + (set.distanceKm ?? 0), 0),
+        cardioSeconds: working.reduce((sum, set) => sum + (set.durationSeconds ?? 0), 0),
         setCount: working.length,
         startedAt: workout.startedAt,
         volumeKg: working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0),
@@ -597,7 +629,7 @@ export const getAnalysisInput = reader((db): AnalysisInput => {
     for (const row of workoutExerciseRows(db, workout.id)) {
       const exercise = requireExercise(db, row.exerciseId);
       for (const set of setsOf(db, row.id)) {
-        if (!isWorkingSet(set)) {
+        if (!isWorkingSet(set) || (set.reps ?? 0) <= 0) {
           continue;
         }
         sets.push({
@@ -615,6 +647,30 @@ export const getAnalysisInput = reader((db): AnalysisInput => {
   }
   return { sets, workouts: summaries };
 });
+
+function cardioBest(sets: StoredSet[]): { durationSeconds: number; distanceKm: number } | null {
+  let best: StoredSet | null = null;
+  for (const set of sets) {
+    const distance = set.distanceKm ?? 0;
+    const duration = set.durationSeconds ?? 0;
+    if (distance <= 0 && duration <= 0) {
+      continue;
+    }
+    if (!best) {
+      best = set;
+      continue;
+    }
+    const bestDistance = best.distanceKm ?? 0;
+    const bestDuration = best.durationSeconds ?? 0;
+    if (distance > bestDistance || (distance === bestDistance && duration > bestDuration)) {
+      best = set;
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  return { distanceKm: best.distanceKm ?? 0, durationSeconds: best.durationSeconds ?? 0 };
+}
 
 function bestSet(sets: StoredSet[]): { weightKg: number; reps: number } | null {
   let best: { weightKg: number; reps: number; score: number } | null = null;
@@ -746,7 +802,18 @@ export async function duplicateWorkout(workoutId: string): Promise<string> {
         .filter((set) => set.workoutExerciseId === row.id)
         .sort((left, right) => left.position - right.position)
         .forEach((set, position) => {
-          db.sets.push({ completed: false, id: createId(), position, reps: set.reps, rpe: null, setType: set.setType, weightKg: set.weightKg, workoutExerciseId });
+          db.sets.push({
+          completed: false,
+          distanceKm: set.distanceKm ?? null,
+          durationSeconds: set.durationSeconds ?? null,
+          id: createId(),
+          position,
+          reps: set.reps,
+          rpe: null,
+          setType: set.setType,
+          weightKg: set.weightKg,
+          workoutExerciseId,
+        });
         });
     });
   });
@@ -759,6 +826,8 @@ export async function duplicateWorkout(workoutId: string): Promise<string> {
 export async function insertSet(workoutExerciseId: string, input: NewSetInput): Promise<SetRecord> {
   const created: StoredSet = {
     completed: false,
+    distanceKm: input.distanceKm ?? null,
+    durationSeconds: input.durationSeconds ?? null,
     id: createId(),
     position: 0,
     reps: input.reps,
@@ -774,18 +843,35 @@ export async function insertSet(workoutExerciseId: string, input: NewSetInput): 
   return mapSet(created);
 }
 
-export async function updateSetNumbers(setId: string, weightKg: number | null, reps: number | null, rpe: number | null): Promise<void> {
+export async function updateSetNumbers(
+  setId: string,
+  weightKg: number | null,
+  reps: number | null,
+  rpe: number | null,
+  durationSeconds: number | null = null,
+  distanceKm: number | null = null,
+): Promise<void> {
   await writeDatabase((db) => {
     const set = db.sets.find((item) => item.id === setId);
     if (set) {
       set.weightKg = weightKg;
       set.reps = reps;
       set.rpe = rpe;
+      set.durationSeconds = durationSeconds;
+      set.distanceKm = distanceKm;
     }
   });
 }
 
-export async function updateSetCompleted(setId: string, completed: boolean, weightKg: number | null, reps: number | null, rpe: number | null): Promise<void> {
+export async function updateSetCompleted(
+  setId: string,
+  completed: boolean,
+  weightKg: number | null,
+  reps: number | null,
+  rpe: number | null,
+  durationSeconds: number | null = null,
+  distanceKm: number | null = null,
+): Promise<void> {
   await writeDatabase((db) => {
     const set = db.sets.find((item) => item.id === setId);
     if (set) {
@@ -793,6 +879,8 @@ export async function updateSetCompleted(setId: string, completed: boolean, weig
       set.weightKg = weightKg;
       set.reps = reps;
       set.rpe = rpe;
+      set.durationSeconds = durationSeconds;
+      set.distanceKm = distanceKm;
     }
   });
 }
@@ -901,6 +989,8 @@ export async function replaceWorkoutExerciseSets(workoutExerciseId: string, sets
     sets.forEach((set, position) => {
       db.sets.push({
         completed: set.completed,
+        distanceKm: set.distanceKm ?? null,
+        durationSeconds: set.durationSeconds ?? null,
         id: set.id,
         position,
         reps: set.reps,
@@ -1216,6 +1306,8 @@ export async function importWorkoutCsv(csvText: string): Promise<HevyImportSumma
         for (const set of exercise.sets) {
           draft.sets.push({
             completed: set.completed,
+            distanceKm: set.distanceKm ?? null,
+            durationSeconds: set.durationSeconds ?? null,
             id: createId(),
             position: set.position,
             reps: set.reps,
@@ -1347,7 +1439,7 @@ export interface WorkoutRecap {
   /** 1 for the earliest finished session, counting this one. */
   sessionNumber: number;
   reps: number;
-  exercises: Array<{ name: string; sets: number; best: { weightKg: number; reps: number } | null; sessionKg: number | null }>;
+  exercises: Array<{ name: string; sets: number; best: { weightKg: number; reps: number } | null; cardio: { durationSeconds: number; distanceKm: number } | null; sessionKg: number | null }>;
   /** Exercises where a set beat the previous best estimated 1RM. */
   records: Array<{ name: string; oneRepMaxKg: number }>;
   before: ProfileSnapshot;
@@ -1363,8 +1455,9 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
   const rows = workoutExerciseRows(db, workoutId);
   const exercises = rows.map((row) => {
     const sets = setsOf(db, row.id).filter(isWorkingSet);
-    const estimate = estimateFromSets(sets.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })));
-    return { best: bestSet(sets), name: exerciseName(db, row.exerciseId), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
+    const loaded = sets.filter((set) => (set.reps ?? 0) > 0);
+    const estimate = estimateFromSets(loaded.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })));
+    return { best: bestSet(sets), cardio: cardioBest(sets), name: exerciseName(db, row.exerciseId), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
   });
   const records: WorkoutRecap['records'] = [];
   for (const row of rows) {
@@ -1491,6 +1584,8 @@ function historyFor(db: DatabaseShape, exerciseIds: string[], excludeWorkoutId: 
         machineSetup: exercise.machineSetup ?? null,
         performedAt: workout.finishedAt,
         position: set.position,
+        distanceKm: set.distanceKm ?? null,
+        durationSeconds: set.durationSeconds ?? null,
         reps: set.reps,
         rpe: typeof set.rpe === 'number' ? set.rpe : null,
         setType: normalizeSetType(set.setType),
@@ -1513,6 +1608,8 @@ function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous:
   templates.forEach((template, index) => {
     db.sets.push({
       completed: false,
+      distanceKm: template?.distanceKm ?? null,
+      durationSeconds: template?.durationSeconds ?? null,
       id: createId(),
       position: index,
       reps: template?.reps ?? null,
@@ -1619,7 +1716,7 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
 function muscleGroupsWorked(db: DatabaseShape, workoutId: string): string[] {
   const rows = workoutExerciseRows(db, workoutId);
   const trained = (row: StoredWorkoutExercise, workingOnly: boolean) =>
-    setsOf(db, row.id).some((set) => (workingOnly ? isWorkingSet(set) : set.completed && (set.reps ?? 0) > 0));
+    setsOf(db, row.id).some((set) => (workingOnly ? isWorkingSet(set) : set.completed && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0)));
   const working = rows.filter((row) => trained(row, true));
   const source = working.length > 0 ? working : rows.filter((row) => trained(row, false));
   const groups: string[] = [];
@@ -1637,7 +1734,7 @@ function setsOf(db: DatabaseShape, workoutExerciseId: string): StoredSet[] {
 }
 
 function isWorkingSet(set: StoredSet): boolean {
-  return set.completed && set.setType !== 'warmup' && (set.reps ?? 0) > 0;
+  return set.completed && set.setType !== 'warmup' && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0);
 }
 
 function workingSets(db: DatabaseShape, workoutId: string): StoredSet[] {
@@ -1654,6 +1751,8 @@ function routineSetRows(db: DatabaseShape, routineExerciseId: string): StoredRou
 
 function mapRoutineSet(set: StoredRoutineSet): RoutineSet {
   return {
+    distanceKm: set.distanceKm ?? null,
+    durationSeconds: set.durationSeconds ?? null,
     id: set.id,
     position: set.position,
     reps: set.reps,
@@ -1695,6 +1794,8 @@ function mapExercise(exercise: StoredExercise): Exercise {
 function mapSet(set: StoredSet): SetRecord {
   return {
     completed: set.completed,
+    distanceKm: set.distanceKm ?? null,
+    durationSeconds: set.durationSeconds ?? null,
     id: set.id,
     position: set.position,
     reps: set.reps,
@@ -1706,6 +1807,8 @@ function mapSet(set: StoredSet): SetRecord {
 
 function toPrevious(set: LoggedSet, equipment: Equipment): PreviousSet {
   return {
+    distanceKm: set.distanceKm ?? null,
+    durationSeconds: set.durationSeconds ?? null,
     machineSetup: usesMachineSetup(equipment) ? (set.machineSetup ?? null) : undefined,
     reps: set.reps,
     setType: normalizeSetType(set.setType),

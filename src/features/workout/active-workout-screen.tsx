@@ -23,7 +23,8 @@ import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pa
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
-import { formatWorkoutWhen } from '../../domain/format';
+import { cardioHasEffort, distanceTextToKm, durationTextToSeconds, isCardioExercise, parseDurationText } from '../../domain/cardio';
+import { formatClock, formatWorkoutWhen } from '../../domain/format';
 import { DEFAULT_WORKOUT_NAME, isDefaultWorkoutName } from '../../domain/workout-name';
 import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import { Screen } from '../../components/screen';
@@ -36,7 +37,7 @@ import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { createId } from '../../domain/ids';
 import { findNextSet, findSet, moveById, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from '../../domain/workout-edits';
 import { bestWorkingOneRepMax, rateLift, type StrengthRating } from '../../domain/strength';
-import { formatWeight, kgToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
+import { formatDecimal, formatWeight, kgToDisplay, kmToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
 import {
   addExerciseToWorkout,
   deleteSet,
@@ -80,6 +81,8 @@ interface PendingSet {
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
 }
 
 interface RecordToast {
@@ -203,7 +206,7 @@ const ActiveWorkoutBody: React.FC = () => {
     }
     noteTimersRef.current = {};
     await Promise.all([
-      ...Object.entries(patches).map(([setId, patch]) => updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe)),
+      ...Object.entries(patches).map(([setId, patch]) => updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe, patch.durationSeconds, patch.distanceKm)),
       ...Object.entries(notes).map(([workoutExerciseId, text]) => updateWorkoutExerciseNotes(workoutExerciseId, text)),
     ]);
   }, []);
@@ -220,7 +223,7 @@ const ActiveWorkoutBody: React.FC = () => {
       delete pendingRef.current[setId];
       delete timersRef.current[setId];
       if (patch) {
-        void updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe);
+        void updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe, patch.durationSeconds, patch.distanceKm);
       }
     }, 300);
   }, []);
@@ -447,14 +450,23 @@ const ActiveWorkoutBody: React.FC = () => {
     titleInput.current?.focus();
   }, []);
 
-  const readSetNumbers = useCallback((setId: string, fallback: { weightKg: number | null; reps: number | null; rpe: number | null }, override?: Partial<{ weightText: string; repsText: string; rpeText: string }>) => {
-    const draft = draftsRef.current[setId];
-    return {
-      reps: repsTextToNumber(override?.repsText ?? draft?.repsText ?? '', fallback.reps),
-      rpe: rpeTextToNumber(override?.rpeText ?? draft?.rpeText ?? '', fallback.rpe),
-      weightKg: weightTextToKg(override?.weightText ?? draft?.weightText ?? '', unitRef.current, fallback.weightKg),
-    };
-  }, []);
+  const readSetNumbers = useCallback(
+    (
+      setId: string,
+      fallback: { weightKg: number | null; reps: number | null; rpe: number | null; durationSeconds?: number | null; distanceKm?: number | null },
+      override?: Partial<{ weightText: string; repsText: string; rpeText: string; durationText: string; distanceText: string }>,
+    ) => {
+      const draft = draftsRef.current[setId];
+      return {
+        distanceKm: distanceTextToKm(override?.distanceText ?? draft?.distanceText ?? '', unitRef.current, fallback.distanceKm ?? null),
+        durationSeconds: durationTextToSeconds(override?.durationText ?? draft?.durationText ?? '', fallback.durationSeconds ?? null),
+        reps: repsTextToNumber(override?.repsText ?? draft?.repsText ?? '', fallback.reps),
+        rpe: rpeTextToNumber(override?.rpeText ?? draft?.rpeText ?? '', fallback.rpe),
+        weightKg: weightTextToKg(override?.weightText ?? draft?.weightText ?? '', unitRef.current, fallback.weightKg),
+      };
+    },
+    [],
+  );
 
   const queueNote = useCallback((workoutExerciseId: string, notes: string) => {
     notePendingRef.current[workoutExerciseId] = notes;
@@ -538,6 +550,42 @@ const ActiveWorkoutBody: React.FC = () => {
     [queueSave, readSetNumbers],
   );
 
+  const handleChangeDuration = useCallback(
+    (setId: string, value: string) => {
+      setDrafts((previous) => ({ ...previous, [setId]: withDraft(previous[setId], { durationText: value }) }));
+      const current = workoutRef.current;
+      const located = current ? findSet(current, setId) : null;
+      if (!current || !located) {
+        return;
+      }
+      if (value.trim() !== '' && parseDurationText(value) == null) {
+        return;
+      }
+      const numbers = readSetNumbers(setId, located.set, { durationText: value });
+      setWorkout(updateSetInWorkout(current, setId, numbers));
+      queueSave(setId, numbers);
+    },
+    [queueSave, readSetNumbers],
+  );
+
+  const handleChangeDistance = useCallback(
+    (setId: string, value: string) => {
+      setDrafts((previous) => ({ ...previous, [setId]: withDraft(previous[setId], { distanceText: value }) }));
+      const current = workoutRef.current;
+      const located = current ? findSet(current, setId) : null;
+      if (!current || !located) {
+        return;
+      }
+      if (value.trim() !== '' && parseDecimal(value) == null) {
+        return;
+      }
+      const numbers = readSetNumbers(setId, located.set, { distanceText: value });
+      setWorkout(updateSetInWorkout(current, setId, numbers));
+      queueSave(setId, numbers);
+    },
+    [queueSave, readSetNumbers],
+  );
+
   const handleChangeNotes = useCallback(
     (workoutExerciseId: string, value: string) => {
       const notes = value.slice(0, 500);
@@ -604,8 +652,9 @@ const ActiveWorkoutBody: React.FC = () => {
         return;
       }
       const numbers = readSetNumbers(setId, located.set);
-      if (!located.set.completed && (numbers.reps == null || numbers.reps <= 0)) {
-        setBanner('Add reps before completing the set.');
+      const cardio = isCardioExercise(located.exercise.exerciseId, located.exercise.name);
+      if (!located.set.completed && (cardio ? !cardioHasEffort(numbers.durationSeconds, numbers.distanceKm) : numbers.reps == null || numbers.reps <= 0)) {
+        setBanner(cardio ? 'Add a time or distance before completing the set.' : 'Add reps before completing the set.');
         return;
       }
       const completed = !located.set.completed;
@@ -613,7 +662,7 @@ const ActiveWorkoutBody: React.FC = () => {
       clearPending(setId);
       const updated = updateSetInWorkout(current, setId, { completed, ...numbers });
       setWorkout(updated);
-      void updateSetCompleted(setId, completed, numbers.weightKg, numbers.reps, numbers.rpe).then(() => saveNow());
+      void updateSetCompleted(setId, completed, numbers.weightKg, numbers.reps, numbers.rpe, numbers.durationSeconds, numbers.distanceKm).then(() => saveNow());
       if (!completed) {
         return;
       }
@@ -741,11 +790,14 @@ const ActiveWorkoutBody: React.FC = () => {
     const last = exercise.sets[exercise.sets.length - 1];
     const draft = last ? draftsRef.current[last.id] : undefined;
     try {
+      const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
       const created = await insertSet(workoutExerciseId, {
-        reps: draft ? repsTextToNumber(draft.repsText, last?.reps ?? null) : (last?.reps ?? null),
+        distanceKm: cardio ? distanceTextToKm(draft?.distanceText ?? '', unitRef.current, last?.distanceKm ?? null) : null,
+        durationSeconds: cardio ? durationTextToSeconds(draft?.durationText ?? '', last?.durationSeconds ?? null) : null,
+        reps: cardio ? null : draft ? repsTextToNumber(draft.repsText, last?.reps ?? null) : (last?.reps ?? null),
         rpe: null,
         setType: 'normal',
-        weightKg: draft ? weightTextToKg(draft.weightText, unitRef.current, last?.weightKg ?? null) : (last?.weightKg ?? null),
+        weightKg: cardio ? null : draft ? weightTextToKg(draft.weightText, unitRef.current, last?.weightKg ?? null) : (last?.weightKg ?? null),
       });
       setWorkout((previous) => {
         if (!previous) {
@@ -847,8 +899,10 @@ const ActiveWorkoutBody: React.FC = () => {
       }
       const weightText = previous.weightKg == null ? '' : formatWeight(kgToDisplay(previous.weightKg, unitRef.current));
       const repsText = previous.reps == null ? '' : String(previous.reps);
-      setDrafts((drafts) => ({ ...drafts, [setId]: withDraft(drafts[setId], { repsText, weightText }) }));
-      const numbers = readSetNumbers(setId, located.set, { repsText, weightText });
+      const durationText = previous.durationSeconds == null ? '' : formatClock(previous.durationSeconds);
+      const distanceText = previous.distanceKm == null ? '' : formatDecimal(kmToDisplay(previous.distanceKm, unitRef.current), 2);
+      setDrafts((drafts) => ({ ...drafts, [setId]: withDraft(drafts[setId], { distanceText, durationText, repsText, weightText }) }));
+      const numbers = readSetNumbers(setId, located.set, { distanceText, durationText, repsText, weightText });
       const updated = updateSetInWorkout(current, setId, numbers);
       const after = findSet(updated, setId);
       const ordered = after?.set.setType === 'warmup' ? warmupsFirst(after.exercise.sets, true) : null;
@@ -1158,6 +1212,8 @@ const ActiveWorkoutBody: React.FC = () => {
                       onApplyPrevious={handleApplyPrevious}
                       onChangeAttachment={handleChangeAttachment}
                       onChangeNotes={handleChangeNotes}
+                      onChangeDistance={handleChangeDistance}
+                      onChangeDuration={handleChangeDuration}
                       onChangeReps={handleChangeReps}
                       onChangeRest={handleChangeRest}
                       onChangeRpe={handleChangeRpe}

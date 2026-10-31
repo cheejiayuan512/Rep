@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatCardioEffort } from '../domain/cardio';
 import { formatLoggedLoad } from '../domain/format';
 import type { SetDraft } from '../domain/drafts';
 import type { PreviousSet, SetRecord, SetType, WeightUnit } from '../domain/types';
@@ -19,10 +20,12 @@ const nativeDriver = Platform.OS !== 'web';
 
 export const setColumn = {
   check: 36,
+  distance: 68,
   gap: 4,
   reps: 50,
   rpe: 44,
   set: 26,
+  time: 72,
   weight: 60,
 };
 
@@ -36,6 +39,10 @@ interface SetRowProps {
   showSetup?: boolean;
   /** When false, the RPE field is omitted. The pad can still write one. */
   showRpe?: boolean;
+  /** Time and distance instead of weight and reps. */
+  cardio?: boolean;
+  onChangeDuration?: (setId: string, value: string) => void;
+  onChangeDistance?: (setId: string, value: string) => void;
   /** Weight field order. Reps and RPE follow it, so Next walks the card. */
   order: number;
   /** True when this completed set beat a previous best. */
@@ -57,6 +64,9 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   unit,
   showSetup = false,
   showRpe = true,
+  cardio = false,
+  onChangeDuration,
+  onChangeDistance,
   order,
   isRecord,
   onChangeWeight,
@@ -78,6 +88,18 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
       onChangeReps(set.id, value);
     },
     [onChangeReps, set.id],
+  );
+  const handleDuration = useCallback(
+    (value: string) => {
+      onChangeDuration?.(set.id, value);
+    },
+    [onChangeDuration, set.id],
+  );
+  const handleDistance = useCallback(
+    (value: string) => {
+      onChangeDistance?.(set.id, value);
+    },
+    [onChangeDistance, set.id],
   );
   const handleRpe = useCallback(
     (value: string) => {
@@ -116,16 +138,18 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
   const handleApplyPrevious = useCallback(() => {
     onApplyPrevious(set.id);
   }, [onApplyPrevious, set.id]);
-  const previousText = previous
-    ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined)
-    : '—';
+  const previousText = !previous
+    ? '—'
+    : cardio
+      ? formatCardioEffort(previous.durationSeconds, previous.distanceKm, unit, previous.setType === 'warmup')
+      : formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined);
   const links = useMemo(
     () => ({
       repsId: `${set.id}:reps`,
-      rpe: { id: `${set.id}:rpe`, onChange: handleRpe, value: draft.rpeText },
+      rpe: cardio ? null : { id: `${set.id}:rpe`, onChange: handleRpe, value: draft.rpeText },
       weightId: `${set.id}:weight`,
     }),
-    [draft.rpeText, handleRpe, set.id],
+    [cardio, draft.rpeText, handleRpe, set.id],
   );
 
   return (
@@ -150,9 +174,16 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
             {previousText}
           </Text>
         </Pressable>
-        <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weight} unit={unit} value={draft.weightText} />
-        <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.reps} unit={unit} value={draft.repsText} />
-        {showRpe ? (
+        {cardio ? (
+          <>
+            <LogValue accessibilityLabel="Time" id={`${set.id}:duration`} kind="duration" links={links} onChange={handleDuration} order={order} style={styles.time} unit={unit} value={draft.durationText} />
+            <LogValue accessibilityLabel="Distance" id={`${set.id}:distance`} kind="distance" links={links} onChange={handleDistance} order={order + 1} style={styles.distance} unit={unit} value={draft.distanceText} />
+          </>
+        ) : (
+          <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weight} unit={unit} value={draft.weightText} />
+        )}
+        {cardio ? null : <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.reps} unit={unit} value={draft.repsText} />}
+        {showRpe && !cardio ? (
           <LogValue accessibilityLabel="RPE" id={`${set.id}:rpe`} kind="rpe" links={links} onChange={handleRpe} order={order + 2} style={styles.rpe} unit={unit} value={draft.rpeText} />
         ) : null}
         <Pressable
@@ -224,6 +255,9 @@ const styles = StyleSheet.create({
     minHeight: 36,
     minWidth: 52,
   },
+  distance: {
+    width: setColumn.distance,
+  },
   reps: {
     width: setColumn.reps,
   },
@@ -253,6 +287,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -2,
     top: 0,
+  },
+  time: {
+    width: setColumn.time,
   },
   warmup: {
     opacity: 0.72,

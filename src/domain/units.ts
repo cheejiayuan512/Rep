@@ -15,6 +15,21 @@ export function kgToDisplay(value: number, unit: WeightUnit): number {
   return unit === 'kg' ? value : value * POUNDS_PER_KILOGRAM;
 }
 
+/** Display conversion only. Stored cardio distance stays in kilometers. */
+const KILOMETERS_PER_MILE = 1.609344;
+
+export function displayToKm(value: number, unit: WeightUnit): number {
+  return unit === 'kg' ? value : value * KILOMETERS_PER_MILE;
+}
+
+export function kmToDisplay(kilometers: number, unit: WeightUnit): number {
+  return unit === 'kg' ? kilometers : kilometers / KILOMETERS_PER_MILE;
+}
+
+export function distanceUnitLabel(unit: WeightUnit): 'km' | 'mi' {
+  return unit === 'kg' ? 'km' : 'mi';
+}
+
 /** Weights keep two decimals so small plates (8.75 kg, 1.25 kg) survive a save and a reload. */
 const WEIGHT_STEPS = 100;
 

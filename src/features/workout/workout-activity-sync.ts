@@ -9,6 +9,7 @@
 import { getWorkout, saveNow, updateSetCompleted } from '../../data/repository';
 import { addCompleteSetListener, showWorkoutActivity, type WorkoutActivityProps } from '../../components/workout-live-activity';
 import { scheduleRestEnd } from '../../components/rest-notification';
+import { cardioHasEffort, formatCardioEffort, isCardioExercise } from '../../domain/cardio';
 import { formatLoggedLoad } from '../../domain/format';
 import { defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import type { WeightUnit, WorkoutDetail } from '../../domain/types';
@@ -70,10 +71,16 @@ export function activityPropsFor(workout: WorkoutDetail, unit: WeightUnit): Work
   const empty = workout.exercises.length === 0;
   const progress = progressOf(workout);
   return {
-    canComplete: next != null && (next.set.reps ?? 0) > 0,
+    canComplete: next != null && (isCardioExercise(next.exercise.exerciseId, next.exercise.name) ? cardioHasEffort(next.set.durationSeconds, next.set.distanceKm) : (next.set.reps ?? 0) > 0),
     completedSets: progress.completedSets,
     exerciseName: next ? next.exercise.name : empty ? 'Add an exercise' : 'All sets done',
-    nextSet: next ? formatLoggedLoad(next.set.weightKg, next.set.reps, unit) : empty ? '' : 'Finish in Rep',
+    nextSet: next
+      ? isCardioExercise(next.exercise.exerciseId, next.exercise.name)
+        ? formatCardioEffort(next.set.durationSeconds, next.set.distanceKm, unit)
+        : formatLoggedLoad(next.set.weightKg, next.set.reps, unit)
+      : empty
+        ? ''
+        : 'Finish in Rep',
     restEndsAt: current?.endsAt ?? 0,
     restStartedAt: current?.startedAt ?? 0,
     setLabel: next?.label ?? '',
@@ -117,11 +124,15 @@ async function completeNextSetInBackground(): Promise<void> {
     return;
   }
   const next = findNextSet(workout, getLastExercise(workout.id));
-  if (!next || (next.set.reps ?? 0) <= 0) {
+  if (!next) {
     return;
   }
   const { exercise, set } = next;
-  await updateSetCompleted(set.id, true, set.weightKg, set.reps, set.rpe);
+  const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
+  if (cardio ? !cardioHasEffort(set.durationSeconds, set.distanceKm) : (set.reps ?? 0) <= 0) {
+    return;
+  }
+  await updateSetCompleted(set.id, true, set.weightKg, set.reps, set.rpe, set.durationSeconds ?? null, set.distanceKm ?? null);
   setLastExercise(workout.id, exercise.id);
   const seconds = restAfterSet(exercise.restSeconds ?? defaultRestFor(exercise), set.setType, warmupRestMultiplier, warmupLoadRatio(set.weightKg, exercise.sets, exercise.previousSets));
   const startedAt = Date.now();

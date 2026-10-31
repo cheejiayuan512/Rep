@@ -1,7 +1,8 @@
 /**
  * Parse a Hevy workout CSV export into finished Rep workouts.
- * Weight stays kilograms. Warmups stay warmups. Cardio rows without reps are skipped.
+ * Weight stays kilograms. Warmups stay warmups. A run is time and distance.
  */
+import { cleanDistance, cleanDuration } from './cardio';
 import type { Equipment, MuscleGroup, SetType } from './types';
 import { equipmentTypes, isEquipment } from './types';
 
@@ -19,6 +20,8 @@ export interface HevyImportSet {
   weightKg: number | null;
   reps: number | null;
   rpe: number | null;
+  durationSeconds: number | null;
+  distanceKm: number | null;
   completed: boolean;
 }
 
@@ -191,25 +194,23 @@ export function parseHevyCsv(csvText: string, library: HevyImportExerciseRef[]):
 
         const reps = parseOptionalNumber(row.reps);
         const weightKg = parseOptionalNumber(row.weight_kg);
-        const duration = parseOptionalNumber(row.duration_seconds);
-        const distance = parseOptionalNumber(row.distance_km);
-        const isCardio = (duration != null || distance != null) && reps == null && weightKg == null;
-        if (isCardio) {
-          skippedCardioRows += 1;
-          continue;
-        }
-        if (reps == null && weightKg == null) {
+        const durationSeconds = cleanDuration(parseOptionalNumber(row.duration_seconds));
+        const distanceKm = cleanDistance(parseOptionalNumber(row.distance_km));
+        const isCardio = (durationSeconds != null || distanceKm != null) && reps == null && weightKg == null;
+        if (!isCardio && reps == null && weightKg == null) {
           skippedCardioRows += 1;
           continue;
         }
 
         sets.push({
           completed: true,
+          distanceKm: isCardio ? distanceKm : null,
+          durationSeconds: isCardio ? durationSeconds : null,
           position: sets.length,
-          reps,
+          reps: isCardio ? null : reps,
           rpe: parseOptionalRpe(row.rpe),
           setType,
-          weightKg,
+          weightKg: isCardio ? null : weightKg,
         });
       }
 

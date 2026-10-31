@@ -5,6 +5,8 @@
 import React, { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent, type TextStyle } from 'react-native';
 
+import { isCardioExercise } from '../domain/cardio';
+import { distanceUnitLabel } from '../domain/units';
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
@@ -50,6 +52,8 @@ interface ExerciseBlockProps {
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
   onChangeRpe: (setId: string, value: string) => void;
+  onChangeDuration: (setId: string, value: string) => void;
+  onChangeDistance: (setId: string, value: string) => void;
   onChangeNotes: (workoutExerciseId: string, value: string) => void;
   onToggleComplete: (setId: string) => void;
   onChangeSetType: (setId: string, setType: SetType) => void;
@@ -83,6 +87,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   onChangeWeight,
   onChangeReps,
   onChangeRpe,
+  onChangeDuration,
+  onChangeDistance,
   onChangeNotes,
   onToggleComplete,
   onChangeSetType,
@@ -157,6 +163,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     onOpenHistory(exercise);
   }, [exercise, onOpenHistory]);
   const showSetup = usesMachineSetup(exercise.equipment);
+  const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
   const defaultRest = defaultRestFor(exercise);
   const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
   const isCable = exercise.equipment === 'Cable';
@@ -281,9 +288,18 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>
-          <Text style={[styles.column, styles.weightCol]}>{unit.toUpperCase()}</Text>
-          <Text style={[styles.column, styles.repsCol]}>REPS</Text>
-          {showRpe ? <Text style={[styles.column, styles.rpeCol]}>RPE</Text> : null}
+          {cardio ? (
+            <>
+              <Text style={[styles.column, styles.timeCol]}>TIME</Text>
+              <Text style={[styles.column, styles.distanceCol]}>{distanceUnitLabel(unit).toUpperCase()}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.column, styles.weightCol]}>{unit.toUpperCase()}</Text>
+              <Text style={[styles.column, styles.repsCol]}>REPS</Text>
+              {showRpe ? <Text style={[styles.column, styles.rpeCol]}>RPE</Text> : null}
+            </>
+          )}
           <View style={styles.checkSpacer} />
         </View>
         {showSetup && exercise.previousSets.length === 0 ? (
@@ -296,6 +312,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             isRecord={recordIds.has(set.id)}
             key={set.id}
             onApplyPrevious={onApplyPrevious}
+            cardio={cardio}
+            onChangeDistance={onChangeDistance}
+            onChangeDuration={onChangeDuration}
             onChangeReps={onChangeReps}
             onChangeRpe={onChangeRpe}
             onChangeWeight={onChangeWeight}
@@ -304,7 +323,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
             onToggleComplete={onToggleComplete}
             order={orderBase + index * 10}
             previous={previousForSet(exercise.sets, exercise.previousSets, index)}
-            showRpe={showRpe}
+            showRpe={showRpe && !cardio}
             showSetup={showSetup}
             set={set}
             unit={unit}
@@ -559,6 +578,14 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
+  },
+  distanceCol: {
+    textAlign: 'center',
+    width: setColumn.distance,
+  },
+  timeCol: {
+    textAlign: 'center',
+    width: setColumn.time,
   },
   weightCol: {
     textAlign: 'center',

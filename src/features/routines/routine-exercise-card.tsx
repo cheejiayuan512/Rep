@@ -11,6 +11,8 @@ import { SwipeToDelete } from '../../components/swipe-to-delete';
 import type { DraftMap, SetDraft } from '../../domain/drafts';
 import { draftFromSet } from '../../domain/drafts';
 import { MachineSetupChoices } from '../../components/machine-setup-choices';
+import { formatCardioEffort, isCardioExercise } from '../../domain/cardio';
+import { distanceUnitLabel } from '../../domain/units';
 import { formatLoggedLoad } from '../../domain/format';
 import type { MachineSetupOption } from '../../domain/machine-setup';
 import type { PreviousSet, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
@@ -20,9 +22,11 @@ import { SetTypeBadge } from '../../components/set-type-badge';
 import { colors } from '../../theme/colors';
 
 const column = {
+  distance: 72,
   gap: 6,
   reps: 64,
   set: 26,
+  time: 76,
   weight: 76,
 };
 
@@ -37,6 +41,8 @@ interface RoutineExerciseCardProps {
   onAddSet: (routineExerciseId: string) => void;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
+  onChangeDuration: (setId: string, value: string) => void;
+  onChangeDistance: (setId: string, value: string) => void;
   onChangeSetType: (setId: string, setType: SetType) => void;
   onToggleSuperset: (routineExerciseId: string) => void;
   superset: SupersetRole;
@@ -64,6 +70,8 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onAddSet,
   onChangeWeight,
   onChangeReps,
+  onChangeDuration,
+  onChangeDistance,
   onChangeSetType,
   onToggleSuperset,
   superset,
@@ -94,6 +102,7 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
     [exercise.id, onChangeSetup],
   );
   const showSetup = usesMachineSetup(exercise.equipment);
+  const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
   const handleMoveAction = useCallback(
     (event: AccessibilityActionEvent) => {
       onMove(exercise.id, event.nativeEvent.actionName === 'up' ? -1 : 1);
@@ -142,14 +151,26 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>
-          <Text style={[styles.column, styles.weightCol]}>{unit.toUpperCase()}</Text>
-          <Text style={[styles.column, styles.repsCol]}>REPS</Text>
+          {cardio ? (
+            <>
+              <Text style={[styles.column, styles.timeCol]}>TIME</Text>
+              <Text style={[styles.column, styles.distanceCol]}>{distanceUnitLabel(unit).toUpperCase()}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.column, styles.weightCol]}>{unit.toUpperCase()}</Text>
+              <Text style={[styles.column, styles.repsCol]}>REPS</Text>
+            </>
+          )}
         </View>
         {exercise.sets.map((set, index) => (
           <RoutineSetRow
             draft={drafts[set.id] ?? draftFromSet({ ...set, rpe: null }, unit)}
             index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
             key={set.id}
+            cardio={cardio}
+            onChangeDistance={onChangeDistance}
+            onChangeDuration={onChangeDuration}
             onChangeReps={onChangeReps}
             onChangeSetType={onChangeSetType}
             onChangeWeight={onChangeWeight}
@@ -184,14 +205,32 @@ interface RoutineSetRowProps {
   previous: PreviousSet | null;
   unit: WeightUnit;
   showSetup?: boolean;
+  cardio?: boolean;
   onChangeWeight: (setId: string, value: string) => void;
   onChangeReps: (setId: string, value: string) => void;
+  onChangeDuration: (setId: string, value: string) => void;
+  onChangeDistance: (setId: string, value: string) => void;
   onChangeSetType: (setId: string, setType: SetType) => void;
   onDelete: (setId: string) => void;
   order: number;
 }
 
-const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({ set, index, draft, previous, unit, showSetup = false, order, onChangeWeight, onChangeReps, onChangeSetType, onDelete }) {
+const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineSetRow({
+  set,
+  index,
+  draft,
+  previous,
+  unit,
+  showSetup = false,
+  cardio = false,
+  order,
+  onChangeWeight,
+  onChangeReps,
+  onChangeDuration,
+  onChangeDistance,
+  onChangeSetType,
+  onDelete,
+}) {
   const handleWeight = useCallback(
     (value: string) => {
       onChangeWeight(set.id, value);
@@ -204,6 +243,18 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     },
     [onChangeReps, set.id],
   );
+  const handleDuration = useCallback(
+    (value: string) => {
+      onChangeDuration(set.id, value);
+    },
+    [onChangeDuration, set.id],
+  );
+  const handleDistance = useCallback(
+    (value: string) => {
+      onChangeDistance(set.id, value);
+    },
+    [onChangeDistance, set.id],
+  );
   const handleSetType = useCallback(
     (setType: SetType) => {
       onChangeSetType(set.id, setType);
@@ -214,8 +265,13 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
     onDelete(set.id);
   }, [onDelete, set.id]);
   const previousText = useMemo(
-    () => (previous ? formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined) : '—'),
-    [previous, showSetup, unit],
+    () =>
+      !previous
+        ? '—'
+        : cardio
+          ? formatCardioEffort(previous.durationSeconds, previous.distanceKm, unit, previous.setType === 'warmup')
+          : formatLoggedLoad(previous.weightKg, previous.reps, unit, previous.setType === 'warmup', showSetup ? (previous.machineSetup ?? null) : undefined),
+    [cardio, previous, showSetup, unit],
   );
   const warmup = set.setType === 'warmup';
   const links = useMemo(
@@ -234,8 +290,17 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
         <Text numberOfLines={1} style={styles.previous}>
           {previousText}
         </Text>
-        <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weightCol} unit={unit} value={draft.weightText} />
-        <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.repsCol} unit={unit} value={draft.repsText} />
+        {cardio ? (
+          <>
+            <LogValue accessibilityLabel="Time" id={`${set.id}:duration`} kind="duration" links={links} onChange={handleDuration} order={order} style={styles.timeCol} unit={unit} value={draft.durationText} />
+            <LogValue accessibilityLabel="Distance" id={`${set.id}:distance`} kind="distance" links={links} onChange={handleDistance} order={order + 1} style={styles.distanceCol} unit={unit} value={draft.distanceText} />
+          </>
+        ) : (
+          <>
+            <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weightCol} unit={unit} value={draft.weightText} />
+            <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.repsCol} unit={unit} value={draft.repsText} />
+          </>
+        )}
       </View>
     </SwipeToDelete>
   );
@@ -389,6 +454,14 @@ const styles = StyleSheet.create({
   },
   warmup: {
     opacity: 0.72,
+  },
+  distanceCol: {
+    textAlign: 'center',
+    width: column.distance,
+  },
+  timeCol: {
+    textAlign: 'center',
+    width: column.time,
   },
   weightCol: {
     textAlign: 'center',

@@ -196,7 +196,7 @@ export const LogPadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!target || target.kind === 'rpe') {
       return;
     }
-    const next = backspaceKey(target.value, armedRef.current);
+    const next = backspaceKey(target.value, armedRef.current, target.kind);
     armedRef.current = false;
     target.value = next;
     target.onChange(next);
@@ -387,7 +387,7 @@ const Key: React.FC<KeyProps> = ({ accessibilityLabel, accent, label, onPress, t
 );
 
 interface NumberKeysProps {
-  kind: 'weight' | 'reps';
+  kind: 'weight' | 'reps' | 'distance' | 'duration';
   onDigit: (key: string) => void;
   onBackspace: () => void;
   onNext: () => void;
@@ -411,7 +411,7 @@ const NumberKeys: React.FC<NumberKeysProps> = ({ kind, onBackspace, onDigit, onE
           </View>
         ))}
         <View style={styles.keyRow}>
-          {kind === 'weight' ? (
+          {kind === 'weight' || kind === 'distance' ? (
             <Key accessibilityLabel="Decimal point" label="." onPress={typeDecimal} />
           ) : (
             <View style={styles.keyGap} />
@@ -504,7 +504,7 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
 
   const effort = pad.mode === 'effort' || active.kind === 'rpe';
   const rpeText = active.kind === 'rpe' ? active.value : (active.links.rpe?.value ?? '');
-  const label = effort ? 'Effort' : active.kind === 'reps' ? 'Reps' : 'Weight';
+  const label = effort ? 'Effort' : active.kind === 'duration' ? 'Time' : active.kind === 'distance' ? 'Distance' : active.kind === 'reps' ? 'Reps' : 'Weight';
 
   return (
     <View collapsable={false} onLayout={onLayout} ref={setNode} style={[styles.pad, { left: insets.left, paddingBottom: safeBottom ? Math.max(insets.bottom, 8) : 8, right: insets.right }]}>
@@ -517,7 +517,14 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
       {effort ? (
         <EffortKeys hint={rpeHint(parseRpe(rpeText))} onNext={pad.goNext} onNumbers={pad.showNumbers} onNudge={pad.nudge} onPick={pad.pickRpe} selected={parseRpe(rpeText)} />
       ) : (
-        <NumberKeys kind={active.kind === 'reps' ? 'reps' : 'weight'} onBackspace={pad.erase} onDigit={pad.typeDigit} onEffort={active.links.rpe ? pad.showEffort : null} onNext={pad.goNext} onNudge={pad.nudge} />
+        <NumberKeys
+          kind={active.kind === 'reps' || active.kind === 'duration' || active.kind === 'distance' ? active.kind : 'weight'}
+          onBackspace={pad.erase}
+          onDigit={pad.typeDigit}
+          onEffort={active.links.rpe ? pad.showEffort : null}
+          onNext={pad.goNext}
+          onNudge={pad.nudge}
+        />
       )}
     </View>
   );
