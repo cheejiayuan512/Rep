@@ -254,7 +254,7 @@ const ExerciseArtCredit: React.FC = () => {
       <Text style={styles.section}>Exercise drawings</Text>
       <Text style={styles.hint}>
         © 2026 <CreditLink href="https://bryllim.com" label="Bryl Lim" />, from <CreditLink href="https://github.com/everkinetic/data" label="Everkinetic" />,{' '}
-        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Scaled, heavier frame left out.
+        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Scaled, heavier frame left out, figure held in place.
       </Text>
     </View>
   );
