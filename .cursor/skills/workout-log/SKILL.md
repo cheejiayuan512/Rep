@@ -66,6 +66,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 
 - kg / lb, warmup rest, Show RPE, bodyweight, age, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it. Show RPE disappears after any set has an RPE, because the column stays on.
 - A fresh log opens a four-step tutorial. Dismissing it sets `settings.tutorialSeen`. A log that already has workouts does not show it on its own. Profile → Tutorial → Show again opens it any time.
+- Profile does not list workouts. Finished sessions live on the History tab. The Workouts number on Profile is the count.
 - The home screen widget (`RepWidget`, iOS and Android) shows this week's workouts, volume, and streak, or the open workout while one is in progress. It updates when the log changes. It is separate from the Lock Screen Live Activity.
 - 20 levels (`LEVEL_FLOORS` in `src/domain/profile.ts`) with titles. Show "Level N of 20", the title, XP in this level, and XP to the next. `XP_RULES` lists how XP is earned and is shown under "How XP works".
 - 20 badges with three tiers each. `BADGE_INFO` holds the title, unit, and description shown when a badge is tapped. Kg badges are formatted in the user's unit; `strong` steps are strength level indexes.

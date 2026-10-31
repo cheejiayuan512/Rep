@@ -74,15 +74,6 @@ export interface ProfileLevel {
   toNext: number | null;
 }
 
-export interface ProfileRecent {
-  id: string;
-  name: string;
-  startedAt: number;
-  finishedAt: number;
-  volumeKg: number;
-  setCount: number;
-}
-
 export interface ProfileSnapshot {
   level: ProfileLevel;
   workouts: number;
@@ -91,7 +82,6 @@ export interface ProfileSnapshot {
   weeks: ProfileWeek[];
   badges: ProfileBadge[];
   contributions: Array<{ id: string; label: string; value: number }>;
-  recent: ProfileRecent[];
 }
 
 const LEVEL_FLOORS = [0, 20, 60, 120, 200, 320, 480, 700, 1000, 1400, 1900, 2500, 3200, 4000, 5000, 6200, 7600, 9200, 11000, 13000];
@@ -136,17 +126,6 @@ export function buildProfile(input: ProfileInput): ProfileSnapshot {
       { id: 'custom', label: 'Custom exercises', value: input.customExerciseCount },
     ],
     level: levelForPoints(points),
-    recent: [...finished]
-      .sort((left, right) => right.finishedAt - left.finishedAt)
-      .slice(0, 4)
-      .map((workout) => ({
-        finishedAt: workout.finishedAt,
-        id: workout.id,
-        name: workout.name,
-        setCount: workout.workingSets,
-        startedAt: workout.startedAt,
-        volumeKg: workout.volumeKg,
-      })),
     thisWeekMinutes: finished
       .filter((workout) => startOfWeek(workout.finishedAt) === currentWeek)
       .reduce((total, workout) => total + durationMinutes(workout), 0),

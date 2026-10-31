@@ -12,7 +12,7 @@ import { BodyProfileForm } from '../../components/body-profile-form';
 import { Chip } from '../../components/chip';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
-import { formatDay, formatDuration, formatWorkoutWhen } from '../../domain/format';
+import { formatDay } from '../../domain/format';
 import {
   BADGE_INFO,
   weekValue,
@@ -51,12 +51,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { unit } = useWeightUnit();
   const [metric, setMetric] = useState<ProfileChartMetric>('duration');
 
-  const openRecent = useCallback(
-    (workoutId: string) => {
-      navigation.navigate('WorkoutDetail', { workoutId });
-    },
-    [navigation],
-  );
   const openStrength = useCallback(() => navigation.navigate('StrengthLevels'), [navigation]);
   const openLibrary = useCallback(() => navigation.navigate('Exercises'), [navigation]);
 
@@ -65,7 +59,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.header}>Profile</Text>
         {profile ? (
-          <ProfileBody metric={metric} onMetric={setMetric} onOpenLibrary={openLibrary} onOpenRecent={openRecent} onOpenStrength={openStrength} profile={profile} unit={unit} />
+          <ProfileBody metric={metric} onMetric={setMetric} onOpenLibrary={openLibrary} onOpenStrength={openStrength} profile={profile} unit={unit} />
         ) : null}
         <Settings />
         <ExerciseArtCredit />
@@ -80,11 +74,10 @@ interface ProfileBodyProps {
   metric: ProfileChartMetric;
   onMetric: (metric: ProfileChartMetric) => void;
   onOpenLibrary: () => void;
-  onOpenRecent: (workoutId: string) => void;
   onOpenStrength: () => void;
 }
 
-const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibrary, onOpenRecent, onOpenStrength, profile, unit }) => {
+const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibrary, onOpenStrength, profile, unit }) => {
   const weekLabel = profile.thisWeekMinutes < 60 ? `${profile.thisWeekMinutes} min` : formatHours(profile.thisWeekMinutes);
   const earned = profile.badges.filter((badge) => badge.tier !== 'locked').length;
   const [showAllBadges, setShowAllBadges] = useState(false);
@@ -162,12 +155,6 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibra
         </View>
       ))}
 
-      <Text style={styles.section}>Workouts</Text>
-      {profile.recent.length === 0 ? (
-        <Text style={styles.empty}>Finish a workout and it will show up here, with XP toward your next level.</Text>
-      ) : (
-        profile.recent.map((workout) => <RecentRow key={workout.id} onOpen={onOpenRecent} unit={unit} workout={workout} />)
-      )}
       <BadgeSheet badge={selected} onClose={closeBadge} unit={unit} />
     </View>
   );
@@ -515,31 +502,6 @@ function formatStep(value: number): string {
   return value >= 1000 ? `${formatDecimal(value / 1000, 1)}k` : String(Math.round(value));
 }
 
-const RecentRow: React.FC<{
-  workout: ProfileSnapshot['recent'][number];
-  unit: WeightUnit;
-  onOpen: (workoutId: string) => void;
-}> = ({ onOpen, unit, workout }) => {
-  const onPress = useCallback(() => {
-    onOpen(workout.id);
-  }, [onOpen, workout.id]);
-
-  return (
-    <Pressable accessibilityLabel={`${workout.name}, ${formatWorkoutWhen(workout.finishedAt)}`} accessibilityRole="button" onPress={onPress} style={styles.recent}>
-      <View style={styles.recentAvatar}>
-        <Text style={styles.recentLetter}>{workout.name.slice(0, 1).toUpperCase()}</Text>
-      </View>
-      <View style={styles.recentBody}>
-        <Text style={styles.recentWhen}>{formatWorkoutWhen(workout.finishedAt)}</Text>
-        <Text style={styles.recentName}>{workout.name}</Text>
-        <Text style={styles.recentMeta}>
-          {formatDuration(workout.startedAt, workout.finishedAt)} · {formatVolume(kgToDisplay(workout.volumeKg, unit))} {unit} · {workout.setCount} {workout.setCount === 1 ? 'set' : 'sets'}
-        </Text>
-      </View>
-    </Pressable>
-  );
-};
-
 const BADGE_COLORS: Record<BadgeId, string> = {
   allrounder: '#7EB6FF',
   bigday: '#FF8A8A',
@@ -674,11 +636,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  empty: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
   fill: {
     backgroundColor: colors.accent,
     borderRadius: 999,
@@ -797,43 +754,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
-  },
-  recent: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  recentAvatar: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 44,
-  },
-  recentBody: {
-    flex: 1,
-  },
-  recentLetter: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  recentMeta: {
-    color: colors.muted,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  recentName: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  recentWhen: {
-    color: colors.faint,
-    fontSize: 12,
   },
   section: {
     color: colors.text,
