@@ -13,6 +13,8 @@ import { LineChart } from '../../components/line-chart';
 import { Screen } from '../../components/screen';
 import { getExercise, getExerciseLog } from '../../data/repository';
 import { Chip } from '../../components/chip';
+import { MovementFigure } from '../../components/movement-figure';
+import { poseForExercise } from '../../domain/movement-pose';
 import { formatDay, formatLoggedLoad } from '../../domain/format';
 import { buildSessionStats, chartValues, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
 import { extraMachineSetups, formatMachineSetup, machineBrands, setTypeMark, usesMachineSetup, type ChartMetric, type LoggedSet } from '../../domain/types';
@@ -59,10 +61,15 @@ export const ExerciseProgressScreen: React.FC = () => {
         <EmptyState message="This exercise is not in the library." title="Exercise missing" />
       ) : (
         <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
-          <Text style={styles.title}>{exercise.name}</Text>
-          <Text style={styles.meta}>
-            {exercise.muscleGroup} · {exercise.equipment}
-          </Text>
+          <View style={styles.heading}>
+            <MovementFigure pose={poseForExercise(exercise.id, exercise.name)} size={72} />
+            <View style={styles.headingCopy}>
+              <Text style={styles.title}>{exercise.name}</Text>
+              <Text style={styles.meta}>
+                {exercise.muscleGroup} · {exercise.equipment}
+              </Text>
+            </View>
+          </View>
           {usesMachineSetup(exercise.equipment) ? (
             <View style={styles.setups}>
               <Chip label={formatMachineSetup(null)} onSelect={setSetup} selected={setup == null} value={null} />
@@ -215,6 +222,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
     marginTop: 16,
+  },
+  heading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  headingCopy: {
+    flex: 1,
   },
   meta: {
     color: colors.muted,

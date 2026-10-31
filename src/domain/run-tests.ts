@@ -13,6 +13,7 @@ import './log-import.test';
 import './log-pad.test';
 import './machine-setup.test';
 import './metrics.test';
+import './movement-pose.test';
 import './one-rep-max.test';
 import './profile.test';
 import './rest.test';
