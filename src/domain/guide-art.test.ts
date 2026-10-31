@@ -16,6 +16,16 @@ test('the barbell bench press uses the bench press drawing', () => {
 test('a custom name picks the closest drawing', () => {
   assertEqual(guideSlugFor('custom-1', 'Pause Back Squat'), 'squat');
   assertEqual(guideSlugFor('custom-2', 'Zebra hold'), null);
+  assertEqual(guideSlugFor('custom-3', 'Sit Ups'), 'decline-sit-up');
+  assertEqual(guideSlugFor('custom-4', 'Military Press'), 'overhead-press');
+  assertEqual(guideSlugFor('custom-5', "Farmer's Walk"), 'farmer-carry');
+});
+
+test('a library move without its own drawing reuses a close one', () => {
+  assertEqual(guideSlugFor('sit-up', 'Sit-Up'), 'decline-sit-up');
+  assertEqual(guideSlugFor('floor-press'), 'bench-press');
+  assertEqual(guideSlugFor('stiff-leg-deadlift'), 'romanian-deadlift');
+  assertEqual(guideSlugFor('muscle-up'), 'pull-up');
 });
 
 test('every built-in exercise has a drawing or its own pose', () => {

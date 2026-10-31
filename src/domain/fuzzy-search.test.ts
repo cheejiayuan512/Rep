@@ -17,7 +17,19 @@ test('typos still find the exercise', () => {
 test('gym shorthand expands', () => {
   assertEqual(top('ohp'), ['Overhead Press']);
   assertEqual(top('rdl'), ['Romanian Deadlift']);
+  assertEqual(top('sldl'), ['Stiff-Leg Deadlift']);
   assertTrue(top('db row').includes('Dumbbell Row'), 'db row finds Dumbbell Row');
+});
+
+test('a plural or spoken name finds the exercise', () => {
+  assertEqual(top('situps'), ['Sit-Up']);
+  assertEqual(top('sit ups'), ['Sit-Up']);
+  assertEqual(top('pullups'), ['Pull-Up']);
+  assertEqual(top('pushups'), ['Push-Up']);
+  assertEqual(top('military press'), ['Overhead Press']);
+  assertEqual(top('farmer walk'), ['Farmer Carry']);
+  assertEqual(top('air squat'), ['Bodyweight Squat']);
+  assertEqual(top('hyperextension'), ['Back Extension']);
 });
 
 test('words can come in any order and match prefixes', () => {

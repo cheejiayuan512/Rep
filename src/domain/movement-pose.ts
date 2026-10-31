@@ -55,6 +55,7 @@ const poseById: Record<string, MovementPose> = {
   'back-squat': 'squat',
   'barbell-bench-press': 'bench',
   'barbell-curl': 'curl',
+  'box-squat': 'squat',
   'barbell-row': 'row',
   'barbell-shrug': 'shrug',
   'belt-squat': 'squat',
@@ -120,6 +121,7 @@ const poseById: Record<string, MovementPose> = {
   'kettlebell-swing': 'swing',
   'landmine-press': 'press',
   'lat-pulldown': 'pulldown',
+  'muscle-up': 'pullup',
   'lateral-raise': 'lateral',
   'leg-extension': 'legextension',
   'leg-press': 'legpress',
@@ -151,6 +153,7 @@ const poseById: Record<string, MovementPose> = {
   'reverse-pec-deck': 'reardelt',
   'romanian-deadlift': 'deadlift',
   'russian-twist': 'twist',
+  'safety-bar-squat': 'squat',
   'seated-cable-row': 'row',
   'seated-calf-raise': 'calf',
   'seated-leg-curl': 'legcurl',
@@ -165,9 +168,11 @@ const poseById: Record<string, MovementPose> = {
   'spider-curl': 'curl',
   'split-squat': 'lunge',
   'standing-calf-raise': 'calf',
+  'stiff-leg-deadlift': 'deadlift',
   'step-up': 'lunge',
   'straight-arm-pulldown': 'pulldown',
   't-bar-row': 'row',
+  'toes-to-bar': 'legraise',
   thruster: 'squat',
   'triceps-pushdown': 'pushdown',
   'upright-row': 'upright',
@@ -175,6 +180,8 @@ const poseById: Record<string, MovementPose> = {
   'walking-lunge': 'lunge',
   'wall-sit': 'squat',
   woodchop: 'twist',
+  'zercher-squat': 'squat',
+  'zottman-curl': 'curl',
 };
 
 const poseByFamily: Record<string, MovementPose> = {
@@ -194,6 +201,7 @@ const poseByFamily: Record<string, MovementPose> = {
   'Shoulder Press': 'press',
   Shrug: 'shrug',
   Squat: 'squat',
+  'Sit-Up': 'crunch',
   'Triceps Extension': 'pushdown',
 };
 

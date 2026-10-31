@@ -48,6 +48,7 @@ const SEED_CLASSES: Record<string, RestClass> = {
   'good-morning': 'compound',
   'incline-barbell-bench-press': 'heavy',
   'kettlebell-swing': 'compound',
+  'muscle-up': 'compound',
   'nordic-curl': 'compound',
   'overhead-press': 'heavy',
   'romanian-deadlift': 'heavy',

@@ -27,16 +27,35 @@ const ALIASES: Record<string, string> = {
   ohp: 'overhead press',
   pec: 'chest',
   pecs: 'chest',
+  pullups: 'pull up',
+  pushups: 'push up',
+  chinups: 'chin up',
   quad: 'quads',
   rdl: 'romanian deadlift',
-  sldl: 'romanian deadlift',
+  situp: 'sit up',
+  situps: 'sit up',
+  sldl: 'stiff leg deadlift',
   tri: 'triceps',
   tris: 'triceps',
+  ups: 'up',
 };
+
+/** A name people say for an exercise that already has another title. Longest first. */
+const PHRASES: Array<[string, string]> = [
+  ['farmers walk', 'farmer carry'],
+  ['farmer s walk', 'farmer carry'],
+  ['farmer walk', 'farmer carry'],
+  ['conventional deadlift', 'deadlift'],
+  ['military press', 'overhead press'],
+  ['strict press', 'overhead press'],
+  ['hyperextension', 'back extension'],
+  ['air squat', 'bodyweight squat'],
+];
 
 /** 0 when nothing matches; otherwise higher is better. */
 export function fuzzyScore(query: string, item: Searchable): number {
-  const tokens = expand(words(query));
+  const spoken = applyPhrases(query);
+  const tokens = expand(words(spoken));
   if (tokens.length === 0) {
     return 1;
   }
@@ -53,7 +72,7 @@ export function fuzzyScore(query: string, item: Searchable): number {
     }
     total += best;
   }
-  const whole = normalize(query);
+  const whole = normalize(spoken);
   const phraseBonus = whole.length > 2 && normalize(item.name).includes(whole) ? 40 : 0;
   // Shorter names win ties, so "Squat" beats "Bulgarian Split Squat" for "squat".
   return total / tokens.length + phraseBonus - nameWords.length;
@@ -108,6 +127,14 @@ function wordScore(token: string, word: string): number {
     return 30;
   }
   return 0;
+}
+
+function applyPhrases(query: string): string {
+  let text = normalize(query);
+  for (const [from, to] of PHRASES) {
+    text = text.replaceAll(from, to);
+  }
+  return text;
 }
 
 function expand(tokens: string[]): string[] {

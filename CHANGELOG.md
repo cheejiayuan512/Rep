@@ -11,6 +11,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Profile.** Finished workouts are no longer listed there. History already shows them. The workout count stays.
 - **History.** The line under the title is gone. The list starts at the month.
 - **Titles.** Rep, History, Progress, and Profile use the same size and sit on the same inset.
+- **Library.** Sit-ups use the decline sit-up drawing, and searching situps finds them. Stiff-leg deadlift, toes-to-bar, box squat, Zercher squat, safety bar squat, Zottman curl, and muscle-up are in the library and share an existing drawing. Military press, farmer walk, air squat, and hyperextension find the exercise that was already there.
 
 ## 1.5.1 · Android 16 / iOS 23
 
