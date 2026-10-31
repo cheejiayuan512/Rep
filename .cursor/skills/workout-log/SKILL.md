@@ -58,7 +58,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 ## Storage speed
 
 - `readDatabase` returns the shared committed document. Treat it as read-only; mutate only inside `writeDatabase`.
-- `writeDatabase` commits in memory right away and persists to AsyncStorage after a 400 ms debounce. `flushDatabase` runs when the app leaves the foreground.
+- `writeDatabase` commits in memory right away and persists to AsyncStorage after a 400 ms debounce. `flushDatabase` runs when the app leaves the foreground. Each save stamps `updatedAt` on rows that changed and appends removed ids to `deletions`. That is the change list a later sync can read. There is no second outbox.
 - The repository caches lookup maps per committed document (`indexOf`). Navigate before dispatching `dataChanged` so the next screen does not wait on a reload.
 - Read functions are built with `reader()`, so each also has `.now(...)` that reads the loaded document synchronously (`peekDatabase`). Screens start from `.now` (or `useStored(reader, ...args)` in `src/state/hooks.ts`) so the first frame has data instead of an empty state. Only show "missing" states after a real load.
 

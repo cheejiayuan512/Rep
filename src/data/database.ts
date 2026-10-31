@@ -7,9 +7,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import { cleanDistance, cleanDuration } from '../domain/cardio';
+import { createId } from '../domain/ids';
 import type { BodySex, CableAttachment, Equipment, MuscleGroup, SetType, WeightUnit } from '../domain/types';
 import { isBodySex, isCableAttachment, isWeightUnit, normalizeMachineSetup, normalizeSetType, parseAgeYears, usesMachineSetup } from '../domain/types';
 import { seedExercises } from './seed-exercises';
+
+/** Shape of the on-device document. The storage key stays put so an older file is not orphaned. */
+export const SCHEMA_VERSION = 2;
+
+export const settingKeys = ['ageYears', 'bodyweightKg', 'sex', 'showRpe', 'tutorialSeen', 'warmupRestMultiplier', 'weightUnit'] as const;
+export type SettingKey = (typeof settingKeys)[number];
+
+/** Collections a later sync can merge by id. */
+export const syncCollections = ['exercises', 'routines', 'routineExercises', 'routineSets', 'workouts', 'workoutExercises', 'sets'] as const;
+export type SyncCollection = (typeof syncCollections)[number];
 
 /**
  * One JSON document for the whole log.
@@ -27,12 +38,15 @@ export interface StoredExercise {
   attachment: CableAttachment | null;
   /** Default stack brand, or null when unknown or for free weights. */
   machineSetup: string | null;
+  /** When this row last changed. 0 means it was already stored before change tracking. */
+  updatedAt?: number;
 }
 
 export interface StoredRoutine {
   id: string;
   name: string;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface StoredRoutineExercise {
@@ -45,6 +59,7 @@ export interface StoredRoutineExercise {
   attachment: CableAttachment | null;
   /** Shared by the exercises in one superset. Null when the card is alone. */
   supersetId: string | null;
+  updatedAt?: number;
 }
 
 /** A planned set on a routine exercise. Copied into the workout when the routine starts. */
@@ -57,6 +72,7 @@ export interface StoredRoutineSet {
   reps: number | null;
   durationSeconds?: number | null;
   distanceKm?: number | null;
+  updatedAt?: number;
 }
 
 export interface StoredWorkout {
@@ -65,6 +81,7 @@ export interface StoredWorkout {
   routineId: string | null;
   startedAt: number;
   finishedAt: number | null;
+  updatedAt?: number;
 }
 
 export interface StoredWorkoutExercise {
@@ -79,6 +96,7 @@ export interface StoredWorkoutExercise {
   machineSetup: string | null;
   /** Shared by the exercises in one superset. Null when the card is alone. */
   supersetId: string | null;
+  updatedAt?: number;
 }
 
 export interface StoredSet {
@@ -92,9 +110,37 @@ export interface StoredSet {
   durationSeconds?: number | null;
   distanceKm?: number | null;
   completed: boolean;
+  updatedAt?: number;
+}
+
+/** A row that was removed. Kept so a later sync does not put the row back. */
+export interface StoredDeletion {
+  collection: SyncCollection;
+  id: string;
+  deletedAt: number;
+}
+
+export interface StoredSettings {
+  weightUnit: WeightUnit;
+  /** Rest after a light warmup, as a fraction of the exercise's rest. */
+  warmupRestMultiplier: number;
+  /** For strength levels. Null until entered on Profile. */
+  bodyweightKg: number | null;
+  /** Whole years for strength levels. Null until entered. */
+  ageYears: number | null;
+  sex: BodySex | null;
+  /** When true, set rows show the RPE column even if none has been logged. */
+  showRpe: boolean;
+  /** False until the first-run tutorial is dismissed. Existing logs with workouts count as seen. */
+  tutorialSeen: boolean;
+  /** When each setting last changed. 0 means it was already stored before change tracking. */
+  settingsUpdatedAt: Record<SettingKey, number>;
 }
 
 export interface DatabaseShape {
+  schemaVersion: number;
+  /** Stable for this install. A later sync uses it to tell two phones apart. */
+  deviceId: string;
   exercises: StoredExercise[];
   routines: StoredRoutine[];
   routineExercises: StoredRoutineExercise[];
@@ -102,20 +148,9 @@ export interface DatabaseShape {
   workouts: StoredWorkout[];
   workoutExercises: StoredWorkoutExercise[];
   sets: StoredSet[];
-  settings: {
-    weightUnit: WeightUnit;
-    /** Rest after a light warmup, as a fraction of the exercise's rest. */
-    warmupRestMultiplier: number;
-    /** For strength levels. Null until entered on Profile. */
-    bodyweightKg: number | null;
-    /** Whole years for strength levels. Null until entered. */
-    ageYears: number | null;
-    sex: BodySex | null;
-    /** When true, set rows show the RPE column even if none has been logged. */
-    showRpe: boolean;
-    /** False until the first-run tutorial is dismissed. Existing logs with workouts count as seen. */
-    tutorialSeen: boolean;
-  };
+  /** Ids removed from the collections above. Undo drops the matching record. */
+  deletions: StoredDeletion[];
+  settings: StoredSettings;
 }
 
 let state: DatabaseShape | null = null;
@@ -157,11 +192,22 @@ export function isCommitted(db: DatabaseShape): boolean {
  */
 export function writeDatabase(mutator: (db: DatabaseShape) => void): Promise<void> {
   return enqueue(async () => {
-    const draft = copy(await ensureLoaded());
-    mutator(draft);
+    const current = await ensureLoaded();
+    const draft = prepareWrite(current, mutator);
     commit(draft);
     schedulePersist();
   });
+}
+
+/**
+ * Copies the document, runs the edit, then stamps changed rows and removed ids.
+ * The save path uses this. Tests use it without AsyncStorage.
+ */
+export function prepareWrite(current: DatabaseShape, mutator: (db: DatabaseShape) => void, now = Date.now()): DatabaseShape {
+  const draft = copy(current);
+  mutator(draft);
+  stampDocumentChanges(current, draft, now);
+  return draft;
 }
 
 /** Waits for queued writes, then saves the latest document now. Call before the app may be suspended. */
@@ -403,6 +449,9 @@ function normalizeStored(db: DatabaseShape): boolean {
       changed = true;
     }
   }
+  if (backfillChangeTracking(db)) {
+    changed = true;
+  }
   return changed;
 }
 
@@ -416,10 +465,13 @@ function storedRpe(value: unknown): number | null {
 
 function emptyDatabase(): DatabaseShape {
   return {
+    deletions: [],
+    deviceId: createId(),
     exercises: [],
     routineExercises: [],
     routineSets: [],
     routines: [],
+    schemaVersion: SCHEMA_VERSION,
     sets: [],
     settings: defaultSettings(),
     workoutExercises: [],
@@ -442,6 +494,7 @@ function ensureSeed(db: DatabaseShape): boolean {
       isCustom: false,
       muscleGroup: exercise.muscleGroup,
       name: exercise.name,
+      updatedAt: 0,
     });
     changed = true;
   }
@@ -455,19 +508,152 @@ function ensureSeed(db: DatabaseShape): boolean {
   return changed;
 }
 
-function defaultSettings(): DatabaseShape['settings'] {
-  return { ageYears: null, bodyweightKg: null, sex: null, showRpe: false, tutorialSeen: false, warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER, weightUnit: 'kg' };
+function defaultSettings(): StoredSettings {
+  return {
+    ageYears: null,
+    bodyweightKg: null,
+    settingsUpdatedAt: blankSettingTimes(),
+    sex: null,
+    showRpe: false,
+    tutorialSeen: false,
+    warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER,
+    weightUnit: 'kg',
+  };
 }
 
-/** Copies every row one level deep. Mutators edit row fields, and readers still hold the old rows. */
+function blankSettingTimes(): Record<SettingKey, number> {
+  return { ageYears: 0, bodyweightKg: 0, sex: 0, showRpe: 0, tutorialSeen: 0, warmupRestMultiplier: 0, weightUnit: 0 };
+}
+
+/** Fills clocks that an older file does not have. 0 means the value predates change tracking. */
+function backfillChangeTracking(db: DatabaseShape): boolean {
+  let changed = false;
+  if (typeof db.schemaVersion !== 'number' || db.schemaVersion < SCHEMA_VERSION) {
+    db.schemaVersion = SCHEMA_VERSION;
+    changed = true;
+  }
+  if (typeof db.deviceId !== 'string' || db.deviceId.trim() === '') {
+    db.deviceId = createId();
+    changed = true;
+  }
+  if (!Array.isArray(db.deletions)) {
+    db.deletions = [];
+    changed = true;
+  }
+  const alive = new Set(syncCollections.flatMap((collection) => db[collection].map((row) => `${collection}\0${row.id}`)));
+  const deletions = db.deletions.filter((item) => isSyncCollection(item?.collection) && typeof item.id === 'string' && item.id.length > 0 && typeof item.deletedAt === 'number' && Number.isFinite(item.deletedAt) && !alive.has(`${item.collection}\0${item.id}`));
+  if (deletions.length !== db.deletions.length) {
+    db.deletions = deletions;
+    changed = true;
+  }
+  const times = { ...blankSettingTimes(), ...(db.settings.settingsUpdatedAt ?? {}) };
+  for (const key of settingKeys) {
+    if (typeof times[key] !== 'number' || !Number.isFinite(times[key])) {
+      times[key] = 0;
+    }
+  }
+  if (!sameSettingTimes(db.settings.settingsUpdatedAt, times)) {
+    db.settings.settingsUpdatedAt = times;
+    changed = true;
+  }
+  for (const collection of syncCollections) {
+    for (const row of db[collection]) {
+      if (typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt)) {
+        continue;
+      }
+      row.updatedAt = fallbackUpdatedAt(collection, row);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function sameSettingTimes(left: Record<SettingKey, number> | undefined, right: Record<SettingKey, number>): boolean {
+  if (!left) {
+    return false;
+  }
+  return settingKeys.every((key) => left[key] === right[key]);
+}
+
+function fallbackUpdatedAt(collection: SyncCollection, row: object): number {
+  if (collection === 'workouts' && 'startedAt' in row && typeof row.startedAt === 'number' && Number.isFinite(row.startedAt)) {
+    return row.startedAt;
+  }
+  if (collection === 'routines' && 'createdAt' in row && typeof row.createdAt === 'number' && Number.isFinite(row.createdAt)) {
+    return row.createdAt;
+  }
+  return 0;
+}
+
+function isSyncCollection(value: unknown): value is SyncCollection {
+  return typeof value === 'string' && (syncCollections as readonly string[]).includes(value);
+}
+
+type StampedRow = { id: string; updatedAt?: number };
+
+/** Marks rows the edit changed, and records ids the edit removed. */
+export function stampDocumentChanges(before: DatabaseShape, after: DatabaseShape, now: number): void {
+  for (const collection of syncCollections) {
+    const previous = new Map(before[collection].map((row) => [row.id, rowSignature(row)]));
+    const nextIds = new Set<string>();
+    for (const row of after[collection]) {
+      nextIds.add(row.id);
+      const prior = previous.get(row.id);
+      const changed = prior == null || prior !== rowSignature(row);
+      const revived = forgetDeletion(after, collection, row.id);
+      if (changed || revived) {
+        row.updatedAt = now;
+      }
+    }
+    for (const row of before[collection]) {
+      if (!nextIds.has(row.id)) {
+        rememberDeletion(after, collection, row.id, now);
+      }
+    }
+  }
+  const times = { ...blankSettingTimes(), ...(after.settings.settingsUpdatedAt ?? {}) };
+  for (const key of settingKeys) {
+    if (before.settings[key] !== after.settings[key]) {
+      times[key] = now;
+    }
+  }
+  after.settings.settingsUpdatedAt = times;
+}
+
+function rowSignature(row: StampedRow): string {
+  const { updatedAt: _updatedAt, ...rest } = row;
+  return JSON.stringify(rest);
+}
+
+function rememberDeletion(db: DatabaseShape, collection: SyncCollection, id: string, deletedAt: number): void {
+  const existing = db.deletions.find((item) => item.collection === collection && item.id === id);
+  if (existing) {
+    existing.deletedAt = deletedAt;
+    return;
+  }
+  db.deletions.push({ collection, deletedAt, id });
+}
+
+function forgetDeletion(db: DatabaseShape, collection: SyncCollection, id: string): boolean {
+  const index = db.deletions.findIndex((item) => item.collection === collection && item.id === id);
+  if (index < 0) {
+    return false;
+  }
+  db.deletions.splice(index, 1);
+  return true;
+}
+
+/** Copies every row one level deep. Unknown keys on the document and on each row stay. */
 function copy(db: DatabaseShape): DatabaseShape {
   return {
+    ...db,
+    deletions: db.deletions.map((row) => ({ ...row })),
     exercises: db.exercises.map((row) => ({ ...row })),
     routineExercises: db.routineExercises.map((row) => ({ ...row })),
     routineSets: db.routineSets.map((row) => ({ ...row })),
     routines: db.routines.map((row) => ({ ...row })),
     sets: db.sets.map((row) => ({ ...row })),
-    settings: { ...db.settings },
+    settings: { ...db.settings, settingsUpdatedAt: { ...db.settings.settingsUpdatedAt } },
     workoutExercises: db.workoutExercises.map((row) => ({ ...row })),
     workouts: db.workouts.map((row) => ({ ...row })),
   };
