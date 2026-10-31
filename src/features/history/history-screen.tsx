@@ -19,6 +19,7 @@ import { formatVolume, kgToDisplay } from '../../domain/units';
 import type { WorkoutSummary } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { screenTitle, screenTitleInset } from '../../theme/layout';
 
 interface HistorySection {
   title: string;
@@ -300,8 +301,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    ...screenTitleInset,
   },
   importButton: {
     backgroundColor: colors.surfaceRaised,
@@ -339,16 +339,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '800',
+    ...screenTitle,
   },
   headerActions: {
+    alignSelf: 'center',
     flexDirection: 'row',
     gap: 8,
   },
   titleRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },

@@ -10,6 +10,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Tutorial.** A new log walks through starting, logging, cable attachments, and finishing. Profile can show it again.
 - **Profile.** Finished workouts are no longer listed there. History already shows them. The workout count stays.
 - **History.** The line under the title is gone. The list starts at the month.
+- **Titles.** Rep, History, Progress, and Profile use the same size and sit on the same inset.
 
 ## 1.5.1 · Android 16 / iOS 23
 

@@ -32,6 +32,7 @@ import type { AppNavigation } from '../../navigation/types';
 import { tutorialRequested, useAppDispatch } from '../../state/store';
 import { useBodyProfile, useProfile, useShowRpe, useStrengthOverview, useWarmupRestMultiplier, useWeightUnit } from '../../state/hooks';
 import { colors } from '../../theme/colors';
+import { screenTitle, screenTitleInset } from '../../theme/layout';
 
 interface ProfileScreenProps {
   navigation: AppNavigation<'Profile'>;
@@ -616,9 +617,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   content: {
+    ...screenTitleInset,
     paddingBottom: 32,
-    paddingHorizontal: 16,
-    paddingTop: 12,
   },
   contribution: {
     borderBottomColor: colors.border,
@@ -645,9 +645,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '700',
+    ...screenTitle,
     marginBottom: 16,
   },
   artLink: {

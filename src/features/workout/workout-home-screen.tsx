@@ -19,6 +19,7 @@ import { PencilIcon } from '../../components/icons';
 import { createRoutine, startEmptyWorkout, startWorkoutFromRoutine } from '../../data/repository';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { screenTitle, screenTitleInset } from '../../theme/layout';
 
 export const WorkoutHomeScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'Workout'>>();
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   content: {
-    padding: 20,
+    ...screenTitleInset,
     paddingBottom: 32,
   },
   fill: {
@@ -452,10 +453,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   wordmark: {
-    color: colors.text,
-    fontSize: 40,
-    fontWeight: '800',
-    letterSpacing: -1,
+    ...screenTitle,
     marginBottom: 22,
   },
 });

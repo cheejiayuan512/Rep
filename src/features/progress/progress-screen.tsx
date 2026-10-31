@@ -13,6 +13,7 @@ import { fuzzyFilter } from '../../domain/fuzzy-search';
 import type { TrainedExercise } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { screenTitle, screenTitleInset } from '../../theme/layout';
 
 function exerciseKey(exercise: TrainedExercise): string {
   return exercise.id;
@@ -116,8 +117,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    ...screenTitleInset,
   },
   list: {
     paddingBottom: 24,
@@ -158,9 +158,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '800',
+    ...screenTitle,
   },
   tool: {
     backgroundColor: colors.surface,
