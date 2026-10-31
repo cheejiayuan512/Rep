@@ -16,7 +16,7 @@ Read `README.md` and `docs/tour.md` once before step 1.
 
 This teaches you where a screen lives. No new feature yet.
 
-- [ ] In `src/features/history/history-screen.tsx`, change the subtitle under the History title.
+- [ ] In `src/features/history/history-screen.tsx`, change the empty-state line under “No workouts yet”.
 - [ ] Save and look at the History tab in the browser.
 - [ ] Run `npx tsc --noEmit`.
 

@@ -9,6 +9,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Home screen widget.** iPhone and Android can show this week's workouts, volume, and streak. An open workout takes its place until you finish.
 - **Tutorial.** A new log walks through starting, logging, cable attachments, and finishing. Profile can show it again.
 - **Profile.** Finished workouts are no longer listed there. History already shows them. The workout count stays.
+- **History.** The line under the title is gone. The list starts at the month.
 
 ## 1.5.1 · Android 16 / iOS 23
 

@@ -122,7 +122,6 @@ export const HistoryScreen: React.FC = () => {
             </Pressable>
           </View>
         </View>
-        <Text style={styles.subtitle}>Finished sessions stay on this device. Export writes kilograms in Strong's columns. Import reads Hevy, Strong, Jefit, or FitNotes.</Text>
       </View>
       <SectionList
         style={styles.fill}
@@ -338,11 +337,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
-  },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 15,
-    marginTop: 4,
   },
   title: {
     color: colors.text,
