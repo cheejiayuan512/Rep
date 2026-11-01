@@ -17,6 +17,7 @@ import { summarizeNames } from '../../domain/format';
 import type { RoutineSummary } from '../../domain/types';
 import type { StackNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { discardInProgressWorkout } from '../workout/discard-in-progress';
 
 function routineKey(routine: RoutineSummary): string {
   return routine.id;
@@ -55,11 +56,23 @@ export const RoutinesScreen: React.FC = () => {
       if (activeWorkoutId) {
         setConfirm({
           confirmLabel: 'Resume',
-          message: 'Finish or discard the current workout before starting another.',
+          message: 'Resume the current workout, or discard it to start another.',
           onConfirm: () => {
             setConfirm(null);
             openWorkout(activeWorkoutId);
           },
+          onSecondary: () => {
+            setConfirm(null);
+            void (async () => {
+              await discardInProgressWorkout(activeWorkoutId);
+              dispatch(activeWorkoutChanged(null));
+              const workoutId = await startWorkoutFromRoutine(routineId);
+              dispatch(dataChanged());
+              openWorkout(workoutId);
+            })();
+          },
+          secondaryDestructive: true,
+          secondaryLabel: 'Discard',
           title: 'Workout in progress',
         });
         return;
@@ -113,7 +126,18 @@ export const RoutinesScreen: React.FC = () => {
           <Button label="New routine" onPress={pressCreate} />
         </View>
       ) : null}
-      <ConfirmDialog confirmLabel={confirm?.confirmLabel ?? 'OK'} destructive={confirm?.destructive} message={confirm?.message ?? ''} onCancel={closeConfirm} onConfirm={confirm?.onConfirm ?? closeConfirm} title={confirm?.title ?? ''} visible={confirm != null} />
+      <ConfirmDialog
+        confirmLabel={confirm?.confirmLabel ?? 'OK'}
+        destructive={confirm?.destructive}
+        message={confirm?.message ?? ''}
+        onCancel={closeConfirm}
+        onConfirm={confirm?.onConfirm ?? closeConfirm}
+        onSecondary={confirm?.onSecondary}
+        secondaryDestructive={confirm?.secondaryDestructive}
+        secondaryLabel={confirm?.secondaryLabel}
+        title={confirm?.title ?? ''}
+        visible={confirm != null}
+      />
     </Screen>
   );
 };

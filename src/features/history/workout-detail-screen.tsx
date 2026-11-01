@@ -22,6 +22,7 @@ import { estimateFromSets } from '../../domain/one-rep-max';
 import { formatMachineSetup, setTypeMark, usesMachineSetup, type SetRecord, type WeightUnit, type WorkoutDetail, type WorkoutExercise } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
+import { discardInProgressWorkout } from '../workout/discard-in-progress';
 
 export const WorkoutDetailScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigation>();
@@ -56,11 +57,24 @@ export const WorkoutDetailScreen: React.FC = () => {
     if (activeWorkoutId) {
       setConfirm({
         confirmLabel: 'Resume',
-        message: 'Finish or discard the current workout before starting another.',
+        message: 'Resume the current workout, or discard it to start another.',
         onConfirm: () => {
           setConfirm(null);
           navigation.navigate('ActiveWorkout', { workoutId: activeWorkoutId });
         },
+        onSecondary: () => {
+          setConfirm(null);
+          void (async () => {
+            await discardInProgressWorkout(activeWorkoutId);
+            dispatch(activeWorkoutChanged(null));
+            const workoutId = await duplicateWorkout(route.params.workoutId);
+            dispatch(activeWorkoutChanged(workoutId));
+            dispatch(dataChanged());
+            navigation.navigate('ActiveWorkout', { workoutId });
+          })();
+        },
+        secondaryDestructive: true,
+        secondaryLabel: 'Discard',
         title: 'Workout in progress',
       });
       return;
@@ -133,6 +147,9 @@ export const WorkoutDetailScreen: React.FC = () => {
         message={confirm?.message ?? ''}
         onCancel={closeConfirm}
         onConfirm={confirm?.onConfirm ?? closeConfirm}
+        onSecondary={confirm?.onSecondary}
+        secondaryDestructive={confirm?.secondaryDestructive}
+        secondaryLabel={confirm?.secondaryLabel}
         title={confirm?.title ?? ''}
         visible={confirm != null}
       />

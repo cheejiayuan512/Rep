@@ -20,6 +20,7 @@ import { createRoutine, startEmptyWorkout, startWorkoutFromRoutine } from '../..
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { screenTitle, screenTitleInset } from '../../theme/layout';
+import { discardInProgressWorkout } from './discard-in-progress';
 
 export const WorkoutHomeScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'Workout'>>();
@@ -51,11 +52,23 @@ export const WorkoutHomeScreen: React.FC = () => {
       if (activeWorkoutId) {
         setConfirm({
           confirmLabel: 'Resume',
-          message: 'Finish or discard the current workout before starting another.',
+          message: 'Resume the current workout, or discard it to start another.',
           onConfirm: () => {
             setConfirm(null);
             openWorkout(activeWorkoutId);
           },
+          onSecondary: () => {
+            setConfirm(null);
+            void (async () => {
+              await discardInProgressWorkout(activeWorkoutId);
+              dispatch(activeWorkoutChanged(null));
+              const workoutId = await create();
+              openWorkout(workoutId);
+              dispatch(dataChanged());
+            })();
+          },
+          secondaryDestructive: true,
+          secondaryLabel: 'Discard',
           title: 'Workout in progress',
         });
         return;
@@ -147,9 +160,13 @@ export const WorkoutHomeScreen: React.FC = () => {
       </ScrollView>
       <ConfirmDialog
         confirmLabel={confirm?.confirmLabel ?? 'OK'}
+        destructive={confirm?.destructive}
         message={confirm?.message ?? ''}
         onCancel={closeConfirm}
         onConfirm={confirm?.onConfirm ?? closeConfirm}
+        onSecondary={confirm?.onSecondary}
+        secondaryDestructive={confirm?.secondaryDestructive}
+        secondaryLabel={confirm?.secondaryLabel}
         title={confirm?.title ?? ''}
         visible={confirm != null}
       />

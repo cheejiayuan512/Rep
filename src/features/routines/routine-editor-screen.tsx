@@ -33,6 +33,7 @@ import {
   switchRoutineExerciseSetup,
   updateRoutineSet,
 } from '../../data/repository';
+import { discardInProgressWorkout } from '../workout/discard-in-progress';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { machineSetupOptions } from '../../domain/machine-setup';
 import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
@@ -497,12 +498,26 @@ const RoutineEditorBody: React.FC = () => {
     if (activeWorkoutId) {
       setConfirm({
         confirmLabel: 'Resume',
-        message: 'Finish or discard the current workout before starting another.',
+        message: 'Resume the current workout, or discard it to start another.',
         onConfirm: () => {
           setConfirm(null);
           dispatch(activeWorkoutChanged(activeWorkoutId));
           navigation.navigate('ActiveWorkout', { workoutId: activeWorkoutId });
         },
+        onSecondary: () => {
+          setConfirm(null);
+          void (async () => {
+            await discardInProgressWorkout(activeWorkoutId);
+            dispatch(activeWorkoutChanged(null));
+            await flushPending();
+            const workoutId = await startWorkoutFromRoutine(current.id);
+            navigation.navigate('ActiveWorkout', { workoutId });
+            dispatch(activeWorkoutChanged(workoutId));
+            dispatch(dataChanged());
+          })();
+        },
+        secondaryDestructive: true,
+        secondaryLabel: 'Discard',
         title: 'Workout in progress',
       });
       return;
@@ -622,6 +637,9 @@ const RoutineEditorBody: React.FC = () => {
         message={confirm?.message ?? ''}
         onCancel={closeConfirm}
         onConfirm={confirm?.onConfirm ?? closeConfirm}
+        onSecondary={confirm?.onSecondary}
+        secondaryDestructive={confirm?.secondaryDestructive}
+        secondaryLabel={confirm?.secondaryLabel}
         title={confirm?.title ?? ''}
         visible={confirm != null}
       />

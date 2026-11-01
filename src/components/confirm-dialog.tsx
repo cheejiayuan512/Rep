@@ -1,6 +1,7 @@
 /**
  * A popup that asks before a destructive action, such as discarding a workout.
  * Removing one exercise does not use this. That delete happens immediately.
+ * Optional `secondaryLabel` adds a third action (for example Discard next to Resume).
  */
 import React, { useCallback } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
@@ -15,6 +16,9 @@ export interface ConfirmRequest {
   destructive?: boolean;
   hideCancel?: boolean;
   onConfirm: () => void;
+  secondaryLabel?: string;
+  secondaryDestructive?: boolean;
+  onSecondary?: () => void;
 }
 
 interface ConfirmDialogProps {
@@ -26,6 +30,9 @@ interface ConfirmDialogProps {
   hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  secondaryLabel?: string;
+  secondaryDestructive?: boolean;
+  onSecondary?: () => void;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -37,13 +44,20 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   hideCancel = false,
   onConfirm,
   onCancel,
+  secondaryLabel,
+  secondaryDestructive = false,
+  onSecondary,
 }) => {
   const handleConfirm = useCallback(() => {
     onConfirm();
   }, [onConfirm]);
+  const handleSecondary = useCallback(() => {
+    onSecondary?.();
+  }, [onSecondary]);
   const handleCardPress = useCallback((event: GestureResponderEvent) => {
     event.stopPropagation();
   }, []);
+  const stacked = secondaryLabel != null && onSecondary != null;
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
@@ -51,9 +65,24 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <Pressable onPress={handleCardPress} style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
-          <View style={styles.actions}>
-            {hideCancel ? null : <Button label="Cancel" onPress={onCancel} style={styles.action} variant="secondary" />}
-            <Button label={confirmLabel} onPress={handleConfirm} style={styles.action} variant={destructive ? 'danger' : 'primary'} />
+          <View style={[styles.actions, stacked && styles.actionsStacked]}>
+            {stacked ? (
+              <>
+                <Button label={confirmLabel} onPress={handleConfirm} style={styles.action} variant={destructive ? 'danger' : 'primary'} />
+                <Button
+                  label={secondaryLabel}
+                  onPress={handleSecondary}
+                  style={styles.action}
+                  variant={secondaryDestructive ? 'danger' : 'secondary'}
+                />
+                {hideCancel ? null : <Button label="Cancel" onPress={onCancel} style={styles.action} variant="secondary" />}
+              </>
+            ) : (
+              <>
+                {hideCancel ? null : <Button label="Cancel" onPress={onCancel} style={styles.action} variant="secondary" />}
+                <Button label={confirmLabel} onPress={handleConfirm} style={styles.action} variant={destructive ? 'danger' : 'primary'} />
+              </>
+            )}
           </View>
         </Pressable>
       </Pressable>
@@ -69,6 +98,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 18,
+  },
+  actionsStacked: {
+    flexDirection: 'column',
   },
   backdrop: {
     alignItems: 'center',
