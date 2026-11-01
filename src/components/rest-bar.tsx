@@ -66,15 +66,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   restLabel: {
-    color: colors.faint,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
   restTime: {
     color: colors.text,
     fontSize: 28,
     fontVariant: ['tabular-nums'],
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

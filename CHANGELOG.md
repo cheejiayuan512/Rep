@@ -16,6 +16,8 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Backup.** History can save the whole log as a file and replace this phone’s log with one. Weight, cardio, attachments, routines, and settings come back. CSV export is unchanged.
 - **What's new.** After the tutorial (if any), Rep can show a short notice from `whats-new.json` on GitHub. Change that file and push; no store build. Got it stores the notice id so it only appears once.
 - **Workout title.** The name is plain large text you tap to edit. The pencil, underline, and “Tap to rename” line are gone.
+- **Gym ergonomics.** Finish sits in a bottom bar. Set check, Previous, and log cells are at least 44pt. Completing a set uses a success haptic. Incomplete-set warnings are toasts. Cards dim while resting. Quick add stays available after the first exercise.
+- **Visual system.** Colors follow HIG dark system tokens; type uses the Dynamic Type scale and the system font. Lime is reserved for primary actions. History is a browse list; export, import, backup, and restore live under Profile → Settings.
 
 ## 1.5.1 · Android 16 / iOS 23
 

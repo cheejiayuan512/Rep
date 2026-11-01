@@ -10,8 +10,10 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { BadgeGlyph } from '../../components/badge-icons';
 import { BodyProfileForm } from '../../components/body-profile-form';
 import { Chip } from '../../components/chip';
+import { LogTools } from '../../components/log-tools';
 import { Screen } from '../../components/screen';
 import { UnitToggle } from '../../components/unit-toggle';
+import { hitTarget } from '../../theme/spacing';
 import { formatDay } from '../../domain/format';
 import {
   BADGE_INFO,
@@ -287,6 +289,7 @@ const Settings: React.FC = () => {
         <Text style={styles.contributionLabel}>Tutorial</Text>
         <Text style={styles.sheetCloseText}>Show again</Text>
       </Pressable>
+      <LogTools />
       <Text style={styles.settingCaption}>For strength levels</Text>
       <BodyProfileForm body={body} onChange={setBody} unit={unit} />
     </View>
@@ -776,10 +779,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   settingCaption: {
-    color: colors.faint,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.4,
     marginTop: 16,
     textTransform: 'uppercase',
   },
@@ -789,6 +792,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: hitTarget,
     paddingVertical: 10,
   },
   sheet: {

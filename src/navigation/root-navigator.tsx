@@ -66,7 +66,7 @@ const Tabs: React.FC = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 11 },
         tabBarStyle: {

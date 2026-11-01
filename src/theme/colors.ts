@@ -1,19 +1,30 @@
 /**
- * Named colors. `accent` is the lime used for the main buttons and the selected tab.
- * Change it here and the highlight color changes everywhere.
+ * Semantic colors aligned with Apple HIG dark system colors.
+ * Brand lime stays scarce for primary CTAs (Finish, check done, pad Next, PR).
+ * Hex keeps SVG, widgets, and Android consistent; names match UIKit tokens.
  */
 export const colors = {
-  bg: '#0C0F14',
-  surface: '#161B22',
-  surfaceRaised: '#222A36',
-  border: '#2C3644',
-  text: '#F4F7FB',
-  muted: '#93A0B3',
-  faint: '#8B98AA',
+  /** systemBackground */
+  bg: '#000000',
+  /** secondarySystemBackground */
+  surface: '#1C1C1E',
+  /** tertiarySystemBackground */
+  surfaceRaised: '#2C2C2E',
+  /** separator */
+  border: '#3A3A3C',
+  /** label */
+  text: '#FFFFFF',
+  /** secondaryLabel */
+  muted: 'rgba(235, 235, 245, 0.6)',
+  /** tertiaryLabel — decorative only; prefer muted for captions */
+  faint: 'rgba(235, 235, 245, 0.3)',
+  /** Brand accent — primary actions only */
   accent: '#D6FF4A',
   accentPressed: '#C3EB38',
   accentInk: '#12160A',
-  danger: '#FF6B6B',
-  success: '#3DDC97',
-  overlay: 'rgba(6, 8, 12, 0.72)',
+  /** systemRed */
+  danger: '#FF453A',
+  /** systemGreen */
+  success: '#30D158',
+  overlay: 'rgba(0, 0, 0, 0.72)',
 };

@@ -1,26 +1,22 @@
 /**
  * Finished workouts, grouped by month. Only workouts with a finish time appear here.
- * Import past sessions from a Hevy, Strong, Jefit, or FitNotes CSV export.
+ * Export, import, backup, and restore live under Profile → Settings.
  */
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, SectionList, Share, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Pressable, SectionList, StyleSheet, Text, View, type SectionListRenderItemInfo } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import * as DocumentPicker from 'expo-document-picker';
 
-import { exportLogBackup, getInProgressWorkoutId, getSettings, importWorkoutCsv, listWorkoutsForExport, openLogBackup, restoreLogBackup } from '../../data/repository';
 import { formatSessionLoad } from '../../domain/cardio';
-import { workoutsToCsv } from '../../domain/log-export';
 import { useWeightUnit, useWorkoutSummaries } from '../../state/hooks';
-import { activeWorkoutChanged, dataChanged, useAppDispatch, warmupRestMultiplierChanged, weightUnitChanged } from '../../state/store';
-import { shareBackupFile } from './share-backup';
 import { EmptyState } from '../../components/empty-state';
 import { Screen } from '../../components/screen';
-import { formatDuration, formatLoggedLoad, formatMonth, formatWorkoutWhen } from '../../domain/format';
-import { formatVolume, kgToDisplay } from '../../domain/units';
+import { formatDuration, formatMonth, formatWorkoutWhen } from '../../domain/format';
 import type { WorkoutSummary } from '../../domain/types';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { screenTitle, screenTitleInset } from '../../theme/layout';
+import { hitTarget, space } from '../../theme/spacing';
+import { type } from '../../theme/typography';
 
 interface HistorySection {
   title: string;
@@ -33,11 +29,9 @@ function workoutKey(workout: WorkoutSummary): string {
 
 export const HistoryScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'History'>>();
-  const dispatch = useAppDispatch();
   const workouts = useWorkoutSummaries();
   const { unit } = useWeightUnit();
   const sections = useMemo(() => groupByMonth(workouts), [workouts]);
-  const [busy, setBusy] = useState(false);
 
   const handleOpen = useCallback(
     (workoutId: string) => {
@@ -46,150 +40,8 @@ export const HistoryScreen: React.FC = () => {
     [navigation],
   );
 
-  const handleImportCsv = useCallback(async () => {
-    if (busy) {
-      return;
-    }
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: true,
-        multiple: false,
-        type: ['text/csv', 'text/comma-separated-values', 'text/plain', 'application/vnd.ms-excel', '*/*'],
-      });
-      if (picked.canceled || !picked.assets?.[0]?.uri) {
-        return;
-      }
-
-      setBusy(true);
-      const response = await fetch(picked.assets[0].uri);
-      const csvText = await response.text();
-      const summary = await importWorkoutCsv(csvText);
-      dispatch(dataChanged());
-
-      const parts = [
-        summary.importedWorkouts === 1 ? '1 workout imported' : `${summary.importedWorkouts} workouts imported`,
-      ];
-      if (summary.skippedDuplicates > 0) {
-        parts.push(`${summary.skippedDuplicates} already in History`);
-      }
-      if (summary.createdExercises > 0) {
-        parts.push(`${summary.createdExercises} new exercises added`);
-      }
-      if (summary.skippedCardioRows > 0) {
-        parts.push(`${summary.skippedCardioRows} cardio rows skipped`);
-      }
-      Alert.alert(`${summary.sourceLabel} import`, parts.join('. ') + '.');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not import that file.';
-      Alert.alert('Import failed', message);
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, dispatch]);
-
-  const handleExportCsv = useCallback(async () => {
-    const rows = listWorkoutsForExport.now();
-    if (!rows || rows.length === 0) {
-      Alert.alert('Nothing to export', 'Finish a workout first.');
-      return;
-    }
-    try {
-      await Share.share({ message: workoutsToCsv(rows), title: 'Rep workouts.csv' });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (message && !/cancel|abort/i.test(message)) {
-        Alert.alert('Export failed', message);
-      }
-    }
-  }, []);
-
-  const handleBackup = useCallback(async () => {
-    if (busy) {
-      return;
-    }
-    try {
-      setBusy(true);
-      const file = await exportLogBackup();
-      await shareBackupFile(file.filename, file.contents);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      if (message && !/cancel|abort|did not share/i.test(message)) {
-        Alert.alert('Backup failed', message);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }, [busy]);
-
-  const applyBackup = useCallback(
-    async (raw: string) => {
-      const next = openLogBackup(raw);
-      await restoreLogBackup(next);
-      const settings = getSettings.now();
-      if (settings) {
-        dispatch(weightUnitChanged(settings.weightUnit));
-        dispatch(warmupRestMultiplierChanged(settings.warmupRestMultiplier));
-      }
-      dispatch(activeWorkoutChanged(getInProgressWorkoutId.now()));
-      dispatch(dataChanged());
-      Alert.alert('Backup restored', 'The log on this phone now matches that file.');
-    },
-    [dispatch],
-  );
-
-  const handleRestore = useCallback(async () => {
-    if (busy) {
-      return;
-    }
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: true,
-        multiple: false,
-        type: ['application/json', 'text/json', '*/*'],
-      });
-      if (picked.canceled || !picked.assets?.[0]?.uri) {
-        return;
-      }
-      const response = await fetch(picked.assets[0].uri);
-      const raw = await response.text();
-      openLogBackup(raw);
-      Alert.alert('Replace this log?', 'This backup overwrites the workouts, routines, and settings on this phone.', [
-        { style: 'cancel', text: 'Cancel' },
-        {
-          onPress: () => {
-            setBusy(true);
-            void applyBackup(raw)
-              .catch((error: unknown) => {
-                const message = error instanceof Error ? error.message : 'Could not restore that file.';
-                Alert.alert('Restore failed', message);
-              })
-              .finally(() => setBusy(false));
-          },
-          style: 'destructive',
-          text: 'Restore',
-        },
-      ]);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not restore that file.';
-      Alert.alert('Restore failed', message);
-    }
-  }, [applyBackup, busy]);
-
-  const pressExportCsv = useCallback(() => {
-    void handleExportCsv();
-  }, [handleExportCsv]);
-  const pressImportCsv = useCallback(() => {
-    void handleImportCsv();
-  }, [handleImportCsv]);
-  const pressBackup = useCallback(() => {
-    void handleBackup();
-  }, [handleBackup]);
-  const pressRestore = useCallback(() => {
-    void handleRestore();
-  }, [handleRestore]);
-
   const renderItem = useCallback(
-    ({ item }: SectionListRenderItemInfo<WorkoutSummary, HistorySection>) => <HistoryCard onOpen={handleOpen} unit={unit} workout={item} />,
+    ({ item }: SectionListRenderItemInfo<WorkoutSummary, HistorySection>) => <HistoryRow onOpen={handleOpen} unit={unit} workout={item} />,
     [handleOpen, unit],
   );
 
@@ -199,28 +51,14 @@ export const HistoryScreen: React.FC = () => {
     <Screen>
       <View style={styles.header}>
         <Text style={styles.title}>History</Text>
-        <View style={styles.tools}>
-          <Pressable accessibilityLabel="Export workouts as CSV" accessibilityRole="button" disabled={busy} onPress={pressExportCsv} style={styles.importButton}>
-            <Text style={styles.importLabel}>Export CSV</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Import workouts from CSV" accessibilityRole="button" disabled={busy} onPress={pressImportCsv} style={styles.importButton}>
-            <Text style={styles.importLabel}>Import CSV</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Save a full backup" accessibilityRole="button" disabled={busy} onPress={pressBackup} style={styles.importButton}>
-            <Text style={styles.importLabel}>Backup</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Replace this log with a backup" accessibilityRole="button" disabled={busy} onPress={pressRestore} style={styles.importButton}>
-            <Text style={styles.importLabel}>Restore</Text>
-          </Pressable>
-        </View>
       </View>
       <SectionList
         style={styles.fill}
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
-        ListEmptyComponent={<EmptyState message="Finish a workout, import a CSV, or restore a backup and the sessions will land here." title="No workouts yet" />}
-        initialNumToRender={6}
-        maxToRenderPerBatch={8}
+        ListEmptyComponent={<EmptyState message="Finish a workout and the sessions will land here. Import or restore a log from Profile → Settings." title="No workouts yet" />}
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
         removeClippedSubviews
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
@@ -247,83 +85,43 @@ function groupByMonth(workouts: WorkoutSummary[]): HistorySection[] {
   return [...groups.entries()].map(([title, data]) => ({ data, title }));
 }
 
-interface HistoryCardProps {
+interface HistoryRowProps {
   workout: WorkoutSummary;
   unit: 'kg' | 'lb';
   onOpen: (workoutId: string) => void;
 }
 
-const HistoryCard: React.FC<HistoryCardProps> = React.memo(function HistoryCard({ workout, unit, onOpen }) {
+const HistoryRow: React.FC<HistoryRowProps> = React.memo(function HistoryRow({ workout, unit, onOpen }) {
   const handlePress = useCallback(() => {
     onOpen(workout.id);
   }, [onOpen, workout.id]);
 
-  const shown = workout.exercises.slice(0, MAX_LINES);
-  const hidden = workout.exercises.length - shown.length;
+  const meta = [
+    formatWorkoutWhen(workout.finishedAt),
+    formatDuration(workout.startedAt, workout.finishedAt),
+    formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit),
+  ].join(' · ');
 
   return (
-    <Pressable accessibilityLabel={`${workout.name}, ${formatWorkoutWhen(workout.finishedAt)}`} accessibilityRole="button" onPress={handlePress} style={styles.card}>
-      <View style={styles.cardHead}>
-        <View style={styles.cardTitle}>
-          <Text numberOfLines={1} style={styles.name}>
-            {workout.name}
-          </Text>
-          <Text style={styles.meta}>{formatWorkoutWhen(workout.finishedAt)}</Text>
-        </View>
-        {workout.recordCount > 0 ? (
-          <Text style={styles.prBadge}>
-            {workout.recordCount} {workout.recordCount === 1 ? 'PR' : 'PRs'}
-          </Text>
-        ) : null}
+    <Pressable accessibilityLabel={`${workout.name}, ${meta}`} accessibilityRole="button" onPress={handlePress} style={styles.row}>
+      <View style={styles.rowBody}>
+        <Text numberOfLines={1} style={styles.name}>
+          {workout.name}
+        </Text>
+        <Text numberOfLines={1} style={styles.meta}>
+          {meta}
+        </Text>
       </View>
-      <View style={styles.statRow}>
-        <StatPill label={formatDuration(workout.startedAt, workout.finishedAt)} />
-        <StatPill label={`${workout.volumeRecord ? '★ ' : ''}${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}`} />
-        <StatPill label={`${workout.setCount} ${workout.setCount === 1 ? 'set' : 'sets'}`} />
-      </View>
-      <View style={styles.lines}>
-        {shown.map((exercise, index) => (
-          <View key={`${exercise.name}-${index}`} style={styles.line}>
-            <Text numberOfLines={1} style={styles.lineName}>
-              <Text style={styles.lineCount}>{exercise.sets} × </Text>
-              {exercise.name}
-            </Text>
-            <Text style={styles.lineBest}>{exercise.best ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit) : '—'}</Text>
-          </View>
-        ))}
-        {hidden > 0 ? <Text style={styles.more}>+{hidden} more</Text> : null}
-      </View>
+      {workout.recordCount > 0 ? (
+        <Text style={styles.prBadge}>
+          {workout.recordCount} {workout.recordCount === 1 ? 'PR' : 'PRs'}
+        </Text>
+      ) : null}
     </Pressable>
   );
 });
 
-const MAX_LINES = 4;
-
-const StatPill: React.FC<{ label: string }> = ({ label }) => {
-  return (
-    <View style={styles.pill}>
-      <Text style={styles.pillText}>{label}</Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 12,
-    padding: 16,
-  },
-  cardHead: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cardTitle: {
-    flex: 1,
-  },
   emptyList: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -331,110 +129,55 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  line: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 4,
+  header: {
+    ...screenTitleInset,
   },
-  lineBest: {
+  list: {
+    paddingBottom: space.xl,
+    paddingHorizontal: space.lg,
+  },
+  meta: {
+    ...type.footnote,
     color: colors.muted,
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
+    marginTop: 2,
   },
-  lineCount: {
-    color: colors.faint,
-  },
-  lineName: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  lines: {
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginTop: 12,
-    paddingTop: 8,
-  },
-  more: {
-    color: colors.faint,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  pill: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  pillText: {
-    color: colors.text,
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
+  month: {
+    ...type.caption1,
+    color: colors.muted,
     fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: space.xs,
+    marginTop: space.md,
+    textTransform: 'uppercase',
+  },
+  name: {
+    ...type.headline,
+    color: colors.text,
   },
   prBadge: {
+    ...type.caption1,
     backgroundColor: colors.accent,
     borderRadius: 999,
     color: colors.accentInk,
-    fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     overflow: 'hidden',
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  statRow: {
+  row: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
+    gap: space.sm,
+    minHeight: hitTarget,
+    paddingVertical: space.sm,
   },
-  header: {
-    ...screenTitleInset,
-  },
-  importButton: {
-    backgroundColor: colors.surfaceRaised,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  importLabel: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  list: {
-    padding: 20,
-  },
-  meta: {
-    color: colors.muted,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  month: {
-    color: colors.faint,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  name: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
+  rowBody: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
     ...screenTitle,
-  },
-  tools: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
   },
 });

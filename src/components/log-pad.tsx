@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     borderRadius: 10,
     borderWidth: 1.5,
-    height: 40,
+    height: 44,
     justifyContent: 'center',
   },
   valueFocused: {
@@ -676,6 +676,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

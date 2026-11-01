@@ -17,10 +17,13 @@ import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dia
 import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
+import { Button } from '../../components/button';
 import { Header, IconButton, TextButton } from '../../components/header';
 import { ChevronDownIcon } from '../../components/icons';
 import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pad';
 import { RestBar } from '../../components/rest-bar';
+import { space } from '../../theme/spacing';
+import { type } from '../../theme/typography';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
 import { cancelRestEnd, scheduleRestEnd } from '../../components/rest-notification';
 import { cardioHasEffort, distanceTextToKm, durationTextToSeconds, isCardioExercise, parseDurationText } from '../../domain/cardio';
@@ -370,6 +373,14 @@ const ActiveWorkoutBody: React.FC = () => {
     return () => clearTimeout(id);
   }, [applyRest, restEndsAt]);
 
+  useEffect(() => {
+    if (!banner) {
+      return;
+    }
+    const id = setTimeout(() => setBanner(null), 3200);
+    return () => clearTimeout(id);
+  }, [banner]);
+
   // The Lock Screen / notification copy of this workout. Typing changes the
   // workout on every keystroke, so updates wait for a short pause.
   useEffect(() => {
@@ -665,7 +676,7 @@ const ActiveWorkoutBody: React.FC = () => {
       if (!completed) {
         return;
       }
-      void hapticLight();
+      void hapticSuccess();
       if (editingRef.current) {
         return;
       }
@@ -1157,13 +1168,7 @@ const ActiveWorkoutBody: React.FC = () => {
             <ChevronDownIcon color={colors.text} size={26} />
           </IconButton>
         }
-        right={
-          editing ? (
-            <TextButton label="Done" onPress={pressDoneEditing} tone="accent" />
-          ) : (
-            <TextButton disabled={finishing} label={finishing ? 'Saving' : 'Finish'} onPress={pressFinish} tone="accent" />
-          )
-        }
+        right={editing ? <TextButton label="Done" onPress={pressDoneEditing} tone="accent" /> : undefined}
         title={editing ? 'Edit workout' : undefined}
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.fill}>
@@ -1172,7 +1177,12 @@ const ActiveWorkoutBody: React.FC = () => {
         ) : (
           <ScrollView
             ref={pad.scrollRef}
-            contentContainerStyle={{ paddingBottom: (restEndsAt || recordBanner || undo ? 168 : 48) + (pad.open ? pad.height : insets.bottom) }}
+            contentContainerStyle={{
+              paddingBottom:
+                (restEndsAt || recordBanner || undo || banner ? 168 : 48) +
+                (!editing && !restEndsAt ? 72 : 0) +
+                (pad.open ? pad.height : insets.bottom),
+            }}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
             onScroll={pad.onScroll}
@@ -1181,33 +1191,32 @@ const ActiveWorkoutBody: React.FC = () => {
             style={styles.fill}
           >
             <View style={styles.intro}>
-                <TextInput
-                  accessibilityLabel="Workout name"
-                  onBlur={handleRename}
-                  onChangeText={setTitle}
-                  onFocus={handleFocusTitle}
-                  placeholder="Workout"
-                  placeholderTextColor={colors.faint}
-                  selectTextOnFocus
-                  style={[styles.title, isDefaultWorkoutName(title) && styles.titleUnnamed]}
-                  value={title}
-                />
-                <View style={styles.metaRow}>
-                  {workout?.finishedAt != null ? (
-                    <Text style={styles.elapsed}>{formatWorkoutWhen(workout.finishedAt)}</Text>
-                  ) : workout ? (
-                    <ElapsedClock startedAt={workout.startedAt} />
-                  ) : (
-                    <Text style={styles.elapsed}>0:00</Text>
-                  )}
-                </View>
-                {banner ? <Text style={styles.banner}>{banner}</Text> : null}
+              <TextInput
+                accessibilityLabel="Workout name"
+                onBlur={handleRename}
+                onChangeText={setTitle}
+                onFocus={handleFocusTitle}
+                placeholder="Workout"
+                placeholderTextColor={colors.faint}
+                selectTextOnFocus
+                style={[styles.title, isDefaultWorkoutName(title) && styles.titleUnnamed]}
+                value={title}
+              />
+              <View style={styles.metaRow}>
+                {workout?.finishedAt != null ? (
+                  <Text style={styles.elapsed}>{formatWorkoutWhen(workout.finishedAt)}</Text>
+                ) : workout ? (
+                  <ElapsedClock startedAt={workout.startedAt} />
+                ) : (
+                  <Text style={styles.elapsed}>0:00</Text>
+                )}
               </View>
+            </View>
             <View style={styles.list}>
               {workout && workout.exercises.length === 0 ? (
                 <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to choose warm-up, drop, or failure." onAction={handleAddExercise} title="Empty workout" />
               ) : null}
-              {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
+              {workout && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? (
                 <SortableList
                   items={workout.exercises}
@@ -1217,6 +1226,7 @@ const ActiveWorkoutBody: React.FC = () => {
                   renderItem={(exercise, handle) => (
                     <ExerciseBlock
                       drafts={drafts}
+                      dimmed={restEndsAt != null}
                       exercise={exercise}
                       onAddSet={pressAddSet}
                       onApplyPrevious={handleApplyPrevious}
@@ -1250,16 +1260,36 @@ const ActiveWorkoutBody: React.FC = () => {
                   )}
                 />
               ) : null}
-              {workout && workout.exercises.length > 0 ? <TextButton label="Add exercise" onPress={handleAddExercise} tone="accent" /> : null}
+              {workout && workout.exercises.length > 0 ? <TextButton label="Add exercise" onPress={handleAddExercise} /> : null}
               {workout && !editing ? <TextButton label="Discard" onPress={handleDiscard} tone="danger" /> : null}
             </View>
           </ScrollView>
         )}
       </KeyboardAvoidingView>
       <LogPad />
-      {recordBanner || undo ? (
-        <View pointerEvents="box-none" style={[styles.toasts, { bottom: (restEndsAt ? 92 : 16) + (pad.open ? pad.height : insets.bottom), left: 20 + insets.left, right: 20 + insets.right }]}>
-          {recordBanner ? (
+      {!missing && !editing && !restEndsAt ? (
+        <View style={[styles.finishBar, { bottom: pad.open ? pad.height : 0, left: insets.left, paddingBottom: pad.open ? space.sm : Math.max(insets.bottom, space.sm), right: insets.right }]}>
+          <Button disabled={finishing} label={finishing ? 'Saving…' : 'Finish'} onPress={pressFinish} />
+        </View>
+      ) : null}
+      {recordBanner || undo || banner ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.toasts,
+            {
+              bottom: (restEndsAt ? 92 : !editing ? 72 : 16) + (pad.open ? pad.height : insets.bottom),
+              left: space.lg + insets.left,
+              right: space.lg + insets.right,
+            },
+          ]}
+        >
+          {banner ? (
+            <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.notice}>
+              <Text style={styles.noticeText}>{banner}</Text>
+            </View>
+          ) : null}
+          {recordBanner && !banner ? (
             <Pressable accessibilityLiveRegion="polite" accessibilityRole="alert" onPress={dismissRecord} style={styles.record}>
               <Text style={styles.recordTitle}>New PR · {recordBanner.exerciseName}</Text>
               {recordBanner.lines.map((line) => (
@@ -1269,7 +1299,7 @@ const ActiveWorkoutBody: React.FC = () => {
               ))}
             </Pressable>
           ) : null}
-          {undo ? (
+          {undo && !banner && !recordBanner ? (
             <View style={styles.undo}>
               <Text numberOfLines={1} style={styles.undoText}>
                 {undo.message}
@@ -1301,42 +1331,51 @@ export const ActiveWorkoutScreen: React.FC = () => (
 );
 
 const styles = StyleSheet.create({
-  banner: {
-    color: colors.danger,
-    fontSize: 14,
-    marginTop: 8,
-  },
   elapsed: {
+    ...type.callout,
     color: colors.muted,
-    fontSize: 16,
     fontVariant: ['tabular-nums'],
-    fontWeight: '700',
+    fontWeight: '600',
   },
   fill: {
     flex: 1,
   },
-  intro: {
-    paddingHorizontal: 20,
+  finishBar: {
+    backgroundColor: colors.bg,
+    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
+    position: 'absolute',
+    right: 0,
   },
-  holdHint: {
-    color: colors.faint,
-    fontSize: 13,
-    marginBottom: 8,
+  intro: {
+    paddingHorizontal: space.lg,
   },
   list: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  reorderHint: {
-    color: colors.muted,
-    fontSize: 15,
-    marginBottom: 14,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
   },
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: space.xs,
+  },
+  notice: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.danger,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  noticeText: {
+    ...type.subheadline,
+    color: colors.text,
+    fontWeight: '600',
   },
   record: {
     backgroundColor: colors.accent,
@@ -1345,21 +1384,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   recordText: {
+    ...type.footnote,
     color: colors.accentInk,
-    fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     marginTop: 2,
   },
   recordTitle: {
+    ...type.subheadline,
     color: colors.accentInk,
-    fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   toasts: {
-    gap: 8,
-    left: 20,
+    gap: space.xs,
+    left: space.lg,
     position: 'absolute',
-    right: 20,
+    right: space.lg,
   },
   undo: {
     alignItems: 'center',
@@ -1370,20 +1409,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
+    minHeight: 44,
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
   undoText: {
+    ...type.subheadline,
     color: colors.text,
     flex: 1,
-    fontSize: 14,
     fontWeight: '600',
   },
   title: {
+    ...type.title1,
     alignSelf: 'stretch',
     color: colors.text,
-    fontSize: 32,
-    fontWeight: '800',
     padding: 0,
   },
   titleUnnamed: {

@@ -66,6 +66,8 @@ interface ExerciseBlockProps {
   onOpenHistory: (exercise: WorkoutExercise) => void;
   onMove: (workoutExerciseId: string, direction: -1 | 1) => void;
   sortHandle: SortHandle;
+  /** Soften the card while resting so the timer stays primary. */
+  dimmed?: boolean;
 }
 
 type OpenPanel = 'rest' | 'attachment' | 'setup' | null;
@@ -79,6 +81,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   superset,
   canLinkSuperset,
   showRpe,
+  dimmed = false,
   orderBase = 0,
   onChangeRest,
   onChangeAttachment,
@@ -169,7 +172,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const isCable = exercise.equipment === 'Cable';
 
   return (
-    <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
+    <View style={[styles.card, dimmed && styles.cardDimmed, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
         <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={handleOpenHistory} style={styles.titleWrap}>
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
@@ -279,9 +282,9 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
       ) : (
         <Pressable accessibilityLabel="Add notes" accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
           <View style={styles.notesToggleIcon}>
-            <PencilIcon color={colors.accent} size={16} />
+            <PencilIcon color={colors.muted} size={16} />
           </View>
-          <Text style={styles.addText}>Notes</Text>
+          <Text style={styles.secondaryAction}>Notes</Text>
         </Pressable>
       )}
       <View style={styles.table}>
@@ -332,11 +335,11 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
       </View>
       <View style={styles.footer}>
         <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
-          <Text style={styles.addText}>Add set</Text>
+          <Text style={styles.secondaryAction}>Add set</Text>
         </Pressable>
         {canLinkSuperset || superset !== 'single' ? (
           <Pressable accessibilityRole="button" onPress={handleSuperset} style={styles.add}>
-            <Text style={styles.addText}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>
+            <Text style={styles.secondaryAction}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -403,10 +406,13 @@ const styles = StyleSheet.create({
   notesToggleIcon: {
     marginTop: 2,
   },
-  addText: {
-    color: colors.accent,
+  secondaryAction: {
+    color: colors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  cardDimmed: {
+    opacity: 0.45,
   },
   cardDragging: {
     opacity: 0.72,
@@ -449,7 +455,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   choiceNote: {
-    color: colors.faint,
+    color: colors.muted,
     fontSize: 12,
     marginTop: 10,
   },
@@ -460,15 +466,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   emptySetup: {
-    color: colors.faint,
+    color: colors.muted,
     fontSize: 12,
     marginTop: 8,
   },
   column: {
-    color: colors.faint,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
   columns: {
     alignItems: 'center',
@@ -494,7 +500,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   iconAction: {
-    padding: 6,
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   dot: {
     backgroundColor: colors.muted,
@@ -562,9 +571,9 @@ const styles = StyleSheet.create({
     width: setColumn.rpe,
   },
   superset: {
-    color: colors.accent,
+    color: colors.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: 0.6,
     marginBottom: 2,
     textTransform: 'uppercase',

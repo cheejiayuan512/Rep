@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0C0F14",
+    "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cheejiayuan.rep",
@@ -20,7 +20,7 @@
       "package": "com.cheejiayuan.rep",
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "backgroundColor": "#0C0F14",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

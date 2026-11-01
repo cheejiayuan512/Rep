@@ -164,25 +164,19 @@ interface WeekStatsProps {
 
 const WeekStats: React.FC<WeekStatsProps> = React.memo(function WeekStats({ stats, unit }) {
   const { streakWeeks, thisWeek } = stats;
+  const summary = [
+    `${thisWeek.workouts} ${thisWeek.workouts === 1 ? 'workout' : 'workouts'}`,
+    `${formatVolume(kgToDisplay(thisWeek.volumeKg, unit))} ${unit}`,
+    formatMinutes(thisWeek.minutes),
+    `${thisWeek.sets} ${thisWeek.sets === 1 ? 'set' : 'sets'}`,
+  ].join(' · ');
   return (
     <View>
-      <View style={styles.tiles}>
-        <Tile label={thisWeek.workouts === 1 ? 'Workout' : 'Workouts'} value={String(thisWeek.workouts)} />
-        <Tile label={unit} value={formatVolume(kgToDisplay(thisWeek.volumeKg, unit))} />
-        <Tile label="Time" value={formatMinutes(thisWeek.minutes)} />
-        <Tile label={thisWeek.sets === 1 ? 'Set' : 'Sets'} value={String(thisWeek.sets)} />
-      </View>
+      <Text style={styles.weekSummary}>{summary}</Text>
       <Text style={styles.weekLine}>{streakWeeks} wk streak</Text>
     </View>
   );
 });
-
-const Tile: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.tile}>
-    <Text style={styles.tileValue}>{value}</Text>
-    <Text style={styles.tileLabel}>{label}</Text>
-  </View>
-);
 
 function formatMinutes(minutes: number): string {
   if (minutes < 60) {
@@ -365,7 +359,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   edit: {
-    padding: 4,
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
   newRoutine: {
     alignItems: 'center',
@@ -409,41 +406,14 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
   seeAll: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  tile: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexGrow: 1,
-    flexBasis: '46%',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  tileLabel: {
     color: colors.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  tileValue: {
-    color: colors.text,
-    fontSize: 20,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '800',
-  },
-  tiles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '600',
   },
   weekHeading: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     marginTop: 26,
   },
   weekLine: {
@@ -451,6 +421,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
+  },
+  weekSummary: {
+    color: colors.text,
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    lineHeight: 22,
+    marginTop: 10,
   },
   wordmark: {
     ...screenTitle,

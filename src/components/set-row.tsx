@@ -11,6 +11,8 @@ import { formatLoggedLoad } from '../domain/format';
 import type { SetDraft } from '../domain/drafts';
 import type { PreviousSet, SetRecord, SetType, WeightUnit } from '../domain/types';
 import { colors } from '../theme/colors';
+import { hitTarget } from '../theme/spacing';
+import { type, workoutMaxFontScale } from '../theme/typography';
 import { LogValue } from './log-pad';
 import { SetTypeBadge } from './set-type-badge';
 import { SwipeToDelete } from './swipe-to-delete';
@@ -19,14 +21,14 @@ import { useReduceMotion } from './use-reduce-motion';
 const nativeDriver = Platform.OS !== 'web';
 
 export const setColumn = {
-  check: 36,
+  check: 44,
   distance: 68,
-  gap: 4,
-  reps: 50,
+  gap: 8,
+  reps: 48,
   rpe: 44,
-  set: 26,
+  set: 28,
   time: 72,
-  weight: 60,
+  weight: 56,
 };
 
 interface SetRowProps {
@@ -154,11 +156,11 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
 
   return (
     <SwipeToDelete accessibilityLabel="Delete set" label="Delete" onDelete={handleDelete} style={styles.wrap} testID="set-row">
-      <View style={[styles.row, set.setType === 'warmup' && styles.warmup]}>
+      <View style={styles.row}>
         <View style={styles.badgeWrap}>
           <SetTypeBadge index={index} onChange={handleSetType} setType={set.setType} />
           {isRecord ? (
-            <Text accessibilityLabel="Personal record" style={styles.star}>
+            <Text accessibilityLabel="Personal record" maxFontSizeMultiplier={workoutMaxFontScale} style={styles.star}>
               ★
             </Text>
           ) : null}
@@ -170,7 +172,7 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
           onPress={handleApplyPrevious}
           style={styles.previousHit}
         >
-          <Text numberOfLines={1} style={styles.previous}>
+          <Text maxFontSizeMultiplier={workoutMaxFontScale} numberOfLines={1} style={styles.previous}>
             {previousText}
           </Text>
         </Pressable>
@@ -203,7 +205,9 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
               },
             ]}
           />
-          <Animated.Text style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}>{set.completed ? '✓' : ''}</Animated.Text>
+          <Animated.Text maxFontSizeMultiplier={workoutMaxFontScale} style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}>
+            {set.completed ? '✓' : ''}
+          </Animated.Text>
         </Pressable>
       </View>
     </SwipeToDelete>
@@ -213,10 +217,10 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
 const styles = StyleSheet.create({
   burst: {
     backgroundColor: colors.accent,
-    borderRadius: 18,
-    height: 36,
+    borderRadius: 22,
+    height: hitTarget,
     position: 'absolute',
-    width: 36,
+    width: hitTarget,
   },
   badgeWrap: {
     position: 'relative',
@@ -225,9 +229,9 @@ const styles = StyleSheet.create({
   check: {
     alignItems: 'center',
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    height: 36,
+    height: hitTarget,
     justifyContent: 'center',
     overflow: 'visible',
     width: setColumn.check,
@@ -237,22 +241,23 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   checkText: {
+    ...type.callout,
     color: colors.text,
-    fontSize: 16,
     fontWeight: '700',
   },
   checkTextDone: {
     color: colors.accentInk,
   },
   previous: {
+    ...type.footnote,
     color: colors.muted,
-    fontSize: 13,
     fontVariant: ['tabular-nums'],
+    fontWeight: '600',
   },
   previousHit: {
     flex: 1,
     justifyContent: 'center',
-    minHeight: 36,
+    minHeight: hitTarget,
     minWidth: 52,
   },
   distance: {
@@ -272,18 +277,19 @@ const styles = StyleSheet.create({
   },
   setNumber: {
     alignItems: 'center',
-    height: 36,
+    height: hitTarget,
     justifyContent: 'center',
     width: setColumn.set,
   },
   setNumberText: {
+    ...type.footnote,
     color: colors.muted,
-    fontSize: 13,
     fontWeight: '700',
   },
   star: {
+    ...type.caption2,
     color: colors.accent,
-    fontSize: 11,
+    fontWeight: '700',
     position: 'absolute',
     right: -2,
     top: 0,
@@ -291,13 +297,10 @@ const styles = StyleSheet.create({
   time: {
     width: setColumn.time,
   },
-  warmup: {
-    opacity: 0.72,
-  },
   weight: {
     width: setColumn.weight,
   },
   wrap: {
-    marginTop: 4,
+    marginTop: 8,
   },
 });
