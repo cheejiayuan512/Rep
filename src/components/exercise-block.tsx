@@ -10,7 +10,7 @@ import { distanceUnitLabel } from '../domain/units';
 import type { DraftMap } from '../domain/drafts';
 import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
-import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../domain/rest';
+import { defaultRestFor } from '../domain/rest';
 import type { MachineSetupOption } from '../domain/machine-setup';
 import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type SetType, type WeightUnit, type WorkoutExercise } from '../domain/types';
 import { previousForSet, type SupersetRole } from '../domain/workout-edits';
@@ -135,7 +135,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     setPanel((open) => (open === 'attachment' ? null : 'attachment'));
   }, []);
   const handleRest = useCallback(
-    (seconds: number | null) => {
+    (seconds: number) => {
       onChangeRest(exercise.id, seconds);
       setPanel(null);
     },
@@ -205,7 +205,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
       </View>
       <View style={styles.chipRow}>
         <Pressable
-          accessibilityLabel={`Rest timer ${restLabel}${exercise.restSeconds == null ? ', default' : ''}`}
+          accessibilityLabel={`Rest timer ${restLabel}`}
           accessibilityRole="button"
           accessibilityState={{ expanded: panel === 'rest' }}
           onPress={toggleRest}
@@ -237,16 +237,16 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         ) : null}
       </View>
       {panel === 'rest' ? (
-        <View>
-          <View style={styles.choices}>
-            <Choice label={`Default ${formatClock(defaultRest)}`} onPress={handleRest} selected={exercise.restSeconds == null} value={null} />
-            {restChoices.map((seconds) => (
-              <Choice key={seconds} label={formatClock(seconds)} onPress={handleRest} selected={exercise.restSeconds === seconds} value={seconds} />
-            ))}
-          </View>
-          <Text style={styles.choiceNote}>
-            Default {formatClock(defaultRest)} for a {REST_CLASS_LABELS[restClassFor(exercise)].toLowerCase()} exercise.
-          </Text>
+        <View style={styles.choices}>
+          {restChoices.map((seconds) => (
+            <Choice
+              key={seconds}
+              label={formatClock(seconds)}
+              onPress={handleRest}
+              selected={exercise.restSeconds === seconds || (exercise.restSeconds == null && seconds === defaultRest)}
+              value={seconds}
+            />
+          ))}
         </View>
       ) : null}
       {panel === 'setup' ? <MachineSetupChoices onChange={handleSetup} options={setupOptions} unit={unit} value={exercise.machineSetup} /> : null}
@@ -408,11 +408,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
   },
-  choiceNote: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 10,
-  },
   choices: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -488,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     color: colors.text,
-    marginTop: 14,
+    marginTop: 10,
     minHeight: 22,
     padding: 0,
   },
@@ -535,7 +530,7 @@ const styles = StyleSheet.create({
     width: setColumn.set,
   },
   table: {
-    marginTop: 14,
+    marginTop: 6,
   },
   titleWrap: {
     flex: 1,
