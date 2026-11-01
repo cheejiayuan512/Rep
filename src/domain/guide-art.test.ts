@@ -5,7 +5,6 @@ import { guideExercises } from '../data/guide-seeds';
 import { seedExercises } from '../data/seed-exercises';
 import { movementFamily } from './exercise-families';
 import { guideSlugFor, guideSlugForFamily } from './guide-art';
-import { poseForExercise, poseForFamily } from './movement-pose';
 import { assertEqual, assertTrue, test } from './test-support';
 
 test('the barbell bench press uses the bench press drawing', () => {
@@ -28,15 +27,23 @@ test('a library move without its own drawing reuses a close one', () => {
   assertEqual(guideSlugFor('muscle-up'), 'pull-up');
 });
 
-test('every built-in exercise has a drawing or its own pose', () => {
-  const missing = seedExercises.filter((seed) => guideSlugFor(seed.id, seed.name) == null && poseForExercise(seed.id, seed.name) === 'generic').map((seed) => seed.id);
-  assertEqual(missing, []);
+test('olympic lifts without guide art stay blank', () => {
+  assertEqual(guideSlugFor('clean-and-jerk', 'Clean and Jerk'), null);
+  assertEqual(guideSlugFor('power-clean', 'Power Clean'), null);
+  assertEqual(guideSlugFor('hang-clean', 'Hang Clean'), null);
+  assertEqual(guideSlugFor('power-snatch', 'Power Snatch'), null);
+  assertEqual(guideSlugFor('thruster', 'Thruster'), null);
 });
 
-test('every family row has a drawing or its own pose', () => {
+test('every family with two or more members has a drawing when any member does', () => {
   const families = [...new Set(seedExercises.map((seed) => movementFamily(seed.id)).filter((family): family is string => family != null))];
-  const missing = families.filter((family) => guideSlugForFamily(family) == null && poseForFamily(family) === 'generic');
-  assertEqual(missing, []);
+  for (const family of families) {
+    const members = seedExercises.filter((seed) => movementFamily(seed.id) === family);
+    const anyArt = members.some((seed) => guideSlugFor(seed.id, seed.name) != null);
+    if (anyArt) {
+      assertTrue(guideSlugForFamily(family) != null, `${family} should resolve a drawing`);
+    }
+  }
 });
 
 test('every added guide exercise keeps its own drawing', () => {

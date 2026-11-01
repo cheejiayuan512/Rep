@@ -1,15 +1,13 @@
 /**
  * Plays the two Workout Guide frames for an exercise. The heavier source
- * frame is left out. A lift with no drawing falls back to the simple pose.
+ * frame is left out. A lift with no drawing shows nothing.
  */
 import React, { useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Image, StyleSheet, View } from 'react-native';
 
 import { guideSlugFor, guideSlugForFamily } from '../domain/guide-art';
-import { poseForExercise, poseForFamily } from '../domain/movement-pose';
 import { colors } from '../theme/colors';
 import { exerciseArtFrames } from './exercise-art-frames';
-import { MovementFigure } from './movement-figure';
 
 const FRAME_MS = 700;
 
@@ -89,7 +87,7 @@ export const ExerciseAnimation: React.FC<ExerciseAnimationProps> = React.memo(fu
   const sources = slug ? exerciseArtFrames[slug] : undefined;
   const frameIndex = useExerciseFrame();
   if (!sources) {
-    return <MovementFigure pose={family ? poseForFamily(family) : poseForExercise(exerciseId, name)} size={size} />;
+    return null;
   }
   const shown = frameIndex % sources.length;
   const radius = size > 48 ? 16 : 10;
