@@ -357,7 +357,12 @@ export async function deleteRoutine(routineId: string): Promise<void> {
 }
 
 /** Adds an exercise with its last session's sets as the plan, or one blank set. A cable exercise can be added again with a different attachment. */
-export async function addExerciseToRoutine(routineId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
+export async function addExerciseToRoutine(
+  routineId: string,
+  exerciseId: string,
+  attachment?: CableAttachment | null,
+  afterRoutineExerciseId?: string,
+): Promise<void> {
   await writeDatabase((db) => {
     const library = requireExercise(db, exerciseId);
     const rows = db.routineExercises.filter((exercise) => exercise.routineId === routineId);
@@ -365,7 +370,15 @@ export async function addExerciseToRoutine(routineId: string, exerciseId: string
     if (slotTaken(rows, exerciseId, library.equipment, chosen)) {
       return;
     }
-    const position = nextPosition(rows);
+    const after = afterRoutineExerciseId ? rows.find((row) => row.id === afterRoutineExerciseId) : null;
+    const position = after ? after.position + 1 : nextPosition(rows);
+    if (after) {
+      for (const row of rows) {
+        if (row.position >= position) {
+          row.position += 1;
+        }
+      }
+    }
     const routineExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
     db.routineExercises.push({ attachment: chosen, exerciseId, id: routineExerciseId, machineSetup, position, routineId, supersetId: null });
@@ -756,7 +769,12 @@ function recordsByWorkout(db: DatabaseShape): Map<string, number> {
   return counts;
 }
 
-export async function addExerciseToWorkout(workoutId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
+export async function addExerciseToWorkout(
+  workoutId: string,
+  exerciseId: string,
+  attachment?: CableAttachment | null,
+  afterWorkoutExerciseId?: string,
+): Promise<void> {
   await writeDatabase((db) => {
     if (!db.exercises.some((exercise) => exercise.id === exerciseId)) {
       throw new Error('Exercise not found.');
@@ -767,7 +785,15 @@ export async function addExerciseToWorkout(workoutId: string, exerciseId: string
     if (slotTaken(rows, exerciseId, library.equipment, chosen)) {
       return;
     }
-    const position = nextPosition(rows);
+    const after = afterWorkoutExerciseId ? rows.find((row) => row.id === afterWorkoutExerciseId) : null;
+    const position = after ? after.position + 1 : nextPosition(rows);
+    if (after) {
+      for (const row of rows) {
+        if (row.position >= position) {
+          row.position += 1;
+        }
+      }
+    }
     const workoutExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
     db.workoutExercises.push({ attachment: chosen, exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), supersetId: null, workoutId });

@@ -2,7 +2,7 @@
  * One exercise, one card. Notes are plain text on the exercise, like the workout title.
  * The rows under it are the sets. This component draws the card; the workout screen saves.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View, type AccessibilityActionEvent, type TextStyle } from 'react-native';
 
 import { isCardioExercise } from '../domain/cardio';
@@ -48,6 +48,9 @@ interface ExerciseBlockProps {
   orderBase?: number;
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
+  /** Attachments already used by this exercise in the workout. Unused ones can open another card. */
+  usedAttachments: ReadonlyArray<CableAttachment | null>;
+  onAddAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
   onChangeWeight: (setId: string, value: string) => void;
@@ -69,7 +72,7 @@ interface ExerciseBlockProps {
   sortHandle: SortHandle;
 }
 
-type OpenPanel = 'rest' | 'attachment' | 'setup' | null;
+type OpenPanel = 'rest' | 'attachment' | 'addAttachment' | 'setup' | null;
 
 export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function ExerciseBlock({
   exercise,
@@ -83,6 +86,8 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   orderBase = 0,
   onChangeRest,
   onChangeAttachment,
+  usedAttachments,
+  onAddAttachment,
   onChangeSetup,
   setupOptions,
   onChangeWeight,
@@ -148,6 +153,16 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     },
     [exercise.id, onChangeAttachment],
   );
+  const toggleAddAttachment = useCallback(() => {
+    setPanel((open) => (open === 'addAttachment' ? null : 'addAttachment'));
+  }, []);
+  const handleAddAttachment = useCallback(
+    (attachment: CableAttachment | null) => {
+      onAddAttachment(exercise.id, attachment);
+      setPanel(null);
+    },
+    [exercise.id, onAddAttachment],
+  );
   const toggleSetup = useCallback(() => {
     setPanel((open) => (open === 'setup' ? null : 'setup'));
   }, []);
@@ -166,6 +181,13 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const defaultRest = defaultRestFor(exercise);
   const restLabel = formatClock(exercise.restSeconds ?? defaultRest);
   const isCable = exercise.equipment === 'Cable';
+  const unusedAttachments = useMemo(() => {
+    if (!isCable) {
+      return [] as Array<CableAttachment | null>;
+    }
+    const used = new Set(usedAttachments.map((item) => item ?? ''));
+    return ([null, ...cableAttachments] as Array<CableAttachment | null>).filter((item) => !used.has(item ?? ''));
+  }, [isCable, usedAttachments]);
 
   return (
     <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
@@ -258,6 +280,13 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           ))}
         </View>
       ) : null}
+      {panel === 'addAttachment' ? (
+        <View style={styles.choices}>
+          {unusedAttachments.map((attachment) => (
+            <Choice key={attachment ?? 'none'} label={attachment ?? 'None'} onPress={handleAddAttachment} selected={false} value={attachment} />
+          ))}
+        </View>
+      ) : null}
       <TextInput
         accessibilityLabel="Exercise notes"
         inputAccessoryViewID={keyboardDoneId}
@@ -319,6 +348,16 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
           <Text style={styles.secondaryAction}>Add set</Text>
         </Pressable>
+        {unusedAttachments.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: panel === 'addAttachment' }}
+            onPress={toggleAddAttachment}
+            style={styles.add}
+          >
+            <Text style={styles.secondaryAction}>Add with other attachment</Text>
+          </Pressable>
+        ) : null}
         {canLinkSuperset || superset !== 'single' ? (
           <Pressable accessibilityRole="button" onPress={handleSuperset} style={styles.add}>
             <Text style={styles.secondaryAction}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>

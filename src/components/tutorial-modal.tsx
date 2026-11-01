@@ -21,7 +21,7 @@ const steps = [
   },
   {
     title: 'Cable attachments',
-    body: 'A cable exercise can be added again when the attachment is different, such as a rope and a straight bar. Previous and records stay with that attachment.',
+    body: 'On a cable card, tap Add with other attachment to log the same movement with a different handle, such as a rope after a straight bar. Previous and records stay with that attachment.',
   },
   {
     title: 'Finish, then look back',

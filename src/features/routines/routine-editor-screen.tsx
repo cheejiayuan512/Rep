@@ -17,6 +17,7 @@ import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pa
 import { Screen } from '../../components/screen';
 import { SortableList, type SortHandle } from '../../components/sortable-list';
 import {
+  addExerciseToRoutine,
   addRoutineSet,
   deleteRoutine,
   deleteRoutineSet,
@@ -36,7 +37,7 @@ import {
 import { discardInProgressWorkout } from '../workout/discard-in-progress';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import { machineSetupOptions } from '../../domain/machine-setup';
-import type { RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
+import type { CableAttachment, RoutineDetail, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
 import { distanceTextToKm, durationTextToSeconds, isCardioExercise, parseDurationText } from '../../domain/cardio';
 import { parseDecimal, repsTextToNumber, weightTextToKg } from '../../domain/units';
 import { createId } from '../../domain/ids';
@@ -565,6 +566,24 @@ const RoutineEditorBody: React.FC = () => {
     });
   }, [load]);
 
+  const handleAddAttachment = useCallback(
+    (routineExerciseId: string, attachment: CableAttachment | null) => {
+      const current = routineRef.current;
+      const exercise = current?.exercises.find((item) => item.id === routineExerciseId);
+      if (!current || !exercise || exercise.equipment !== 'Cable') {
+        return;
+      }
+      void (async () => {
+        await flushPending();
+        await addExerciseToRoutine(current.id, exercise.exerciseId, attachment, routineExerciseId);
+        await load();
+        void hapticLight();
+        dispatch(dataChanged());
+      })();
+    },
+    [dispatch, flushPending, load],
+  );
+
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   const renderExercise = useCallback(
@@ -573,6 +592,7 @@ const RoutineEditorBody: React.FC = () => {
         dragging={handle.dragging}
         drafts={drafts}
         exercise={exercise}
+        onAddAttachment={handleAddAttachment}
         onAddSet={pressAddSet}
         onChangeDistance={handleChangeDistance}
         onChangeDuration={handleChangeDuration}
@@ -588,11 +608,12 @@ const RoutineEditorBody: React.FC = () => {
         orderBase={Math.max(0, (routine?.exercises ?? []).findIndex((item) => item.id === exercise.id)) * 1000}
         panHandlers={handle.panHandlers}
         canLinkSuperset={(routine?.exercises[routine.exercises.length - 1]?.id ?? exercise.id) !== exercise.id}
+        usedAttachments={(routine?.exercises ?? []).filter((item) => item.exerciseId === exercise.exerciseId).map((item) => item.attachment)}
         superset={supersetRole(routine?.exercises ?? [], exercise.id)}
         unit={unit}
       />
     ),
-    [drafts, handleChangeReps, handleChangeSetType, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleSuperset, pressAddSet, routine?.exercises, unit],
+    [drafts, handleAddAttachment, handleChangeReps, handleChangeSetType, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleSuperset, pressAddSet, routine?.exercises, unit],
   );
 
   const exercises = routine?.exercises ?? [];

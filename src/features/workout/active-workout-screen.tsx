@@ -1107,6 +1107,36 @@ const ActiveWorkoutBody: React.FC = () => {
     void updateWorkoutExerciseAttachment(workoutExerciseId, attachment);
   }, []);
 
+  const handleAddAttachment = useCallback(
+    (workoutExerciseId: string, attachment: CableAttachment | null) => {
+      const current = workoutRef.current;
+      const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+      if (!current || !exercise || exercise.equipment !== 'Cable') {
+        return;
+      }
+      void (async () => {
+        await flushPending();
+        await addExerciseToWorkout(workoutId, exercise.exerciseId, attachment, workoutExerciseId);
+        const loaded = getWorkout.now(workoutId);
+        if (loaded) {
+          setWorkout(loaded);
+          setDrafts((previous) => mergeDrafts(previous, loaded.exercises.flatMap((item) => item.sets), unitRef.current));
+          const history = getHistorySets.now(
+            loaded.exercises.map((item) => item.exerciseId),
+            loaded.id,
+            loaded.finishedAt != null ? loaded.startedAt : undefined,
+          );
+          if (history) {
+            setHistoryByExercise(history);
+          }
+        }
+        void hapticLight();
+        dispatch(dataChanged());
+      })();
+    },
+    [dispatch, flushPending, workoutId],
+  );
+
   const handleChangeSetup = useCallback((workoutExerciseId: string, setup: string | null) => {
     const current = workoutRef.current;
     const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
@@ -1227,10 +1257,14 @@ const ActiveWorkoutBody: React.FC = () => {
                     <ExerciseBlock
                       drafts={drafts}
                       exercise={exercise}
+                      onAddAttachment={handleAddAttachment}
                       onAddSet={pressAddSet}
                       onApplyPrevious={handleApplyPrevious}
                       onChangeAttachment={handleChangeAttachment}
                       onChangeNotes={handleChangeNotes}
+                      usedAttachments={workout.exercises
+                        .filter((item) => item.exerciseId === exercise.exerciseId)
+                        .map((item) => item.attachment)}
                       onChangeDistance={handleChangeDistance}
                       onChangeDuration={handleChangeDuration}
                       onChangeReps={handleChangeReps}

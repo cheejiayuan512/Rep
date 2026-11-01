@@ -15,8 +15,8 @@ import { formatCardioEffort, isCardioExercise } from '../../domain/cardio';
 import { distanceUnitLabel } from '../../domain/units';
 import { formatLoggedLoad } from '../../domain/format';
 import type { MachineSetupOption } from '../../domain/machine-setup';
-import type { PreviousSet, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
-import { formatMachineSetup, usesMachineSetup } from '../../domain/types';
+import type { CableAttachment, PreviousSet, RoutineExercise, RoutineSet, SetType, WeightUnit } from '../../domain/types';
+import { cableAttachments, formatMachineSetup, usesMachineSetup } from '../../domain/types';
 import { previousForSet, type SupersetRole } from '../../domain/workout-edits';
 import { SetTypeBadge } from '../../components/set-type-badge';
 import { colors } from '../../theme/colors';
@@ -50,6 +50,9 @@ interface RoutineExerciseCardProps {
   onDeleteSet: (setId: string) => void;
   onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
+  /** Attachments already used by this exercise in the routine. */
+  usedAttachments: ReadonlyArray<CableAttachment | null>;
+  onAddAttachment: (routineExerciseId: string, attachment: CableAttachment | null) => void;
   /** Added to each set's pad order so Next continues onto the next card. */
   orderBase?: number;
 }
@@ -79,6 +82,8 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   onDeleteSet,
   onChangeSetup,
   setupOptions,
+  usedAttachments,
+  onAddAttachment,
   orderBase = 0,
 }) {
   const handleRemove = useCallback(() => {
@@ -91,9 +96,11 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
     onToggleSuperset(exercise.id);
   }, [exercise.id, onToggleSuperset]);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [addAttachmentOpen, setAddAttachmentOpen] = useState(false);
   const toggleSetup = useCallback(() => {
     setSetupOpen((open) => !open);
   }, []);
+  const toggleAddAttachment = useCallback(() => setAddAttachmentOpen((open) => !open), []);
   const handleSetup = useCallback(
     (setup: string | null) => {
       onChangeSetup(exercise.id, setup);
@@ -101,8 +108,22 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
     },
     [exercise.id, onChangeSetup],
   );
+  const handlePickAttachment = useCallback(
+    (attachment: CableAttachment | null) => {
+      onAddAttachment(exercise.id, attachment);
+      setAddAttachmentOpen(false);
+    },
+    [exercise.id, onAddAttachment],
+  );
   const showSetup = usesMachineSetup(exercise.equipment);
   const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
+  const unusedAttachments = useMemo(() => {
+    if (exercise.equipment !== 'Cable') {
+      return [] as Array<CableAttachment | null>;
+    }
+    const used = new Set(usedAttachments.map((item) => item ?? ''));
+    return ([null, ...cableAttachments] as Array<CableAttachment | null>).filter((item) => !used.has(item ?? ''));
+  }, [exercise.equipment, usedAttachments]);
   const handleMoveAction = useCallback(
     (event: AccessibilityActionEvent) => {
       onMove(exercise.id, event.nativeEvent.actionName === 'up' ? -1 : 1);
@@ -149,6 +170,13 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
           </Pressable>
         ) : null}
         {setupOpen ? <MachineSetupChoices onChange={handleSetup} options={setupOptions} unit={unit} value={exercise.machineSetup} /> : null}
+        {addAttachmentOpen ? (
+          <View style={styles.choices}>
+            {unusedAttachments.map((attachment) => (
+              <AttachmentChoice key={attachment ?? 'none'} attachment={attachment} onPress={handlePickAttachment} />
+            ))}
+          </View>
+        ) : null}
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
           <Text style={[styles.column, styles.previousCol]}>PREVIOUS</Text>
@@ -187,6 +215,11 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
           <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>
             <Text style={styles.addText}>Add set</Text>
           </Pressable>
+          {unusedAttachments.length > 0 ? (
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: addAttachmentOpen }} onPress={toggleAddAttachment} style={styles.add}>
+              <Text style={styles.addText}>Add with other attachment</Text>
+            </Pressable>
+          ) : null}
           {canLinkSuperset || superset !== 'single' ? (
             <Pressable accessibilityRole="button" onPress={handleSuperset} style={styles.add}>
               <Text style={styles.addText}>{superset === 'single' ? 'Superset with next' : 'Remove from superset'}</Text>
@@ -198,6 +231,15 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
     </SwipeToDelete>
   );
 });
+
+const AttachmentChoice: React.FC<{ attachment: CableAttachment | null; onPress: (attachment: CableAttachment | null) => void }> = ({ attachment, onPress }) => {
+  const handlePress = useCallback(() => onPress(attachment), [attachment, onPress]);
+  return (
+    <Pressable accessibilityRole="button" onPress={handlePress} style={styles.option}>
+      <Text style={styles.optionText}>{attachment ?? 'None'}</Text>
+    </Pressable>
+  );
+};
 
 interface RoutineSetRowProps {
   set: RoutineSet;
@@ -349,6 +391,24 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     height: 5,
     width: 5,
+  },
+  choices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  option: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  optionText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
   footer: {
     alignItems: 'center',

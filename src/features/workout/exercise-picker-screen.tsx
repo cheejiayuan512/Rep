@@ -1,11 +1,11 @@
 /**
  * Search the exercise library and add one to the open workout or to a routine.
- * Tapping an added exercise takes it back out, so each exercise appears once.
- * A cable exercise can be added again with a different attachment.
+ * Tapping an added exercise takes it back out, so each exercise appears once in the picker.
+ * A second cable attachment is added from the workout/routine card, not here.
  * The same screen serves both, which is why the route params include a mode.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ListRenderItemInfo } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { dataChanged, useAppDispatch } from '../../state/store';
@@ -31,7 +31,7 @@ import { StrengthMark } from '../../components/strength-mark';
 import { useStrengthOverview } from '../../state/hooks';
 import { ExerciseFinderPanel } from './exercise-finder-panel';
 import type { CableAttachment, Equipment, Exercise, MuscleGroup } from '../../domain/types';
-import { cableAttachments, equipmentTypes, muscleGroups, sameExerciseSlot } from '../../domain/types';
+import { equipmentTypes, muscleGroups, sameExerciseSlot } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
@@ -59,7 +59,6 @@ export const ExercisePickerScreen: React.FC = () => {
   const [customEquipment, setCustomEquipment] = useState<Equipment>('Barbell');
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [attachmentExerciseId, setAttachmentExerciseId] = useState<string | null>(null);
   const [slots, setSlots] = useState<TargetSlot[]>(
     () => listTargetSlots.now(route.params.mode === 'routine' ? { routineId: route.params.routineId } : { workoutId: route.params.workoutId }) ?? [],
   );
@@ -202,7 +201,7 @@ export const ExercisePickerScreen: React.FC = () => {
     setSlots(await listTargetSlots(target));
   }, [route.params]);
 
-  // Tapping toggles: an exercise is in the target once at most.
+  // Tapping toggles: an exercise is in the picker once. Extra cable attachments are added from the card.
   const handleSelect = useCallback(
     async (exerciseId: string) => {
       if (swapping) {
@@ -210,12 +209,6 @@ export const ExercisePickerScreen: React.FC = () => {
         return;
       }
       if (pendingId) {
-        return;
-      }
-      const target = exerciseById.get(exerciseId);
-      if (target?.equipment === 'Cable' && addedIds.has(exerciseId)) {
-        setError(null);
-        setAttachmentExerciseId(exerciseId);
         return;
       }
       setPendingId(exerciseId);
@@ -238,7 +231,7 @@ export const ExercisePickerScreen: React.FC = () => {
         setPendingId(null);
       }
     },
-    [addToTarget, addedIds, exerciseById, handleSwap, pendingId, refreshSlots, removeFromTarget, swapping],
+    [addToTarget, addedIds, handleSwap, pendingId, refreshSlots, removeFromTarget, swapping],
   );
 
   const handleCreate = useCallback(async () => {
@@ -285,7 +278,6 @@ export const ExercisePickerScreen: React.FC = () => {
       ) : (
         <ExerciseChoice
           added={addedIds.has(item.exercise.id)}
-          count={slots.filter((slot) => slot.exerciseId === item.exercise.id).length}
           current={swapping?.currentExerciseId === item.exercise.id}
           exercise={item.exercise}
           nested={item.nested}
@@ -295,7 +287,7 @@ export const ExercisePickerScreen: React.FC = () => {
           swapping={swapping != null}
         />
       ),
-    [addedIds, handleSelect, pendingId, ratingByExercise, ratingByFamily, slots, swapping, toggleFamily],
+    [addedIds, handleSelect, pendingId, ratingByExercise, ratingByFamily, swapping, toggleFamily],
   );
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
@@ -316,46 +308,6 @@ export const ExercisePickerScreen: React.FC = () => {
   const pressCreate = useCallback(() => {
     void handleCreate();
   }, [handleCreate]);
-  const closeAttachments = useCallback(() => setAttachmentExerciseId(null), []);
-  const attachmentExercise = attachmentExerciseId ? exerciseById.get(attachmentExerciseId) ?? null : null;
-  const chooseAttachment = useCallback(
-    (attachment: CableAttachment | null) => {
-      if (!attachmentExerciseId || route.params.mode === 'swap' || pendingId) {
-        return;
-      }
-      const target = route.params;
-      const exerciseId = attachmentExerciseId;
-      const used = slots.some((slot) => slot.exerciseId === exerciseId && slot.attachment === attachment);
-      setPendingId(exerciseId);
-      setError(null);
-      void (async () => {
-        try {
-          if (target.mode === 'workout') {
-            if (used) {
-              if ((await removeExerciseFromWorkout(target.workoutId, exerciseId, attachment)) !== 'removed') {
-                setError('That exercise has completed sets. Remove it from its card in the workout.');
-                return;
-              }
-            } else {
-              await addExerciseToWorkout(target.workoutId, exerciseId, attachment);
-            }
-          } else if (used) {
-            await removeExerciseFromRoutine(target.routineId, exerciseId, attachment);
-          } else {
-            await addExerciseToRoutine(target.routineId, exerciseId, attachment);
-          }
-          await refreshSlots();
-          setAttachmentExerciseId(null);
-          void hapticLight();
-        } catch (caught) {
-          setError(caught instanceof Error ? caught.message : 'Could not change the exercise.');
-        } finally {
-          setPendingId(null);
-        }
-      })();
-    },
-    [attachmentExerciseId, pendingId, refreshSlots, route.params, slots],
-  );
 
   return (
     <Screen bottomInset>
@@ -422,54 +374,9 @@ export const ExercisePickerScreen: React.FC = () => {
       />
         </>
       )}
-      <AttachmentSheet exercise={attachmentExercise} onClose={closeAttachments} onSelect={chooseAttachment} slots={slots} />
     </Screen>
   );
 };
-
-interface AttachmentSheetProps {
-  exercise: Exercise | null;
-  slots: readonly TargetSlot[];
-  onSelect: (attachment: CableAttachment | null) => void;
-  onClose: () => void;
-}
-
-const AttachmentSheet: React.FC<AttachmentSheetProps> = ({ exercise, slots, onSelect, onClose }) => {
-  const options = useMemo(() => [null, ...cableAttachments] as Array<CableAttachment | null>, []);
-  const keepOpen = useCallback(() => undefined, []);
-  return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible={exercise != null}>
-      <Pressable accessibilityLabel="Close attachments" onPress={onClose} style={styles.backdrop}>
-        <Pressable onPress={keepOpen} style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{exercise?.name ?? 'Attachment'}</Text>
-          <Text style={styles.sheetHint}>Add it again with a different attachment. An attachment already on a card can be removed here.</Text>
-          {options.map((attachment) => (
-            <AttachmentChoice added={slots.some((slot) => slot.exerciseId === exercise?.id && slot.attachment === attachment)} attachment={attachment} key={attachment ?? 'none'} onSelect={onSelect} />
-          ))}
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-};
-
-interface AttachmentChoiceProps {
-  attachment: CableAttachment | null;
-  added: boolean;
-  onSelect: (attachment: CableAttachment | null) => void;
-}
-
-const AttachmentChoice: React.FC<AttachmentChoiceProps> = React.memo(function AttachmentChoice({ attachment, added, onSelect }) {
-  const handlePress = useCallback(() => {
-    onSelect(attachment);
-  }, [attachment, onSelect]);
-  const label = attachment ?? 'None';
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected: added }} onPress={handlePress} style={styles.attachmentRow}>
-      <Text style={styles.name}>{label}</Text>
-      <Text style={[styles.added, !added && styles.addHint]}>{added ? 'Added' : 'Add'}</Text>
-    </Pressable>
-  );
-});
 
 interface FilterChipProps {
   filter: (typeof filters)[number];
@@ -546,7 +453,6 @@ const FamilyRow: React.FC<FamilyRowProps> = React.memo(function FamilyRow({ fami
 interface ExerciseChoiceProps {
   exercise: Exercise;
   added: boolean;
-  count: number;
   pending: boolean;
   nested: boolean;
   /** Swap mode: the card's own exercise. */
@@ -556,13 +462,12 @@ interface ExerciseChoiceProps {
   onPress: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, count, pending, nested, current, swapping, rating, onPress }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, current, swapping, rating, onPress }) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);
-  const cable = exercise.equipment === 'Cable';
-  const status = pending ? '…' : swapping ? (current ? 'Current' : added ? 'In workout' : 'Swap') : added ? (cable && count > 1 ? `${count} added` : '✓ Added') : '+';
-  const hint = swapping ? 'Replaces the exercise on the card' : added && cable ? 'Adds another attachment' : added ? 'Removes it from the list' : 'Adds it to the list';
+  const status = pending ? '…' : swapping ? (current ? 'Current' : added ? 'In workout' : 'Swap') : added ? '✓ Added' : '+';
+  const hint = swapping ? 'Replaces the exercise on the card' : added ? 'Removes it from the list' : 'Adds it to the list';
 
   return (
     <Pressable
@@ -598,41 +503,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'right',
     width: 72,
-  },
-  attachmentRow: {
-    alignItems: 'center',
-    borderTopColor: colors.border,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingVertical: 8,
-  },
-  backdrop: {
-    backgroundColor: colors.overlay,
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: 16,
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  sheetHint: {
-    color: colors.muted,
-    fontSize: 13,
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  sheetTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
   },
   addHint: {
     color: colors.faint,
