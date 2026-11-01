@@ -39,7 +39,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "tsx src/domain/run-tests.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "seed:demo": "tsx scripts/seed-demo-log.ts"
   },
   "private": true
 }
