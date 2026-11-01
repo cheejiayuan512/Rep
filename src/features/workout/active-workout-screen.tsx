@@ -1216,7 +1216,7 @@ const ActiveWorkoutBody: React.FC = () => {
               {workout && workout.exercises.length === 0 ? (
                 <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to choose warm-up, drop, or failure." onAction={handleAddExercise} title="Empty workout" />
               ) : null}
-              {workout && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
+              {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? (
                 <SortableList
                   items={workout.exercises}
@@ -1260,6 +1260,7 @@ const ActiveWorkoutBody: React.FC = () => {
                   )}
                 />
               ) : null}
+              {workout && workout.exercises.length > 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? <TextButton label="Add exercise" onPress={handleAddExercise} /> : null}
               {workout && !editing ? <TextButton label="Discard" onPress={handleDiscard} tone="danger" /> : null}
             </View>
