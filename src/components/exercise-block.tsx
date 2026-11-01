@@ -66,8 +66,6 @@ interface ExerciseBlockProps {
   onOpenHistory: (exercise: WorkoutExercise) => void;
   onMove: (workoutExerciseId: string, direction: -1 | 1) => void;
   sortHandle: SortHandle;
-  /** Soften the card while resting so the timer stays primary. */
-  dimmed?: boolean;
 }
 
 type OpenPanel = 'rest' | 'attachment' | 'setup' | null;
@@ -81,7 +79,6 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   superset,
   canLinkSuperset,
   showRpe,
-  dimmed = false,
   orderBase = 0,
   onChangeRest,
   onChangeAttachment,
@@ -172,7 +169,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const isCable = exercise.equipment === 'Cable';
 
   return (
-    <View style={[styles.card, dimmed && styles.cardDimmed, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
+    <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
         <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={handleOpenHistory} style={styles.titleWrap}>
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
@@ -410,9 +407,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     fontWeight: '600',
-  },
-  cardDimmed: {
-    opacity: 0.45,
   },
   cardDragging: {
     opacity: 0.72,

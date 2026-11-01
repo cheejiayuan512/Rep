@@ -1226,7 +1226,6 @@ const ActiveWorkoutBody: React.FC = () => {
                   renderItem={(exercise, handle) => (
                     <ExerciseBlock
                       drafts={drafts}
-                      dimmed={restEndsAt != null}
                       exercise={exercise}
                       onAddSet={pressAddSet}
                       onApplyPrevious={handleApplyPrevious}
