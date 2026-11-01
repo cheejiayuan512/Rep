@@ -89,8 +89,7 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibra
     () => [...profile.badges].sort((left, right) => TIER_RANK[right.tier] - TIER_RANK[left.tier] || right.ring - left.ring),
     [profile.badges],
   );
-  const earnedBadges = ordered.filter((badge) => badge.tier !== 'locked');
-  const visibleBadges = showAllBadges ? earnedBadges : earnedBadges.slice(0, COLLAPSED_BADGES);
+  const visibleBadges = showAllBadges ? ordered : ordered.slice(0, COLLAPSED_BADGES);
   const selected = openBadge ? (profile.badges.find((badge) => badge.id === openBadge) ?? null) : null;
   const toggleBadges = useCallback(() => setShowAllBadges((open) => !open), []);
   const closeBadge = useCallback(() => setOpenBadge(null), []);
@@ -129,26 +128,24 @@ const ProfileBody: React.FC<ProfileBodyProps> = ({ metric, onMetric, onOpenLibra
         ))}
       </View>
 
-      {earned > 0 ? (
-        <View>
-          <View style={styles.sectionHead}>
-            <Text style={[styles.section, styles.sectionInline]}>Badges</Text>
-            <Text style={styles.range}>
-              {earned} of {profile.badges.length} earned
-            </Text>
-          </View>
-          <View style={styles.badges}>
-            {visibleBadges.map((badge) => (
-              <BadgeView badge={badge} key={badge.id} onOpen={setOpenBadge} unit={unit} />
-            ))}
-          </View>
-          {earnedBadges.length > COLLAPSED_BADGES ? (
-            <Pressable accessibilityRole="button" onPress={toggleBadges} style={styles.more}>
-              <Text style={styles.moreText}>{showAllBadges ? 'Show fewer' : `Show all ${earnedBadges.length} badges`}</Text>
-            </Pressable>
-          ) : null}
+      <View>
+        <View style={styles.sectionHead}>
+          <Text style={[styles.section, styles.sectionInline]}>Badges</Text>
+          <Text style={styles.range}>
+            {earned} of {profile.badges.length} earned
+          </Text>
         </View>
-      ) : null}
+        <View style={styles.badges}>
+          {visibleBadges.map((badge) => (
+            <BadgeView badge={badge} key={badge.id} onOpen={setOpenBadge} unit={unit} />
+          ))}
+        </View>
+        {ordered.length > COLLAPSED_BADGES ? (
+          <Pressable accessibilityRole="button" onPress={toggleBadges} style={styles.more}>
+            <Text style={styles.moreText}>{showAllBadges ? 'Show fewer' : `Show all ${ordered.length} badges`}</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <Text style={styles.section}>Number of contributions</Text>
       {profile.contributions.map((item) => (
@@ -417,16 +414,16 @@ const BadgeView: React.FC<{ badge: ProfileBadge; unit: WeightUnit; onOpen: (id: 
   return (
     <Pressable
       accessibilityHint="Shows what the badge counts"
-      accessibilityLabel={`${badge.title}, ${badge.detail}${goal ? `, next at ${goal}` : ''}`}
+      accessibilityLabel={`${badge.title}, ${locked ? 'locked' : badge.detail}${goal ? `, next at ${goal}` : ''}`}
       accessibilityRole="button"
       onPress={handlePress}
-      style={styles.badge}
+      style={[styles.badge, locked && styles.badgeLocked]}
     >
       <BadgeRing badge={badge} size={64} />
       <Text numberOfLines={1} style={[styles.badgeName, locked && styles.badgeNameLocked]}>
         {badge.title}
       </Text>
-      <Text numberOfLines={2} style={styles.badgeTitle}>
+      <Text numberOfLines={2} style={[styles.badgeTitle, locked && styles.badgeTitleLocked]}>
         {locked ? goal : badge.detail}
       </Text>
     </Pressable>
@@ -567,6 +564,9 @@ const styles = StyleSheet.create({
   badgeGlyph: {
     position: 'absolute',
   },
+  badgeLocked: {
+    opacity: 0.45,
+  },
   badgeName: {
     color: colors.text,
     fontSize: 12,
@@ -584,6 +584,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
     paddingHorizontal: 2,
     textAlign: 'center',
+  },
+  badgeTitleLocked: {
+    color: colors.faint,
   },
   badges: {
     flexDirection: 'row',
