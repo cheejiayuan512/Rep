@@ -15,6 +15,7 @@ What changed in Rep, newest first. Store builds are listed as Android version co
 - **Change tracking.** Each row and each setting records when it last changed, and a deleted row keeps its id. Logging works the same. A later sync can merge two phones from that list.
 - **Backup.** History can save the whole log as a file and replace this phone’s log with one. Weight, cardio, attachments, routines, and settings come back. CSV export is unchanged.
 - **What's new.** After the tutorial (if any), Rep can show a short notice from `whats-new.json` on GitHub. Change that file and push; no store build. Got it stores the notice id so it only appears once.
+- **Workout title.** The name is plain large text you tap to edit. The pencil, underline, and “Tap to rename” line are gone.
 
 ## 1.5.1 · Android 16 / iOS 23
 

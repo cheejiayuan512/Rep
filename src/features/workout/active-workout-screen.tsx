@@ -5,7 +5,7 @@
  * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ import { ElapsedClock } from '../../components/elapsed-clock';
 import { EmptyState } from '../../components/empty-state';
 import { hapticLight, hapticSuccess } from '../../components/haptics';
 import { Header, IconButton, TextButton } from '../../components/header';
-import { ChevronDownIcon, PencilIcon } from '../../components/icons';
+import { ChevronDownIcon } from '../../components/icons';
 import { LogPad, LogPadProvider, useLogPadLayout } from '../../components/log-pad';
 import { RestBar } from '../../components/rest-bar';
 import { endWorkoutActivity, showWorkoutActivity } from '../../components/workout-live-activity';
@@ -173,7 +173,6 @@ const ActiveWorkoutBody: React.FC = () => {
   const draftsRef = useRef(drafts);
   const unitRef = useRef(unit);
   const titleRef = useRef(title);
-  const titleInput = useRef<TextInputInstance>(null);
   const titleFocused = useRef(false);
   const historyRef = useRef(historyByExercise);
   const pendingRef = useRef<Record<string, PendingSet>>({});
@@ -448,10 +447,6 @@ const ActiveWorkoutBody: React.FC = () => {
 
   const handleFocusTitle = useCallback(() => {
     titleFocused.current = true;
-  }, []);
-
-  const focusTitle = useCallback(() => {
-    titleInput.current?.focus();
   }, []);
 
   const readSetNumbers = useCallback(
@@ -1186,25 +1181,17 @@ const ActiveWorkoutBody: React.FC = () => {
             style={styles.fill}
           >
             <View style={styles.intro}>
-                <View style={styles.titleRow}>
-                  <TextInput
-                    ref={titleInput}
-                    accessibilityHint={isDefaultWorkoutName(title) ? 'Tap to rename' : undefined}
-                    accessibilityLabel="Workout name"
-                    onBlur={handleRename}
-                    onChangeText={setTitle}
-                    onFocus={handleFocusTitle}
-                    placeholder="Name this workout"
-                    placeholderTextColor={colors.faint}
-                    selectTextOnFocus
-                    style={[styles.title, isDefaultWorkoutName(title) && styles.titleUnnamed]}
-                    value={title}
-                  />
-                  <Pressable accessibilityLabel="Rename workout" accessibilityRole="button" hitSlop={8} onPress={focusTitle} style={styles.rename}>
-                    <PencilIcon color={colors.accent} size={20} />
-                  </Pressable>
-                </View>
-                {isDefaultWorkoutName(title) ? <Text style={styles.renameHint}>Tap to rename</Text> : null}
+                <TextInput
+                  accessibilityLabel="Workout name"
+                  onBlur={handleRename}
+                  onChangeText={setTitle}
+                  onFocus={handleFocusTitle}
+                  placeholder="Workout"
+                  placeholderTextColor={colors.faint}
+                  selectTextOnFocus
+                  style={[styles.title, isDefaultWorkoutName(title) && styles.titleUnnamed]}
+                  value={title}
+                />
                 <View style={styles.metaRow}>
                   {workout?.finishedAt != null ? (
                     <Text style={styles.elapsed}>{formatWorkoutWhen(workout.finishedAt)}</Text>
@@ -1393,33 +1380,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   title: {
+    alignSelf: 'stretch',
     color: colors.text,
-    flexGrow: 1,
-    flexShrink: 1,
     fontSize: 32,
     fontWeight: '800',
-    minWidth: 0,
     padding: 0,
   },
   titleUnnamed: {
     color: colors.muted,
-  },
-  titleRow: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 8,
-    width: '100%',
-  },
-  rename: {
-    padding: 4,
-  },
-  renameHint: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 6,
   },
 });
