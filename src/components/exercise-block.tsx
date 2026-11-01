@@ -424,7 +424,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     marginBottom: 12,
-    maxWidth: 560,
     padding: 14,
     width: '100%',
   },

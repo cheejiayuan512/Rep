@@ -110,7 +110,7 @@ export function SortableList<T>({ items, keyOf, renderItem, onReorder, onDraggin
   const draggedHeight = drag ? (slots.current.get(drag.id)?.height ?? 0) : 0;
 
   return (
-    <View>
+    <View style={styles.list}>
       {items.map((item, index) => {
         const id = ids[index] ?? '';
         const dragging = drag?.id === id;
@@ -171,7 +171,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, offset, dragging, grant
   );
 
   return (
-    <View onLayout={handleLayout} style={[{ transform: [{ translateY: offset }] }, dragging && styles.dragging]}>
+    <View onLayout={handleLayout} style={[styles.item, { transform: [{ translateY: offset }] }, dragging && styles.dragging]}>
       {children(pan.panHandlers)}
     </View>
   );
@@ -181,5 +181,13 @@ const styles = StyleSheet.create({
   dragging: {
     opacity: 0.92,
     zIndex: 2,
+  },
+  item: {
+    alignSelf: 'stretch',
+    width: '100%',
+  },
+  list: {
+    alignSelf: 'stretch',
+    width: '100%',
   },
 });
