@@ -128,8 +128,6 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
     [exercise.id, onChangeNotes],
   );
   const [panel, setPanel] = useState<OpenPanel>(null);
-  const [notesOpen, setNotesOpen] = useState(exercise.notes.trim().length > 0);
-  const openNotes = useCallback(() => setNotesOpen(true), []);
   const toggleRest = useCallback(() => {
     setPanel((open) => (open === 'rest' ? null : 'rest'));
   }, []);
