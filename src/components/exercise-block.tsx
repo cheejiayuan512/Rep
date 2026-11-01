@@ -1,5 +1,5 @@
 /**
- * One exercise, one card. The notes box is for the whole exercise.
+ * One exercise, one card. Notes are plain text on the exercise, like the workout title.
  * The rows under it are the sets. This component draws the card; the workout screen saves.
  */
 import React, { useCallback, useState } from 'react';
@@ -16,8 +16,9 @@ import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttac
 import { previousForSet, type SupersetRole } from '../domain/workout-edits';
 import type { StrengthRating } from '../domain/strength';
 import { colors } from '../theme/colors';
+import { type } from '../theme/typography';
 import { StrengthMark } from './strength-mark';
-import { CloseIcon, PencilIcon, SwapIcon } from './icons';
+import { CloseIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
@@ -259,31 +260,17 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           ))}
         </View>
       ) : null}
-      {notesOpen || exercise.notes.trim().length > 0 ? (
-        <View style={styles.notesField}>
-          <View pointerEvents="none" style={styles.notesIcon}>
-            <PencilIcon color={colors.muted} size={16} />
-          </View>
-          <TextInput
-            accessibilityLabel="Exercise notes"
-            inputAccessoryViewID={keyboardDoneId}
-            multiline
-            onChangeText={handleNotes}
-            placeholder="How did this exercise feel?"
-            placeholderTextColor={colors.faint}
-            style={[styles.notes, webNotesReset]}
-            textAlignVertical="top"
-            value={exercise.notes}
-          />
-        </View>
-      ) : (
-        <Pressable accessibilityLabel="Add notes" accessibilityRole="button" onPress={openNotes} style={styles.notesToggle}>
-          <View style={styles.notesToggleIcon}>
-            <PencilIcon color={colors.muted} size={16} />
-          </View>
-          <Text style={styles.secondaryAction}>Notes</Text>
-        </Pressable>
-      )}
+      <TextInput
+        accessibilityLabel="Exercise notes"
+        inputAccessoryViewID={keyboardDoneId}
+        multiline
+        onChangeText={handleNotes}
+        placeholder="Notes"
+        placeholderTextColor={colors.muted}
+        style={[styles.notes, webNotesReset]}
+        textAlignVertical="top"
+        value={exercise.notes}
+      />
       <View style={styles.table}>
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
@@ -378,30 +365,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 16,
     marginTop: 12,
-  },
-  notesField: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  notesIcon: {
-    marginTop: 3,
-  },
-  notesToggle: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: 14,
-    paddingVertical: 4,
-  },
-  notesToggleIcon: {
-    marginTop: 2,
   },
   secondaryAction: {
     color: colors.text,
@@ -522,15 +485,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   notes: {
+    ...type.subheadline,
+    alignSelf: 'stretch',
     backgroundColor: 'transparent',
     borderWidth: 0,
     color: colors.text,
-    flexGrow: 1,
-    flexShrink: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    minHeight: 66,
-    minWidth: 0,
+    marginTop: 14,
+    minHeight: 22,
     padding: 0,
   },
   option: {
