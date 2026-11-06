@@ -39,11 +39,13 @@ const TourContext = createContext<TourContextValue | null>(null);
 
 interface TourProviderProps {
   open: boolean;
+  /** Bumped by Show again, so reopening restarts even when the tour never closed. */
+  restartKey?: number;
   onClose: () => void;
   children: React.ReactNode;
 }
 
-export const TourProvider: React.FC<TourProviderProps> = ({ open, onClose, children }) => {
+export const TourProvider: React.FC<TourProviderProps> = ({ open, restartKey = 0, onClose, children }) => {
   const [index, setIndex] = useState(0);
   const [targets, setTargets] = useState<Record<string, TourRect>>({});
   const openRef = useRef(open);
@@ -55,7 +57,7 @@ export const TourProvider: React.FC<TourProviderProps> = ({ open, onClose, child
       setIndex(0);
       setTargets({});
     }
-  }, [open]);
+  }, [open, restartKey]);
 
   const next = useCallback(() => {
     setIndex((current) => Math.min(TOUR_STEPS.length - 1, current + 1));

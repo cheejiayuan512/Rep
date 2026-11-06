@@ -20,6 +20,8 @@ interface AppState {
   revision: number;
   /** The first-run tutorial, also opened again from Profile. */
   tutorialOpen: boolean;
+  /** Goes up on every Show again, so reopening restarts the tour even if it is already open. */
+  tutorialRestart: number;
 }
 
 const initialState: AppState = {
@@ -28,6 +30,7 @@ const initialState: AppState = {
   ready: false,
   revision: 0,
   tutorialOpen: false,
+  tutorialRestart: 0,
   warmupRestMultiplier: DEFAULT_WARMUP_MULTIPLIER,
   weightUnit: 'kg',
 };
@@ -59,6 +62,7 @@ const appSlice = createSlice({
     },
     tutorialRequested(state) {
       state.tutorialOpen = true;
+      state.tutorialRestart += 1;
     },
     dataChanged(state) {
       state.revision += 1;

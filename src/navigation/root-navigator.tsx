@@ -137,6 +137,7 @@ export const RootNavigator: React.FC = () => {
   const unit = useAppSelector((state) => state.app.weightUnit);
   const revision = useAppSelector((state) => state.app.revision);
   const tutorialOpen = useAppSelector((state) => state.app.tutorialOpen);
+  const tutorialRestart = useAppSelector((state) => state.app.tutorialRestart);
   const [whatsNew, setWhatsNew] = useState<WhatsNewNotice | null>(null);
   const closeTutorial = useCallback(() => {
     dispatch(tutorialClosed());
@@ -144,12 +145,14 @@ export const RootNavigator: React.FC = () => {
   }, [dispatch]);
 
   // Opened again from Profile: start the tour on the tab whose first step it describes.
+  // Show again has to work even when the tour is already open but sitting on a
+  // tab the user has left, so every request also brings the Workout tab back.
   useEffect(() => {
     if (!tutorialOpen || !navigationRef.isReady()) {
       return;
     }
     navigationRef.navigate('Tabs', { screen: 'Workout' });
-  }, [tutorialOpen]);
+  }, [tutorialOpen, tutorialRestart]);
 
   const closeWhatsNew = useCallback(() => {
     const notice = whatsNew;
@@ -225,7 +228,7 @@ export const RootNavigator: React.FC = () => {
   }
 
   return (
-    <TourProvider onClose={closeTutorial} open={tutorialOpen}>
+    <TourProvider onClose={closeTutorial} open={tutorialOpen} restartKey={tutorialRestart}>
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         {!tutorialOpen && whatsNew ? <WhatsNewModal notice={whatsNew} onClose={closeWhatsNew} /> : null}
         <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
