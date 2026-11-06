@@ -38,6 +38,10 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
   // Waiting for a target that is not on screen yet (the Finish bar while resting)
   // puts the card at the top, so the bottom stays free for the control that
   // brings that target back, such as Skip on the rest bar.
+  // A step that points at something not on screen yet (the Finish bar while the
+  // rest bar is up) keeps the card on top and leaves the page undimmed, so the
+  // control that brings the target back stays visible and tappable.
+  const waitForTarget = step.target != null && hole == null;
   const placeCardOnTop = hole != null ? hole.y + hole.height / 2 > height * 0.55 : step.target != null;
 
   return (
@@ -50,9 +54,8 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
           <View style={[styles.dim, { height: hole.height, left: hole.x + hole.width, right: 0, top: hole.y }]} />
           <View pointerEvents="none" style={[styles.ring, { height: hole.height, left: hole.x, top: hole.y, width: hole.width }]} />
         </>
-      ) : (
-        <View pointerEvents="none" style={styles.fullDim} />
-      )}
+      ) : null}
+      {!hole && !waitForTarget ? <View pointerEvents="none" style={styles.fullDim} /> : null}
       <View
         accessibilityLiveRegion="polite"
         style={[styles.card, placeCardOnTop ? { top: insets.top + 16 } : { bottom: 16 + (bottomInset ? insets.bottom : 0) }]}
