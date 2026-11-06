@@ -66,7 +66,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 ## Profile and settings
 
 - kg / lb, warmup rest, Show RPE, bodyweight, age, and sex are set only in Profile → Settings. Other screens read the unit; they do not toggle it. Show RPE disappears after any set has an RPE, because the column stays on.
-- A fresh log opens a four-step tutorial. Dismissing it sets `settings.tutorialSeen`. A log that already has workouts does not show it on its own. Profile → Tutorial → Show again opens it any time.
+- A fresh log opens a six-step tour that follows one real session: it spotlights Start workout, the quick add chips, the first set row for the numbers and again for the check, the Finish bar, then closes on the recap. A step moves on by itself when the action happens, and the card also has Back, Skip, and Next. Dismissing it sets `settings.tutorialSeen`. A log that already has workouts does not show it on its own. Profile → Tutorial → Show again opens it any time.
 - Remote what's new: edit `whats-new.json` on `master` (`id`, `title`, `bullets`). Empty `id` or no bullets means nothing to show. The app fetches it after boot (and after the tutorial closes), fails silently offline, and stores `settings.seenWhatsNewId` when the user taps Got it. Override the URL with `app.json` `extra.whatsNewUrl`.
 - Profile does not list workouts. Finished sessions live on the History tab. The Workouts number on Profile is the count.
 - The home screen widget (`RepWidget`, iOS and Android) shows this week's workouts, volume, and streak, or the open workout while one is in progress. It updates when the log changes. It is separate from the Lock Screen Live Activity.
@@ -98,6 +98,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 | Home week stats, Analysis screen | `src/domain/stats.ts`, then `src/features/progress/analysis-screen.tsx` |
 | 1RM calculator formulas | `src/domain/one-rep-max.ts` (Epley, Brzycki, Lombardi; up to 20 reps). `estimateFromSets` is the whole-session blend |
 | Rest defaults and warmup rest | `src/domain/rest.ts` and `src/domain/rest.test.ts` |
+| First-run tour | `src/domain/tutorial.ts` for the steps and `src/components/tutorial/` for the spotlight |
 | What shipped in each build | `CHANGELOG.md`: add a section with every release |
 | Exercise library editing | `updateExercise` in the repository and `src/features/exercises/` (opened from Profile) |
 | Logging pad | Set weight, reps, and RPE use `src/components/log-pad.tsx`. Notes and other number fields keep the hide chip in `src/components/keyboard-done-bar.tsx`. |

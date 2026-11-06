@@ -11,6 +11,8 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch, useAppSelector } fro
 import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { Screen } from '../../components/screen';
+import { TourOverlay } from '../../components/tutorial/tour-overlay';
+import { useTutorialTarget } from '../../components/tutorial/tour';
 import { formatClock, formatDuration, formatLoggedLoad, formatWorkoutWhen, summarizeNames } from '../../domain/format';
 import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
@@ -30,6 +32,7 @@ export const WorkoutHomeScreen: React.FC = () => {
   const { unit } = useWeightUnit();
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [now, setNow] = useState(Date.now());
+  const startAnchor = useTutorialTarget('home-start');
 
   React.useEffect(() => {
     if (!home?.active) {
@@ -133,7 +136,9 @@ export const WorkoutHomeScreen: React.FC = () => {
             workoutId={home.active.id}
           />
         ) : null}
-        <Button label="Start workout" onPress={handleStartEmpty} />
+        <View {...startAnchor}>
+          <Button label="Start workout" onPress={handleStartEmpty} />
+        </View>
         <View style={styles.sectionHead}>
           <Pressable accessibilityRole="button" hitSlop={8} onPress={handleOpenRoutines}>
             <Text style={styles.section}>Routines</Text>
@@ -178,6 +183,7 @@ export const WorkoutHomeScreen: React.FC = () => {
         title={confirm?.title ?? ''}
         visible={confirm != null}
       />
+      <TourOverlay screen="Workout" />
     </Screen>
   );
 };

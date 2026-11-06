@@ -30,6 +30,7 @@ import { CloseIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
 import { setColumn, SetRow } from './set-row';
+import type { TourAnchor } from './tutorial/tour';
 import type { SortHandle } from './sortable-list';
 
 const webNotesReset: TextStyle | null = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : null;
@@ -45,6 +46,8 @@ interface ExerciseBlockProps {
   drafts: DraftMap;
   /** Ids of completed sets in this card that beat a previous best. */
   recordIds: ReadonlySet<string>;
+  /** Where the tour points when it explains logging a set. */
+  setRowAnchor?: TourAnchor;
   /** Best level from history and from the numbers typed on this card. Null without a standard or a body profile. */
   strength: StrengthRating | null;
   superset: SupersetRole;
@@ -87,6 +90,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   unit,
   drafts,
   recordIds,
+  setRowAnchor,
   strength,
   superset,
   canLinkSuperset,
@@ -333,30 +337,39 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         {showSetup && exercise.previousSets.length === 0 ? (
           <Text style={styles.emptySetup}>No session on {formatMachineSetup(exercise.machineSetup)} yet</Text>
         ) : null}
-        {exercise.sets.map((set, index) => (
-          <SetRow
-            draft={drafts[set.id] ?? draftFromSet(set, unit)}
-            index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
-            isRecord={recordIds.has(set.id)}
-            key={set.id}
-            onApplyPrevious={onApplyPrevious}
-            cardio={cardio}
-            onChangeDistance={onChangeDistance}
-            onChangeDuration={onChangeDuration}
-            onChangeReps={onChangeReps}
-            onChangeRpe={onChangeRpe}
-            onChangeWeight={onChangeWeight}
-            onChangeSetType={onChangeSetType}
-            onDelete={onDeleteSet}
-            onToggleComplete={onToggleComplete}
-            order={orderBase + index * 10}
-            previous={previousForSet(exercise.sets, exercise.previousSets, index)}
-            showRpe={showRpe && !cardio}
-            showSetup={showSetup}
-            set={set}
-            unit={unit}
-          />
-        ))}
+        {exercise.sets.map((set, index) => {
+          const row = (
+            <SetRow
+              draft={drafts[set.id] ?? draftFromSet(set, unit)}
+              index={exercise.sets.slice(0, index).filter((item) => item.setType !== 'warmup').length}
+              isRecord={recordIds.has(set.id)}
+              onApplyPrevious={onApplyPrevious}
+              cardio={cardio}
+              onChangeDistance={onChangeDistance}
+              onChangeDuration={onChangeDuration}
+              onChangeReps={onChangeReps}
+              onChangeRpe={onChangeRpe}
+              onChangeWeight={onChangeWeight}
+              onChangeSetType={onChangeSetType}
+              onDelete={onDeleteSet}
+              onToggleComplete={onToggleComplete}
+              order={orderBase + index * 10}
+              previous={previousForSet(exercise.sets, exercise.previousSets, index)}
+              showRpe={showRpe && !cardio}
+              showSetup={showSetup}
+              set={set}
+              unit={unit}
+            />
+          );
+          // The first row is where the tour points; the wrapper only exists for it.
+          return index === 0 && setRowAnchor ? (
+            <View key={set.id} {...setRowAnchor}>
+              {row}
+            </View>
+          ) : (
+            <React.Fragment key={set.id}>{row}</React.Fragment>
+          );
+        })}
       </View>
       <View style={styles.footer}>
         <Pressable accessibilityRole="button" onPress={handleAdd} style={styles.add}>

@@ -11,6 +11,8 @@ import { BadgeGlyph } from '../../components/badge-icons';
 import { Header, IconButton, TextButton } from '../../components/header';
 import { CloseIcon, ShareIcon } from '../../components/icons';
 import { Screen } from '../../components/screen';
+import { TourOverlay } from '../../components/tutorial/tour-overlay';
+import { useTour } from '../../components/tutorial/tour';
 import { getWorkoutRecap, unfinishWorkout, type WorkoutRecap } from '../../data/repository';
 import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/store';
 import { formatCardioEffort, formatSessionLoad } from '../../domain/cardio';
@@ -33,6 +35,10 @@ export const WorkoutCompleteScreen: React.FC = () => {
   const { unit } = useWeightUnit();
   const recap = useStored(getWorkoutRecap, route.params.workoutId);
   const [recordsOpen, setRecordsOpen] = useState(false);
+  const { signal } = useTour();
+  useEffect(() => {
+    signal('workout-finished');
+  }, [signal]);
 
   const handleDone = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -110,6 +116,7 @@ export const WorkoutCompleteScreen: React.FC = () => {
           </Text>
         </Pressable>
       ) : null}
+      <TourOverlay bottomInset screen="WorkoutComplete" />
     </Screen>
   );
 };

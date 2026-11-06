@@ -21,6 +21,7 @@ import './profile.test';
 import './rest.test';
 import './stats.test';
 import './strength.test';
+import './tutorial.test';
 import './units.test';
 import './whats-new.test';
 import './workout-edits.test';

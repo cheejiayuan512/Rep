@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
@@ -16,7 +16,7 @@ import { bootFailed, bootstrapped, tutorialClosed, useAppDispatch, useAppSelecto
 import { HistoryIcon, ProfileIcon, ProgressIcon, WorkoutIcon } from '../components/icons';
 import { getInProgressWorkoutId, getSettings, getWorkout, saveSeenWhatsNewId, saveTutorialSeen } from '../data/repository';
 import { syncHomeWidget } from '../components/home-widget-sync';
-import { TutorialModal } from '../components/tutorial-modal';
+import { TourProvider } from '../components/tutorial/tour';
 import { WhatsNewModal } from '../components/whats-new-modal';
 import { DEFAULT_WHATS_NEW_URL, fetchWhatsNew, shouldShowWhatsNew, type WhatsNewNotice } from '../domain/whats-new';
 import { flushDatabase, initDatabase } from '../data/database';
@@ -43,6 +43,7 @@ import { navigationTheme, type RootStackParamList, type TabParamList } from './t
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function renderWorkoutIcon({ color, size }: { color: string; size: number }) {
   return <WorkoutIcon color={color} size={size} />;
@@ -141,6 +142,15 @@ export const RootNavigator: React.FC = () => {
     dispatch(tutorialClosed());
     void saveTutorialSeen(true);
   }, [dispatch]);
+
+  // Opened again from Profile: start the tour on the tab whose first step it describes.
+  useEffect(() => {
+    if (!tutorialOpen || !navigationRef.isReady()) {
+      return;
+    }
+    navigationRef.navigate('Tabs', { screen: 'Workout' });
+  }, [tutorialOpen]);
+
   const closeWhatsNew = useCallback(() => {
     const notice = whatsNew;
     setWhatsNew(null);
@@ -215,29 +225,30 @@ export const RootNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      {tutorialOpen ? <TutorialModal onClose={closeTutorial} /> : null}
-      {!tutorialOpen && whatsNew ? <WhatsNewModal notice={whatsNew} onClose={closeWhatsNew} /> : null}
-      <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
-        <Stack.Screen component={Tabs} name="Tabs" />
-        <Stack.Screen
-          component={ActiveWorkoutScreen}
-          name="ActiveWorkout"
-          options={{ animation: 'slide_from_bottom', gestureEnabled: true, presentation: 'fullScreenModal' }}
-        />
-        <Stack.Screen component={RoutinesScreen} name="Routines" />
-        <Stack.Screen component={ExercisesScreen} name="Exercises" />
-        <Stack.Screen component={ExercisePickerScreen} name="ExercisePicker" />
-        <Stack.Screen component={RoutineEditorScreen} name="RoutineEditor" />
-        <Stack.Screen component={WorkoutDetailScreen} name="WorkoutDetail" />
-        <Stack.Screen component={ExerciseProgressScreen} name="ExerciseProgress" />
-        <Stack.Screen component={ExerciseEditorScreen} name="ExerciseEditor" />
-        <Stack.Screen component={AnalysisScreen} name="Analysis" />
-        <Stack.Screen component={OneRepMaxScreen} name="OneRepMax" />
-        <Stack.Screen component={WorkoutCompleteScreen} name="WorkoutComplete" options={{ animation: 'fade_from_bottom', gestureEnabled: false }} />
-        <Stack.Screen component={StrengthLevelsScreen} name="StrengthLevels" />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <TourProvider onClose={closeTutorial} open={tutorialOpen}>
+      <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+        {!tutorialOpen && whatsNew ? <WhatsNewModal notice={whatsNew} onClose={closeWhatsNew} /> : null}
+        <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
+          <Stack.Screen component={Tabs} name="Tabs" />
+          <Stack.Screen
+            component={ActiveWorkoutScreen}
+            name="ActiveWorkout"
+            options={{ animation: 'slide_from_bottom', gestureEnabled: true, presentation: 'fullScreenModal' }}
+          />
+          <Stack.Screen component={RoutinesScreen} name="Routines" />
+          <Stack.Screen component={ExercisesScreen} name="Exercises" />
+          <Stack.Screen component={ExercisePickerScreen} name="ExercisePicker" />
+          <Stack.Screen component={RoutineEditorScreen} name="RoutineEditor" />
+          <Stack.Screen component={WorkoutDetailScreen} name="WorkoutDetail" />
+          <Stack.Screen component={ExerciseProgressScreen} name="ExerciseProgress" />
+          <Stack.Screen component={ExerciseEditorScreen} name="ExerciseEditor" />
+          <Stack.Screen component={AnalysisScreen} name="Analysis" />
+          <Stack.Screen component={OneRepMaxScreen} name="OneRepMax" />
+          <Stack.Screen component={WorkoutCompleteScreen} name="WorkoutComplete" options={{ animation: 'fade_from_bottom', gestureEnabled: false }} />
+          <Stack.Screen component={StrengthLevelsScreen} name="StrengthLevels" />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </TourProvider>
   );
 };
 

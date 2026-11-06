@@ -32,6 +32,8 @@ import { DEFAULT_WORKOUT_NAME, isDefaultWorkoutName } from '../../domain/workout
 import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../domain/rest';
 import { Screen } from '../../components/screen';
 import { QuickAdd } from '../../components/quick-add';
+import { TourOverlay } from '../../components/tutorial/tour-overlay';
+import { useTour, useTutorialTarget } from '../../components/tutorial/tour';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
 import {
   detectRecords,
@@ -195,6 +197,23 @@ const ActiveWorkoutBody: React.FC = () => {
     return { history, workout: loaded };
   });
   const [workout, setWorkout] = useState<WorkoutDetail | null>(initial.workout);
+  const { signal } = useTour();
+  const quickAddAnchor = useTutorialTarget('workout-quick-add');
+  const firstSetAnchor = useTutorialTarget('workout-first-set');
+  const finishAnchor = useTutorialTarget('workout-finish');
+  const exerciseCount = workout?.exercises.length ?? 0;
+  const addedRef = useRef(initial.workout?.exercises.length ?? 0);
+  // The tour follows the session instead of asking the user to press Next. Only a
+  // real action moves it: a card added, a number typed, a set checked, a finish.
+  useEffect(() => {
+    signal('workout-open');
+  }, [signal]);
+  useEffect(() => {
+    if (exerciseCount > addedRef.current) {
+      signal('exercise-added');
+    }
+    addedRef.current = exerciseCount;
+  }, [exerciseCount, signal]);
   const [drafts, setDrafts] = useState<DraftMap>(() =>
     initial.workout
       ? mergeDrafts(
@@ -577,11 +596,12 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { weightText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
+      signal('set-typed');
       if (located.set.setType === 'warmup') {
         scheduleWarmupOrder(located.exercise.id);
       }
     },
-    [queueSave, readSetNumbers, scheduleWarmupOrder],
+    [queueSave, readSetNumbers, scheduleWarmupOrder, signal],
   );
 
   const handleChangeReps = useCallback(
@@ -601,8 +621,9 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { repsText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
+      signal('set-typed');
     },
-    [queueSave, readSetNumbers],
+    [queueSave, readSetNumbers, signal],
   );
 
   const handleChangeRpe = useCallback(
@@ -742,6 +763,7 @@ const ActiveWorkoutBody: React.FC = () => {
       if (!completed) {
         return;
       }
+      signal('set-completed');
       void hapticSuccess();
       if (editingRef.current) {
         return;
@@ -775,7 +797,7 @@ const ActiveWorkoutBody: React.FC = () => {
         void hapticSuccess();
       }
     },
-    [applyRest, clearPending, readSetNumbers],
+    [applyRest, clearPending, readSetNumbers, signal],
   );
 
   const handleToggleCompleteRef = useRef(handleToggleComplete);
@@ -1341,7 +1363,11 @@ const ActiveWorkoutBody: React.FC = () => {
                   title="Empty workout"
                 />
               ) : null}
-              {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
+              {workout && workout.exercises.length === 0 && !editing ? (
+                <View {...quickAddAnchor}>
+                  <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} />
+                </View>
+              ) : null}
               {workout && workout.exercises.length > 0 ? (
                 <SortableList
                   items={workout.exercises}
@@ -1380,6 +1406,7 @@ const ActiveWorkoutBody: React.FC = () => {
                         ) * 1000
                       }
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
+                      setRowAnchor={exercise.id === workout.exercises[0]?.id ? firstSetAnchor : undefined}
                       strength={strengthByCard.get(exercise.id) ?? null}
                       canLinkSuperset={workout.exercises[workout.exercises.length - 1]?.id !== exercise.id}
                       superset={supersetRole(workout.exercises, exercise.id)}
@@ -1401,6 +1428,7 @@ const ActiveWorkoutBody: React.FC = () => {
       <LogPad />
       {!missing && !editing && !restEndsAt ? (
         <View
+          {...finishAnchor}
           style={[
             styles.finishBar,
             {
@@ -1462,6 +1490,7 @@ const ActiveWorkoutBody: React.FC = () => {
         title={confirm?.title ?? ''}
         visible={confirm != null}
       />
+      <TourOverlay bottomInset hidden={pad.open || editing} screen="ActiveWorkout" />
     </Screen>
   );
 };
