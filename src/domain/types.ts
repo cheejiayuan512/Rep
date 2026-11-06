@@ -148,6 +148,8 @@ export interface WorkoutExercise {
   supersetId: string | null;
   sets: SetRecord[];
   previousSets: PreviousSet[];
+  /** The last finished session's note for this exercise, when it had one. */
+  previousNotes?: string | null;
 }
 
 export interface WorkoutDetail {

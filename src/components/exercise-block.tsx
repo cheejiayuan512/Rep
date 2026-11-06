@@ -26,6 +26,7 @@ import type { StrengthRating } from '../domain/strength';
 import { colors } from '../theme/colors';
 import { type } from '../theme/typography';
 import { StrengthMark } from './strength-mark';
+import { ExerciseAnimation } from './exercise-animation';
 import { CloseIcon, SwapIcon } from './icons';
 import { keyboardDoneId } from './keyboard-done-bar';
 import { MachineSetupChoices } from './machine-setup-choices';
@@ -213,6 +214,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         >
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
           <View style={styles.nameRow}>
+            <ExerciseAnimation exerciseId={exercise.exerciseId} name={exercise.name} size={32} />
             <Text numberOfLines={1} style={styles.name}>
               {exercise.name}
             </Text>
@@ -316,6 +318,11 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
         textAlignVertical="top"
         value={exercise.notes}
       />
+      {exercise.previousNotes && exercise.previousNotes !== exercise.notes ? (
+        <Text numberOfLines={3} style={styles.previousNotes}>
+          Last time: {exercise.previousNotes}
+        </Text>
+      ) : null}
       <View style={styles.table}>
         <View style={styles.columns}>
           <Text style={[styles.column, styles.setCol]}>SET</Text>
@@ -547,6 +554,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     minHeight: 22,
     padding: 0,
+  },
+  previousNotes: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
   },
   option: {
     backgroundColor: colors.surfaceRaised,

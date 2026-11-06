@@ -5,7 +5,7 @@
  * See docs/tour.md for the full path.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -178,6 +178,7 @@ const ActiveWorkoutBody: React.FC = () => {
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const pad = useLogPadLayout();
+  const { dismiss: dismissPad, open: padOpen } = pad;
   const { unit } = useWeightUnit();
   const { body } = useBodyProfile();
   const strengthOverview = useStrengthOverview();
@@ -512,6 +513,26 @@ const ActiveWorkoutBody: React.FC = () => {
     }
     navigation.navigate('Tabs');
   }, [flushPending, navigation]);
+
+  // Android: back closes the pad or the keyboard first, so one tap at the gym
+  // does not throw away the workout screen.
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (padOpen) {
+        dismissPad();
+        return true;
+      }
+      if (Keyboard.isVisible()) {
+        Keyboard.dismiss();
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [dismissPad, padOpen]);
 
   useEffect(() => {
     return navigation.addListener('beforeRemove', () => {

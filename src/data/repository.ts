@@ -1898,11 +1898,32 @@ function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workou
     name: exercise.name,
     notes: row.notes ?? '',
     position: row.position,
+    previousNotes: lastNotesFor(db, row.exerciseId, workoutId),
     previousSets: previous,
     supersetId: row.supersetId,
     restSeconds: row.restSeconds ?? null,
     sets,
   };
+}
+
+/** The most recent note written for this exercise in an earlier finished workout. */
+function lastNotesFor(db: DatabaseShape, exerciseId: string, workoutId: string): string | null {
+  const index = indexOf(db);
+  let latest: { at: number; notes: string } | null = null;
+  for (const row of index.rowsByExercise.get(exerciseId) ?? []) {
+    const notes = row.notes.trim();
+    if (row.workoutId === workoutId || notes === '') {
+      continue;
+    }
+    const workout = index.workoutsById.get(row.workoutId);
+    if (!workout || workout.finishedAt == null) {
+      continue;
+    }
+    if (!latest || workout.finishedAt > latest.at) {
+      latest = { at: workout.finishedAt, notes };
+    }
+  }
+  return latest?.notes ?? null;
 }
 
 /** The rest picked for this exercise in the latest workout that set one. */

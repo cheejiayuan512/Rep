@@ -95,6 +95,7 @@ export function useLogPadLayout(): {
   height: number;
   scrollRef: React.RefObject<ScrollViewInstance | null>;
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  dismiss: () => void;
 } {
   const pad = useLogPad();
   return {
@@ -104,6 +105,7 @@ export function useLogPadLayout(): {
     onScroll: pad.onScroll,
     open: pad.activeId != null,
     scrollRef: pad.scrollRef,
+    dismiss: pad.dismiss,
   };
 }
 

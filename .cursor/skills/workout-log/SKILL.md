@@ -12,7 +12,7 @@ Rep is local-only. There is no account, feed, or server.
 
 ## Card
 
-One exercise is one card (`src/components/exercise-block.tsx`).
+One exercise is one card (`src/components/exercise-block.tsx`). The card shows the Workout Guide drawing beside the name, and a muted **Last time:** line under the notes when that exercise had a note in an earlier finished session. Notes themselves start blank each session.
 
 - Tap the exercise name on a workout card, or on a finished workout, to open every finished set of that exercise, newest session first. Warmups, drop sets, and failure sets are included. An in-progress workout is not. A machine or cable card opens the history for that stack.
 - Notes: plain multiline text on the exercise (same idea as the workout title), max 500 characters. Placeholder “Notes”; no pencil or closed toggle.
@@ -25,7 +25,7 @@ One exercise is one card (`src/components/exercise-block.tsx`).
 - Drag the three dots on a card to reorder, same as a routine. Screen readers get Move up / Move down.
 - The Rest chip sets `WorkoutExercise.restSeconds` from a list of durations (no Default chip or subtitle). Null still uses the exercise's default from `src/domain/rest.ts`: heavy compound 3:00, compound 2:00, isolation 1:30, calves/core 1:00, classed by seed id, then name keywords and equipment. A new workout copies the last rest picked for that exercise.
 - Warmup sets rest `exercise rest × (m + (1 − m) × ratio²)`, where `m` is `settings.warmupRestMultiplier` (¼, ½, ¾, 1; default ½) and `ratio` is `warmupLoadRatio`: the warmup's kg over the heaviest working set on the card, or last session's when none is entered. Rounded to 5 s, at least 15 s. The multiplier is one app-wide setting, changed only from Profile.
-- The workout opens as a full-screen modal. The down chevron or a downward swipe leaves it in progress. **Discard** sits under the cards and deletes the session. **Finish** is a primary button in the bottom thumb zone (hidden while resting). Finish discards too when no set is checked off with reps, or with a cardio time or distance.
+- The workout opens as a full-screen modal. The down chevron or a downward swipe leaves it in progress. On Android the system back closes the log pad or the keyboard first, so it does not leave the workout by accident. **Discard** sits under the cards and deletes the session. **Finish** is a primary button in the bottom thumb zone (hidden while resting). Finish discards too when no set is checked off with reps, or with a cardio time or distance.
 - **Superset with next** on a card groups it with the following exercise. Rest starts after the last exercise of that round, then the next open set is the partner's. Drag still reorders.
 - The workout title is plain large text you tap to edit (no pencil or hint). The default name **Workout** is muted. Leaving it as that means it was not named. Finish then names it from the start time and the muscles that were worked: Morning, Afternoon, Evening, or Night, then up to three muscles (`Evening Chest and Back`). Four or more muscles become Full body. A typed name, including a routine's name, stays.
 - Finish replaces the workout screen with `WorkoutComplete` (`src/features/workout/workout-complete-screen.tsx`), built from `getWorkoutRecap`: stars, session count, duration, volume, best sets, PRs, XP before and after, and badges whose tier went up. Close leaves. **Undo finish** and **View workout** are quiet text. Undo finish reopens the session.
