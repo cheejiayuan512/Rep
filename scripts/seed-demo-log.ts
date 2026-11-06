@@ -390,9 +390,9 @@ function buildWorkouts(): PlannedWorkout[] {
     exercises: [
       {
         exerciseId: 'barbell-bench-press',
-        notes: 'Screenshot session',
+        notes: 'Paused reps',
         restSeconds: 180,
-        sets: [warmup(40, 8), warmup(70, 5), working(100, 6, 7.5), working(100, 6, null), working(100, 6, null)],
+        sets: [warmup(40, 8), warmup(70, 5), working(110, 6, 7.5), working(110, 6, null), working(110, 6, null)],
       },
       {
         exerciseId: 'incline-dumbbell-press',

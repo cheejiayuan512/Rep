@@ -1,0 +1,11 @@
+{
+  "intro": "Rep is a workout tracker and gym log for strength training: log each set, save your routines, and keep the personal records that show you getting stronger.",
+  "paragraphs": [
+    "Each exercise is one card. Enter the weight and reps, add a note when the session needs one, and turn on RPE if you use it. Mark a set as a warm-up, a drop, or a failure. Warm-ups stay out of your volume, your charts, and your records. After a set, the Lock Screen shows the rest countdown, the next set, and Done.",
+    "Build a routine the same way you log a workout. Order the exercises, then start it and those sets are copied into the session.",
+    "History keeps every finished workout. Open one to review the exercises, notes, and sets, edit it, or duplicate it. Import a CSV from Hevy and/or Strong, and export your own log as a CSV whenever you want a copy.",
+    "Progress keeps a personal record and a chart for every exercise you have trained. Check an estimated 1RM, see a strength level for your bodyweight, age, and sex, and follow the work over time. Profile shows a weekly chart, a training level, and badges for the work you have already done. Add a custom exercise from the library when the built-in list does not have your lift.",
+    "Switch between kilograms and pounds whenever you like. Rep shows the unit you picked and stores every weight in kilograms."
+  ],
+  "outro": "Rep is for phones and tablets."
+}

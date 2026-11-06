@@ -1,0 +1,16 @@
+{
+  "backdrop-phone.png": {
+    "at": "2026-11-05T03:52:12.013Z",
+    "hash": "aac3a0e055fb5a2f7771467b3f62205baf7428fd7f9216ae6add483464dc857e",
+    "prompt": "empty room, steel squat rack frame, stack of round weight plates on a rubber floor, one overhead light beam, fog, deep black shadows, out of focus, cinematic, vertical composition",
+    "seed": 33,
+    "steps": 28
+  },
+  "backdrop-tablet.png": {
+    "at": "2026-11-05T03:52:18.755Z",
+    "hash": "de377c5739bda894f3eb3dda028b946daa1df5e3a6c8c6cdb54ce780f8da1b43",
+    "prompt": "empty room, steel squat rack frame, stack of round weight plates on a rubber floor, one overhead light beam, fog, deep black shadows, out of focus, cinematic, vertical composition",
+    "seed": 33,
+    "steps": 28
+  }
+}

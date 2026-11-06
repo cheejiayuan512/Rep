@@ -43,39 +43,29 @@ Do not set `track` to `production`. Promoting to the public Play track stays a P
 
 ## Tag workflow
 
-Add this only after credentials exist and the GitHub repo is connected to the Expo project. Trigger on version tags, not on `master`.
+`.eas/workflows/release.yml` is the tag workflow. It builds both platforms with the `production` profile, then submits iOS to TestFlight and Android to the internal track. Trigger on version tags, not on `master`. Run it by hand with `npx eas-cli@latest workflow:run release.yml`.
 
-```yaml
-name: Release
+It needs two things set up once:
 
-on:
-  push:
-    tags: ['v*']
+- The GitHub repo connected to the Expo project, so a tag push starts the run.
+- The App Store Connect API key and the Play service account key assigned to the app in Expo. `eas.json` points its key paths at `$EXPO_ASC_API_KEY_PATH` and `$GOOGLE_SERVICE_ACCOUNT_KEY_PATH`; on Expo workers those variables are unset, so the paths resolve to empty and Expo Submit falls back to the key assigned to the app. Assign them with `eas credentials --platform ios` and `eas credentials --platform android`.
 
-jobs:
-  build_android:
-    type: build
-    params:
-      platform: android
-      profile: production
-  build_ios:
-    type: build
-    params:
-      platform: ios
-      profile: production
-  submit_android:
-    needs: [build_android]
-    type: submit
-    params:
-      build_id: ${{ needs.build_android.outputs.build_id }}
-  submit_ios:
-    needs: [build_ios]
-    type: submit
-    params:
-      build_id: ${{ needs.build_ios.outputs.build_id }}
+Release with:
+
+```bash
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
-Save it as `.eas/workflows/release.yml`. Release with `git tag v1.0.1` and `git push origin v1.0.1`.
+## Listing and screenshots
+
+The tag workflow ends with a `store_listing` job. After both submits succeed it installs Chromium, runs `npm run assets:if-changed`, `npm run copy:write`, and `npm run upload:if-changed`. A failed build never touches the store page.
+
+It reads four variables from the `production` environment: `EXPO_ASC_API_KEY`, `EXPO_ASC_KEY_ID`, `EXPO_ASC_ISSUER_ID`, and `GOOGLE_SERVICE_ACCOUNT_KEY`. The two keys are secret file variables, created with `eas env:create production --name EXPO_ASC_API_KEY --value <path to .p8> --type file --visibility secret`. They are already set for this project.
+
+The screenshots it uploads are the committed PNGs unless the app source moved since they were made. `store-assets/manifest.json` holds a content hash, so a clean CI checkout still matches. Run `npm run assets` before tagging when you have changed the UI, so the frames you reviewed are the ones that ship.
+
+`npm run upload:apply` on this computer does the same thing without a tag. Use it when only the copy changed.
 
 Do not add the Expo "deploy to production" example that fingerprints `main` and publishes an over-the-air update. EAS Update is out of scope until a store binary is already in testers' hands.
 

@@ -9,8 +9,8 @@ import { AppState, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { completeOptions, createStack, stackOptions, workoutOptions } from './stack-config';
 
 import { bootFailed, bootstrapped, tutorialClosed, useAppDispatch, useAppSelector } from '../state/store';
 import { HistoryIcon, ProfileIcon, ProgressIcon, WorkoutIcon } from '../components/icons';
@@ -41,7 +41,11 @@ import { StrengthLevelsScreen } from '../features/progress/strength-levels-scree
 import { colors } from '../theme/colors';
 import { navigationTheme, type RootStackParamList, type TabParamList } from './types';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+/**
+ * The stack, its transitions, and the web build's JS-stack fallback live in
+ * stack-config so that module can pick a different navigator per platform.
+ */
+const Stack = createStack();
 const Tab = createBottomTabNavigator<TabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -231,13 +235,9 @@ export const RootNavigator: React.FC = () => {
     <TourProvider onClose={closeTutorial} open={tutorialOpen} restartKey={tutorialRestart}>
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         {!tutorialOpen && whatsNew ? <WhatsNewModal notice={whatsNew} onClose={closeWhatsNew} /> : null}
-        <Stack.Navigator screenOptions={{ animation: 'slide_from_right', contentStyle: { backgroundColor: colors.bg }, headerShown: false }}>
+        <Stack.Navigator screenOptions={stackOptions}>
           <Stack.Screen component={Tabs} name="Tabs" />
-          <Stack.Screen
-            component={ActiveWorkoutScreen}
-            name="ActiveWorkout"
-            options={{ animation: 'slide_from_bottom', gestureEnabled: true, presentation: 'fullScreenModal' }}
-          />
+          <Stack.Screen component={ActiveWorkoutScreen} name="ActiveWorkout" options={workoutOptions} />
           <Stack.Screen component={RoutinesScreen} name="Routines" />
           <Stack.Screen component={ExercisesScreen} name="Exercises" />
           <Stack.Screen component={ExercisePickerScreen} name="ExercisePicker" />
@@ -247,7 +247,7 @@ export const RootNavigator: React.FC = () => {
           <Stack.Screen component={ExerciseEditorScreen} name="ExerciseEditor" />
           <Stack.Screen component={AnalysisScreen} name="Analysis" />
           <Stack.Screen component={OneRepMaxScreen} name="OneRepMax" />
-          <Stack.Screen component={WorkoutCompleteScreen} name="WorkoutComplete" options={{ animation: 'fade_from_bottom', gestureEnabled: false }} />
+          <Stack.Screen component={WorkoutCompleteScreen} name="WorkoutComplete" options={completeOptions} />
           <Stack.Screen component={StrengthLevelsScreen} name="StrengthLevels" />
         </Stack.Navigator>
       </NavigationContainer>

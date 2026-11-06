@@ -70,7 +70,7 @@ export const WorkoutCompleteScreen: React.FC = () => {
     const lines = [
       workout.name,
       formatLongDate(workout.startedAt),
-      `${formatDuration(workout.startedAt, workout.finishedAt)} · ${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} · ${workout.recordCount} PRs`,
+      `${formatDuration(workout.startedAt, workout.finishedAt)} · ${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)} · ${prCount(workout.recordCount)}`,
       ...recap.exercises.map((exercise) => {
         const best = exercise.best
           ? formatLoggedLoad(exercise.best.weightKg, exercise.best.reps, unit)
@@ -139,7 +139,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
         <View style={styles.metrics}>
           <Metric label={formatDuration(workout.startedAt, workout.finishedAt)} />
           <Metric label={`${workout.volumeRecord ? '★ ' : ''}${formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}`} />
-          <Metric label={`${workout.recordCount} PRs`} />
+          <Metric label={`${workout.recordCount} ${workout.recordCount === 1 ? 'PR' : 'PRs'}`} />
         </View>
         <View style={styles.tableHead}>
           <Text style={styles.tableLabel}>Exercise</Text>
@@ -204,6 +204,10 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
     </View>
   );
 };
+
+function prCount(count: number): string {
+  return `${count} ${count === 1 ? 'PR' : 'PRs'}`;
+}
 
 function upgradedBadges(before: ProfileBadge[], after: ProfileBadge[]): ProfileBadge[] {
   const rank = { expert: 3, locked: 0, novice: 1, regular: 2 } as const;

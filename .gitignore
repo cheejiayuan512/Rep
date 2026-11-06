@@ -48,3 +48,8 @@ mcp-shell.log
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Generated store screenshots (raw captures only; the PNGs are committed)
+/store-assets/.cache/
+# Raw screen recording; walkthrough.mp4 is committed
+/store-assets/video/.raw/

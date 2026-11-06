@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+jobs:
+  build_android:
+    name: Build Android
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  build_ios:
+    name: Build iOS
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_android:
+    name: Submit to Play internal testing
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: production
+
+  submit_ios:
+    name: Submit to TestFlight
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+
+  # Screenshots, Play art, and the listing text. Runs last, so a tag that fails
+  # to build never changes what shoppers see.
+  #
+  # The credentials are Expo environment variables in the `production`
+  # environment, not files in the repo: EXPO_ASC_API_KEY (the .p8),
+  # EXPO_ASC_KEY_ID, EXPO_ASC_ISSUER_ID, and GOOGLE_SERVICE_ACCOUNT_KEY (the
+  # service account JSON). Create them with `eas env:create`; see the
+  # store-release skill.
+  store_listing:
+    name: Store listing and screenshots
+    needs: [submit_ios, submit_android]
+    environment: production
+    runs_on: linux-medium
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      # The release notes are the commits since the previous tag, so the tag
+      # history has to be there even when the checkout is shallow.
+      - name: Fetch tags
+        run: git fetch --tags --force
+      - name: Reframe the screenshots
+        run: npm run assets:if-changed
+      - name: Write the description and release notes
+        run: npm run copy:write
+      - name: Push the listing to both stores
+        run: npm run upload:if-changed

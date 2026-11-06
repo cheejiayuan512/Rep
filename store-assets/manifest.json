@@ -1,0 +1,250 @@
+{
+  "appVersion": "1.6.0",
+  "generatedAt": "2026-11-06T09:22:46.596Z",
+  "outputs": [
+    {
+      "configHash": "165caea45b2a0492783d6a9e7437e7bf20ea291638d5bd53353449226e3f9a12",
+      "device": "android-phone",
+      "file": "android/phone/05-analysis.png",
+      "height": 1920,
+      "rawHash": "810e88b42c7aadc33b07e28491357eacc9a333cf4af2a2c87e07f88c2420ce91",
+      "shot": "analysis",
+      "width": 1080
+    },
+    {
+      "configHash": "cc23adddf725e3782f2916c4b7574fb145a049531090d2a80034d4c725053b19",
+      "device": "android-phone",
+      "file": "android/phone/03-finish.png",
+      "height": 1920,
+      "rawHash": "381d029646f91ec40113721f9b6b7a2e4f8b408692737f00cd8a64449600b4b1",
+      "shot": "finish",
+      "width": 1080
+    },
+    {
+      "configHash": "440f7f3462ad99fd6eb2e7ad65ce5eac0040a3ee2ad45ea4978eab63806599aa",
+      "device": "android-phone",
+      "file": "android/phone/04-history.png",
+      "height": 1920,
+      "rawHash": "b747276b4d31ccc421beaf290e6ccb944fd6ea77665d9316455a5d154f2d850c",
+      "shot": "history",
+      "width": 1080
+    },
+    {
+      "configHash": "595737ad2766a36d399e942fee75027b59d7922eb1fafd0911a875b26961c989",
+      "device": "android-phone",
+      "file": "android/phone/01-home.png",
+      "height": 1920,
+      "rawHash": "4694c2ad5d6c5fe61b47ee5aeb2e0339e8013cab30388fdd27b2fb9e95d24f2d",
+      "shot": "home",
+      "width": 1080
+    },
+    {
+      "configHash": "69c6476ffe43a7c9b22a8a2cc0f6c0ff557783defe0bd5da7a8c319e92d3293a",
+      "device": "android-phone",
+      "file": "android/phone/07-library.png",
+      "height": 1920,
+      "rawHash": "f23e9b53d6773d4de17621b40baa006339e0cf413629b1416bab31ac02e82a9d",
+      "shot": "library",
+      "width": 1080
+    },
+    {
+      "configHash": "98d81f9528d18d19b0d4ef325d00540807d81f94d5878f64308768eec2ad0a27",
+      "device": "android-phone",
+      "file": "android/phone/02-log.png",
+      "height": 1920,
+      "rawHash": "3d772c013af55077df9e8afe1633b143d133c8df2731bfd4e818112df6921fa4",
+      "shot": "log",
+      "width": 1080
+    },
+    {
+      "configHash": "938220a3a0c89880df6b978fb9fcc9289daeb0be6cf1f8137937c451de0b56db",
+      "device": "android-phone",
+      "file": "android/phone/08-onerm.png",
+      "height": 1920,
+      "rawHash": "05e0bf63f13ae465a966895f81147f5d01febbd93f77197968dd74f95934bd21",
+      "shot": "onerm",
+      "width": 1080
+    },
+    {
+      "configHash": "edeafe6385430c969b3d859b17f10a81132db57f09f78f6b680993e2eecac035",
+      "device": "android-phone",
+      "file": "android/phone/06-profile.png",
+      "height": 1920,
+      "rawHash": "29c3cd8b44d4ce02812f4e25b5eeee043683d70a41d32f0570a11acc7dfda63f",
+      "shot": "profile",
+      "width": 1080
+    },
+    {
+      "configHash": "b9ddebce903f457b5ee8096ed2a8183fec6f9a2a186df017b5801f8386d7f545",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/03-analysis.png",
+      "height": 2752,
+      "rawHash": "84aef26b788bf2723766e75300318ae85806591d286aa8b663f9984c166ce4a6",
+      "shot": "analysis",
+      "width": 2064
+    },
+    {
+      "configHash": "ea674705e087b2225b75b3ef75c545da2144cef4bb9d4f313aa7e7309599447b",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/02-detail.png",
+      "height": 2752,
+      "rawHash": "c44e5f59a76867835f44e845be0fa9841af90be5c85c47a947cfa3148eb6c3fd",
+      "shot": "detail",
+      "width": 2064
+    },
+    {
+      "configHash": "24b970b48e90f1b8a78e84406d3a8c5729425074ff7a173f5d4668ec5b4549bd",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/01-history.png",
+      "height": 2752,
+      "rawHash": "f1f69f6c7c536f6097273951f8d173fcd9df9f84839f1ecfa3acf747dc7954c1",
+      "shot": "history",
+      "width": 2064
+    },
+    {
+      "configHash": "ee88f5e19a3559eed67750ff3baa3dcd48f1c47283ee12005fcf51ec21d80325",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/01-home.png",
+      "height": 2752,
+      "rawHash": "d50f1d64988244cf402335ceaf965aff705bf0c36b8a3f6be715b7270acf1f28",
+      "shot": "home",
+      "width": 2064
+    },
+    {
+      "configHash": "11aabbb3f5db4f9b33bf9c1e257446ae50d4419b63335a51ecf8ae2ed51cd0c7",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/07-library.png",
+      "height": 2752,
+      "rawHash": "ce3b349dd98991c5953b88c30adafbe72b300702af81840e4ba6bc0bcdcfc635",
+      "shot": "library",
+      "width": 2064
+    },
+    {
+      "configHash": "4ff9c6f1254e6c58975fb92633ab2aeb4bdefad47c4777b492baee8cce936dc1",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/06-profile.png",
+      "height": 2752,
+      "rawHash": "fbd0e752ea600e99209d5c0b8ae7d3a786e14bd8426aa01d8a82250976e0553f",
+      "shot": "profile",
+      "width": 2064
+    },
+    {
+      "configHash": "dd3155fd76949f2230196163cacd9e8f4c532eca7c6064fcc8aee27332cbcd97",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/04-progress.png",
+      "height": 2752,
+      "rawHash": "adae934c7a37bdab720322d9198f535930997916eb45146bce1eef60b924607e",
+      "shot": "progress",
+      "width": 2064
+    },
+    {
+      "configHash": "ab9bd1a432c181b60c410e1ac273dffc90d4681e4fa22cfd5798dbb2485677a8",
+      "device": "ipad-13",
+      "file": "ios/ipad-13/05-strength.png",
+      "height": 2752,
+      "rawHash": "7914a079ddfa3fbad68dd498cc0980b06091cdb052caa8a8ccf69e7eadcff271",
+      "shot": "strength",
+      "width": 2064
+    },
+    {
+      "configHash": "001095bdb2b2a4cde209e329521c458ccce20e3cb72e28775cfa0a44246f0fbc",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/06-analysis.png",
+      "height": 2868,
+      "rawHash": "fcce6c6d440624373c16b05c2fcb54b25e11190fc3a0e97030cd826c5f21d559",
+      "shot": "analysis",
+      "width": 1320
+    },
+    {
+      "configHash": "712f2ff4f9ae35ad17e85fcf60ba5cb05884b13dfa43a25fc17d288cd9676772",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/05-detail.png",
+      "height": 2868,
+      "rawHash": "3eaefdabebb3104c9b8692560212b6bcedb6fae42305331d9bd243f4c19c81c8",
+      "shot": "detail",
+      "width": 1320
+    },
+    {
+      "configHash": "2afe950fef5dee510f63d5673304de3ee32da857c2e89b22258fa6944f42862a",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/03-finish.png",
+      "height": 2868,
+      "rawHash": "e8995d76493a8546884beb3a0a311a062e4291cd40f6429cfb86df864bc00f8b",
+      "shot": "finish",
+      "width": 1320
+    },
+    {
+      "configHash": "6926cd9463b1fc5ac4789f54633cc562039bdd590b8f967b527f621d2980b914",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/04-history.png",
+      "height": 2868,
+      "rawHash": "468e51c41c296d0fcaa8976b293908630feb7c0526a6555f8d18ed3f9ec75ac5",
+      "shot": "history",
+      "width": 1320
+    },
+    {
+      "configHash": "910d3b493bfccf59dbb3d74b065da4a97d692134e37415cbe1c646a9279bfc57",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/01-home.png",
+      "height": 2868,
+      "rawHash": "e166950ec0bea218d8483a605779792d3b8ff8881bfb773c2c7bc78c0db3bce2",
+      "shot": "home",
+      "width": 1320
+    },
+    {
+      "configHash": "ed1c2bb501164d9642a2155f7e22cf995b5768c1e4e1dee38e83bd2d05542f7a",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/10-library.png",
+      "height": 2868,
+      "rawHash": "85b3ecf2c4cfb36456b83f49fd8b64d5b31865aa3daf3374ead5b3d5fa20aebc",
+      "shot": "library",
+      "width": 1320
+    },
+    {
+      "configHash": "4fb84a89dc0f9ac548a5bd767bb878b9289d711f4ec33f7c7caadb825e7e6f9d",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/02-log.png",
+      "height": 2868,
+      "rawHash": "95bb28106b9d141970b83838ad1932c848836db022f992a7a52730d86c4eb3d8",
+      "shot": "log",
+      "width": 1320
+    },
+    {
+      "configHash": "5ba9efb693cc628828f4c10b0c006ab1db8874ab00a55bc775b0d043d20b1f10",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/08-onerm.png",
+      "height": 2868,
+      "rawHash": "a05fd86bbda4db8c74a5b2b6d5df4a089af8f5ad52ddf162578bd1fa445aa9a4",
+      "shot": "onerm",
+      "width": 1320
+    },
+    {
+      "configHash": "2098f56086f4e976dc60a0f94b5c94bc8ee00e8a87b0e750ffac64e4e0873781",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/09-profile.png",
+      "height": 2868,
+      "rawHash": "d1a0cf86e38716a7e44f7e35ff9739de9aa1b74adf625d24d7a9cf52419bf976",
+      "shot": "profile",
+      "width": 1320
+    },
+    {
+      "configHash": "a99b292fd356383930666ca27ebbebf36a587bb520d64fd20bb013e4a7352c22",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/07-progress.png",
+      "height": 2868,
+      "rawHash": "b1ec08249ece5804d8b759c7f80b7c56e055186d7820a966908d2010ff5e6d7c",
+      "shot": "progress",
+      "width": 1320
+    },
+    {
+      "configHash": "26dee14fade936a9810e7248cba24c2f6c1e1f63926a898f68f2b51986afbd75",
+      "device": "iphone-6.9",
+      "file": "ios/iphone-6.9/08-strength.png",
+      "height": 2868,
+      "rawHash": "8a930dad1970df00e99049e8a8887416500b508b53b47bd3f9907053fd21d349",
+      "shot": "strength",
+      "width": 1320
+    }
+  ],
+  "sourceHash": "04209775b6c10a0b46a6e20e46faadab1f5de597534599ce02c98a508e3a50e1"
+}

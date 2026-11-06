@@ -1,0 +1,24 @@
+{
+  "app": {
+    "description": "Rep is a workout tracker and gym log for strength training: log each set, save your routines, and keep the personal records that show you getting stronger.\n\nEach exercise is one card. Enter the weight and reps, add a note when the session needs one, and turn on RPE if you use it. Mark a set as a warm-up, a drop, or a failure. Warm-ups stay out of your volume, your charts, and your records. After a set, the Lock Screen shows the rest countdown, the next set, and Done.\n\nBuild a routine the same way you log a workout. Order the exercises, then start it and those sets are copied into the session.\n\nHistory keeps every finished workout. Open one to review the exercises, notes, and sets, edit it, or duplicate it. Import a CSV from Hevy and/or Strong, and export your own log as a CSV whenever you want a copy.\n\nProgress keeps a personal record and a chart for every exercise you have trained. Check an estimated 1RM, see a strength level for your bodyweight, age, and sex, and follow the work over time. Profile shows a weekly chart, a training level, and badges for the work you have already done. Add a custom exercise from the library when the built-in list does not have your lift.\n\nSwitch between kilograms and pounds whenever you like. Rep shows the unit you picked and stores every weight in kilograms.\n\nRep is for phones and tablets.",
+    "keywords": "strength,training,exercise,program,bodybuilding,personal,record,progress,chart,timer,1rm,barbell,prs",
+    "marketingUrl": "https://www.voiddeck.digital/en/rep",
+    "promotionalText": "Log every set as you train. Save routines, keep personal records and charts, and follow the next set and rest timer on your Lock Screen.",
+    "privacyUrl": "https://www.voiddeck.digital/en/rep/privacy",
+    "supportUrl": "https://www.voiddeck.digital/en/contact",
+    "whatsNew": "Cable attachments on the exercise card, locked badges stay visible, and Discard lets you start another workout without finishing this one. Notes are plain text now."
+  },
+  "ios": {
+    "locale": "en-US",
+    "name": "Rep Workout Tracker Gym Log",
+    "subtitle": "Weight lifting sets & routines"
+  },
+  "android": {
+    "contactEmail": "cheejiayuan@yahoo.com.sg",
+    "contactWebsite": "https://www.voiddeck.digital/en/rep",
+    "locale": "en-US",
+    "shortDescription": "Log sets, reps, and weight. History and records stay on your phone.",
+    "title": "Rep Workout Log",
+    "video": ""
+  }
+}
