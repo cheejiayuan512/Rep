@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Format files after OpenCode edits them. Built-ins only run when the tool
+  // exists: this repo has no prettier/oxfmt installed, so TypeScript is left
+  // alone until one is added. Formatting is skipped, never queued or faked.
+  "formatter": true,
+
+  // TypeScript, JSON, and CSS language servers, so diagnostics come from the
+  // same tsconfig Expo uses instead of a second guess at the types.
+  "lsp": true,
+
+  // Installed packages are the truth for the version in package.json. Read these
+  // before fetching docs.expo.dev, which describes the docs site build, not
+  // necessarily the SDK 58 patch this app is on.
+  "references": {
+    "expo": {
+      "path": "./node_modules/expo",
+      "description": "Installed Expo SDK 58 types, modules, and changelog. Use for exact API signatures, props, and config plugin names at the installed version."
+    },
+    "react-native": {
+      "path": "./node_modules/react-native",
+      "description": "Installed React Native 0.88 types and source. Use for core component props and platform behavior; docs.expo.dev is for Expo modules."
+    }
+  }
+}
