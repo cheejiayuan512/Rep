@@ -25,7 +25,7 @@ interface TourOverlayProps {
 }
 
 export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false, bottomInset = false }) => {
-  const { back, close, index, next, open, step, targets } = useTour();
+  const { back, close, index, open, step, targets } = useTour();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
@@ -36,7 +36,8 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
   const rect = step.target ? targets[step.target] : undefined;
   const hole = rect ? holeAround(rect, insets.left, insets.top) : null;
   const placeCardOnTop = hole != null && hole.y + hole.height / 2 > height * 0.55;
-  const last = index >= TOUR_STEPS.length - 1;
+  const previous = index > 0 ? TOUR_STEPS[index - 1] : null;
+  const canGoBack = previous != null && previous.screen === step.screen;
 
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -67,19 +68,22 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
             <View key={item.id} style={[styles.dot, dot === index && styles.dotOn]} />
           ))}
         </View>
+        {step.primary === 'none' ? <Text style={styles.hint}>Tap the highlighted area to continue.</Text> : null}
         <View style={styles.actions}>
-          {index > 0 ? (
+          {canGoBack ? (
             <Pressable accessibilityRole="button" onPress={back} style={styles.quiet}>
               <Text style={styles.quietText}>Back</Text>
             </Pressable>
           ) : null}
-          <Pressable accessibilityLabel="Skip the tutorial" accessibilityRole="button" onPress={close} style={styles.quiet}>
-            <Text style={styles.quietText}>Skip</Text>
-          </Pressable>
-          {step.primary === 'none' ? <View style={styles.spacer} /> : null}
-          {step.primary !== 'none' ? (
-            <Pressable accessibilityRole="button" onPress={step.primary === 'next' ? next : close} style={styles.next}>
-              <Text style={styles.nextText}>{step.primary === 'next' ? 'Next' : last ? 'Got it' : 'Done'}</Text>
+          {step.primary === 'none' ? (
+            <Pressable accessibilityLabel="Skip the tutorial" accessibilityRole="button" onPress={close} style={styles.quiet}>
+              <Text style={styles.quietText}>Skip</Text>
+            </Pressable>
+          ) : null}
+          <View style={styles.spacer} />
+          {step.primary === 'done' ? (
+            <Pressable accessibilityRole="button" onPress={close} style={styles.next}>
+              <Text style={styles.nextText}>Got it</Text>
             </Pressable>
           ) : null}
         </View>
@@ -146,6 +150,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
+  },
+  hint: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 12,
   },
   kicker: {
     color: colors.faint,

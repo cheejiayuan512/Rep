@@ -37,9 +37,11 @@ test('every step says where it lives and what it points at', () => {
   assertEqual(TOUR_STEPS[TOUR_STEPS.length - 1].screen, 'WorkoutComplete');
 });
 
-test('only the first step waits without a next button', () => {
-  assertEqual(TOUR_STEPS[0].primary, 'none');
-  for (const step of TOUR_STEPS.slice(1)) {
-    assertTrue(step.primary !== 'none', `${step.id} can be dismissed with a button`);
+test('only the last step has a button, and it ends the tour', () => {
+  for (const step of TOUR_STEPS.slice(0, -1)) {
+    assertEqual(step.primary, 'none');
+    assertTrue(step.advanceOn != null, `${step.id} moves on when its action happens`);
   }
+  assertEqual(TOUR_STEPS[TOUR_STEPS.length - 1].primary, 'done');
+  assertEqual(TOUR_STEPS[TOUR_STEPS.length - 1].advanceOn, null);
 });

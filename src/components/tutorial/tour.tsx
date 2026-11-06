@@ -30,7 +30,6 @@ interface TourContextValue {
   targets: Record<string, TourRect>;
   close: () => void;
   back: () => void;
-  next: () => void;
   signal: (event: TourSignal) => void;
   registerTarget: (id: string, rect: TourRect) => void;
 }
@@ -59,9 +58,6 @@ export const TourProvider: React.FC<TourProviderProps> = ({ open, restartKey = 0
     }
   }, [open, restartKey]);
 
-  const next = useCallback(() => {
-    setIndex((current) => Math.min(TOUR_STEPS.length - 1, current + 1));
-  }, []);
   const back = useCallback(() => {
     setIndex((current) => Math.max(0, current - 1));
   }, []);
@@ -92,8 +88,8 @@ export const TourProvider: React.FC<TourProviderProps> = ({ open, restartKey = 0
 
   const step = TOUR_STEPS[index] ?? TOUR_STEPS[0];
   const value = useMemo<TourContextValue>(
-    () => ({ back, close, index, next, open, registerTarget, signal, step, targets }),
-    [back, close, index, next, open, registerTarget, signal, step, targets],
+    () => ({ back, close, index, open, registerTarget, signal, step, targets }),
+    [back, close, index, open, registerTarget, signal, step, targets],
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
