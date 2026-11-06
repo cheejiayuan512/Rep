@@ -5,7 +5,7 @@
  * The drawing lives in `tour-overlay.tsx`.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { ViewInstance } from 'react-native';
+import { type ViewInstance } from 'react-native';
 
 import { advanceTour, TOUR_STEPS, type TourSignal, type TourStep } from '../../domain/tutorial';
 
@@ -29,7 +29,6 @@ interface TourContextValue {
   step: TourStep;
   targets: Record<string, TourRect>;
   close: () => void;
-  back: () => void;
   signal: (event: TourSignal) => void;
   registerTarget: (id: string, rect: TourRect) => void;
 }
@@ -58,9 +57,6 @@ export const TourProvider: React.FC<TourProviderProps> = ({ open, restartKey = 0
     }
   }, [open, restartKey]);
 
-  const back = useCallback(() => {
-    setIndex((current) => Math.max(0, current - 1));
-  }, []);
   const close = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -88,8 +84,8 @@ export const TourProvider: React.FC<TourProviderProps> = ({ open, restartKey = 0
 
   const step = TOUR_STEPS[index] ?? TOUR_STEPS[0];
   const value = useMemo<TourContextValue>(
-    () => ({ back, close, index, open, registerTarget, signal, step, targets }),
-    [back, close, index, open, registerTarget, signal, step, targets],
+    () => ({ close, index, open, registerTarget, signal, step, targets }),
+    [close, index, open, registerTarget, signal, step, targets],
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
@@ -125,8 +121,17 @@ export function useTutorialTarget(id: string): TourAnchor {
 
   // Runs after every render while the step is active: the element can mount late,
   // such as the Finish bar when the rest timer ends, and onLayout alone misses it.
+  // Measuring again once the navigation animation settles fixes a rect captured
+  // while a pushed screen was still sliding in.
   useEffect(() => {
+    if (!active) {
+      return;
+    }
     measure();
+    // Measure again once a pushed screen has finished sliding in, so the ring is
+    // not left where the element was mid-animation.
+    const timer = setTimeout(measure, 350);
+    return () => clearTimeout(timer);
   });
 
   const setNode = useCallback((next: ViewInstance | null) => {

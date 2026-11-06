@@ -203,11 +203,16 @@ const ActiveWorkoutBody: React.FC = () => {
   const finishAnchor = useTutorialTarget('workout-finish');
   const exerciseCount = workout?.exercises.length ?? 0;
   const addedRef = useRef(initial.workout?.exercises.length ?? 0);
+  const openedWithExercises = (initial.workout?.exercises.length ?? 0) > 0;
   // The tour follows the session instead of asking the user to press Next. Only a
   // real action moves it: a card added, a number typed, a set checked, a finish.
+  // Resuming a workout that already has cards skips straight past "add an exercise".
   useEffect(() => {
     signal('workout-open');
-  }, [signal]);
+    if (openedWithExercises) {
+      signal('exercise-added');
+    }
+  }, [openedWithExercises, signal]);
   useEffect(() => {
     if (exerciseCount > addedRef.current) {
       signal('exercise-added');
@@ -661,8 +666,9 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { durationText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
+      signal('set-typed');
     },
-    [queueSave, readSetNumbers],
+    [queueSave, readSetNumbers, signal],
   );
 
   const handleChangeDistance = useCallback(
@@ -679,8 +685,9 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { distanceText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
+      signal('set-typed');
     },
-    [queueSave, readSetNumbers],
+    [queueSave, readSetNumbers, signal],
   );
 
   const handleChangeNotes = useCallback(

@@ -25,7 +25,7 @@ interface TourOverlayProps {
 }
 
 export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false, bottomInset = false }) => {
-  const { back, close, index, open, step, targets } = useTour();
+  const { close, index, open, step, targets } = useTour();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
@@ -35,9 +35,10 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
 
   const rect = step.target ? targets[step.target] : undefined;
   const hole = rect ? holeAround(rect, insets.left, insets.top) : null;
-  const placeCardOnTop = hole != null && hole.y + hole.height / 2 > height * 0.55;
-  const previous = index > 0 ? TOUR_STEPS[index - 1] : null;
-  const canGoBack = previous != null && previous.screen === step.screen;
+  // Waiting for a target that is not on screen yet (the Finish bar while resting)
+  // puts the card at the top, so the bottom stays free for the control that
+  // brings that target back, such as Skip on the rest bar.
+  const placeCardOnTop = hole != null ? hole.y + hole.height / 2 > height * 0.55 : step.target != null;
 
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -70,11 +71,6 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ screen, hidden = false
         </View>
         {step.primary === 'none' ? <Text style={styles.hint}>Tap the highlighted area to continue.</Text> : null}
         <View style={styles.actions}>
-          {canGoBack ? (
-            <Pressable accessibilityRole="button" onPress={back} style={styles.quiet}>
-              <Text style={styles.quietText}>Back</Text>
-            </Pressable>
-          ) : null}
           {step.primary === 'none' ? (
             <Pressable accessibilityLabel="Skip the tutorial" accessibilityRole="button" onPress={close} style={styles.quiet}>
               <Text style={styles.quietText}>Skip</Text>
