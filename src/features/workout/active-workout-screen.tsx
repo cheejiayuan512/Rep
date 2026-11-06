@@ -198,27 +198,12 @@ const ActiveWorkoutBody: React.FC = () => {
   });
   const [workout, setWorkout] = useState<WorkoutDetail | null>(initial.workout);
   const { signal } = useTour();
-  const quickAddAnchor = useTutorialTarget('workout-quick-add');
   const firstSetAnchor = useTutorialTarget('workout-first-set');
   const finishAnchor = useTutorialTarget('workout-finish');
-  const exerciseCount = workout?.exercises.length ?? 0;
-  const addedRef = useRef(initial.workout?.exercises.length ?? 0);
-  const openedWithExercises = (initial.workout?.exercises.length ?? 0) > 0;
-  // The tour follows the session instead of asking the user to press Next. Only a
-  // real action moves it: a card added, a number typed, a set checked, a finish.
-  // Resuming a workout that already has cards skips straight past "add an exercise".
+  // The tour follows the session instead of asking the user to press Next.
   useEffect(() => {
     signal('workout-open');
-    if (openedWithExercises) {
-      signal('exercise-added');
-    }
-  }, [openedWithExercises, signal]);
-  useEffect(() => {
-    if (exerciseCount > addedRef.current) {
-      signal('exercise-added');
-    }
-    addedRef.current = exerciseCount;
-  }, [exerciseCount, signal]);
+  }, [signal]);
   const [drafts, setDrafts] = useState<DraftMap>(() =>
     initial.workout
       ? mergeDrafts(
@@ -601,12 +586,11 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { weightText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
-      signal('set-typed');
       if (located.set.setType === 'warmup') {
         scheduleWarmupOrder(located.exercise.id);
       }
     },
-    [queueSave, readSetNumbers, scheduleWarmupOrder, signal],
+    [queueSave, readSetNumbers, scheduleWarmupOrder],
   );
 
   const handleChangeReps = useCallback(
@@ -626,9 +610,8 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { repsText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
-      signal('set-typed');
     },
-    [queueSave, readSetNumbers, signal],
+    [queueSave, readSetNumbers],
   );
 
   const handleChangeRpe = useCallback(
@@ -666,9 +649,8 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { durationText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
-      signal('set-typed');
     },
-    [queueSave, readSetNumbers, signal],
+    [queueSave, readSetNumbers],
   );
 
   const handleChangeDistance = useCallback(
@@ -685,9 +667,8 @@ const ActiveWorkoutBody: React.FC = () => {
       const numbers = readSetNumbers(setId, located.set, { distanceText: value });
       setWorkout(updateSetInWorkout(current, setId, numbers));
       queueSave(setId, numbers);
-      signal('set-typed');
     },
-    [queueSave, readSetNumbers, signal],
+    [queueSave, readSetNumbers],
   );
 
   const handleChangeNotes = useCallback(
@@ -1370,11 +1351,7 @@ const ActiveWorkoutBody: React.FC = () => {
                   title="Empty workout"
                 />
               ) : null}
-              {workout && workout.exercises.length === 0 && !editing ? (
-                <View {...quickAddAnchor}>
-                  <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} />
-                </View>
-              ) : null}
+              {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? (
                 <SortableList
                   items={workout.exercises}

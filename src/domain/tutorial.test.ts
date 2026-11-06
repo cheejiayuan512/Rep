@@ -2,7 +2,7 @@ import { advanceTour, TOUR_STEPS, type TourSignal } from './tutorial';
 import { assertEqual, assertTrue, test } from './test-support';
 
 test('the tour follows the workout it is describing', () => {
-  const signals: TourSignal[] = ['workout-open', 'exercise-added', 'set-typed', 'set-completed', 'workout-finished'];
+  const signals: TourSignal[] = ['workout-open', 'set-completed', 'workout-finished'];
   let index = 0;
   for (const signal of signals) {
     const next = advanceTour(index, signal);
@@ -14,8 +14,8 @@ test('the tour follows the workout it is describing', () => {
 
 test('a signal from another step does not move the tour', () => {
   assertEqual(advanceTour(0, 'set-completed'), null);
-  assertEqual(advanceTour(2, 'exercise-added'), null);
-  assertEqual(advanceTour(4, 'set-typed'), null);
+  assertEqual(advanceTour(1, 'workout-open'), null);
+  assertEqual(advanceTour(2, 'set-completed'), null);
 });
 
 test('the last step has nothing left to wait for', () => {

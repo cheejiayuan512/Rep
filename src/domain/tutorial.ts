@@ -7,7 +7,7 @@
  */
 export type TourScreen = 'Workout' | 'ActiveWorkout' | 'WorkoutComplete';
 
-export type TourSignal = 'workout-open' | 'exercise-added' | 'set-typed' | 'set-completed' | 'workout-finished';
+export type TourSignal = 'workout-open' | 'set-completed' | 'workout-finished';
 
 export interface TourStep {
   id: string;
@@ -23,7 +23,7 @@ export interface TourStep {
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     advanceOn: 'workout-open',
-    body: 'Tap Start workout to open an empty session. A routine starts the same way, with its exercises already on the page.',
+    body: 'Tap Start workout. The tour opens a session with one card already filled in, so you can try the loop without typing.',
     id: 'start',
     primary: 'none',
     screen: 'Workout',
@@ -31,26 +31,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'Start a workout',
   },
   {
-    advanceOn: 'exercise-added',
-    body: 'Tap a quick add chip, or Add exercise to search the whole library. Each exercise becomes one card.',
-    id: 'add-exercise',
-    primary: 'none',
-    screen: 'ActiveWorkout',
-    target: 'workout-quick-add',
-    title: 'Add an exercise',
-  },
-  {
-    advanceOn: 'set-typed',
-    body: 'Tap the weight box, type the load, then Next for reps. Previous copies the same set from last time.',
-    id: 'log-set',
-    primary: 'none',
-    screen: 'ActiveWorkout',
-    target: 'workout-first-set',
-    title: 'Log the numbers',
-  },
-  {
     advanceOn: 'set-completed',
-    body: 'Tap the check. It starts the rest timer, and warmups or sets you have not checked stay out of your totals and records.',
+    body: 'That card is a placeholder. Change it if you like, then tap the check. The rest timer starts by itself.',
     id: 'check-set',
     primary: 'none',
     screen: 'ActiveWorkout',
@@ -68,7 +50,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     advanceOn: null,
-    body: 'History keeps every finished session and Progress charts it. Open this tour again from Profile, Tutorial, Show again.',
+    body: 'That is the whole loop: start, check a set, finish. History keeps every session and Progress charts it. Open this tour again from Profile, Tutorial, Show again.',
     id: 'review',
     primary: 'done',
     screen: 'WorkoutComplete',

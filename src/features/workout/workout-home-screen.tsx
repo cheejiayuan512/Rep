@@ -12,13 +12,13 @@ import { Button } from '../../components/button';
 import { ConfirmDialog, type ConfirmRequest } from '../../components/confirm-dialog';
 import { Screen } from '../../components/screen';
 import { TourOverlay } from '../../components/tutorial/tour-overlay';
-import { useTutorialTarget } from '../../components/tutorial/tour';
+import { useTour, useTutorialTarget } from '../../components/tutorial/tour';
 import { formatClock, formatDuration, formatLoggedLoad, formatWorkoutWhen, summarizeNames } from '../../domain/format';
 import type { HomeStats } from '../../domain/stats';
 import { formatVolume, kgToDisplay } from '../../domain/units';
 import type { RoutineSummary, WeightUnit, WorkoutSummary } from '../../domain/types';
 import { PencilIcon } from '../../components/icons';
-import { createRoutine, startEmptyWorkout, startWorkoutFromRoutine } from '../../data/repository';
+import { createRoutine, startEmptyWorkout, startTutorialWorkout, startWorkoutFromRoutine } from '../../data/repository';
 import type { AppNavigation } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { screenTitle, screenTitleInset } from '../../theme/layout';
@@ -33,6 +33,7 @@ export const WorkoutHomeScreen: React.FC = () => {
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [now, setNow] = useState(Date.now());
   const startAnchor = useTutorialTarget('home-start');
+  const { open: tourOpen } = useTour();
 
   React.useEffect(() => {
     if (!home?.active) {
@@ -84,8 +85,9 @@ export const WorkoutHomeScreen: React.FC = () => {
   );
 
   const handleStartEmpty = useCallback(() => {
-    void begin(startEmptyWorkout);
-  }, [begin]);
+    // While the tour is running, its workout comes prefilled so no typing is needed.
+    void begin(tourOpen ? startTutorialWorkout : startEmptyWorkout);
+  }, [begin, tourOpen]);
 
   const handleStartRoutine = useCallback(
     (routineId: string) => {

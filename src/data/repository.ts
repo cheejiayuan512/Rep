@@ -584,6 +584,23 @@ export async function startEmptyWorkout(): Promise<string> {
   return id;
 }
 
+/**
+ * The workout the first-run tour walks through: one card with one set already
+ * filled in, so the only taps are the check and Finish. Finishing it keeps the
+ * session like any other; the placeholder numbers can be edited or the session
+ * discarded.
+ */
+export async function startTutorialWorkout(): Promise<string> {
+  const workoutId = await startEmptyWorkout();
+  await addExerciseToWorkout(workoutId, 'barbell-bench-press');
+  const workout = await getWorkout(workoutId);
+  const set = workout?.exercises[0]?.sets[0];
+  if (set) {
+    await updateSetNumbers(set.id, 20, 5, null);
+  }
+  return workoutId;
+}
+
 export async function startWorkoutFromRoutine(routineId: string): Promise<string> {
   const workoutId = createId();
   let found = false;
