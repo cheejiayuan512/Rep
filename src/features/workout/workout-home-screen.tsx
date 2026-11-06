@@ -124,7 +124,15 @@ export const WorkoutHomeScreen: React.FC = () => {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
         <Text style={styles.wordmark}>Rep</Text>
-        {home?.active ? <ResumeCard elapsed={formatClock((now - home.active.startedAt) / 1000)} exerciseCount={home.active.exerciseCount} name={home.active.name} onPress={openWorkout} workoutId={home.active.id} /> : null}
+        {home?.active ? (
+          <ResumeCard
+            elapsed={formatClock((now - home.active.startedAt) / 1000)}
+            exerciseCount={home.active.exerciseCount}
+            name={home.active.name}
+            onPress={openWorkout}
+            workoutId={home.active.id}
+          />
+        ) : null}
         <Button label="Start workout" onPress={handleStartEmpty} />
         <View style={styles.sectionHead}>
           <Pressable accessibilityRole="button" hitSlop={8} onPress={handleOpenRoutines}>

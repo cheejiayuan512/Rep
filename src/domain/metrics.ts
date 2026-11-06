@@ -2,9 +2,7 @@
  * Personal records and chart numbers. A set counts only when it is completed,
  * not a warmup, and has at least one rep. The first set is saved but not announced.
  */
-import type { CableAttachment, ChartMetric, LoggedSet, SetType } from './types';
-import { isWorkingSetType, sameMachineSetup } from './types';
-import type { WeightUnit } from './types';
+import { isWorkingSetType, sameMachineSetup, type CableAttachment, type ChartMetric, type LoggedSet, type SetType, type WeightUnit } from './types';
 import { formatLoggedLoad } from './format';
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from './units';
 
@@ -150,7 +148,7 @@ export function detectRecords(current: ScoredSet, prior: ScoredSet[], unit: Weig
   if (current.rpe != null) {
     const hardest = prior
       .filter((set) => set.rpe != null && Math.abs(set.weightKg - current.weightKg) <= WEIGHT_EPSILON_KG && current.reps >= set.reps)
-      .reduce<number | null>((min, set) => (min == null || (set.rpe ?? 10) < min ? set.rpe ?? null : min), null);
+      .reduce<number | null>((min, set) => (min == null || (set.rpe ?? 10) < min ? (set.rpe ?? null) : min), null);
     if (hardest != null && current.rpe < hardest - RPE_EPSILON) {
       hits.push({
         detail: formatLoggedLoad(current.weightKg, current.reps, unit),
@@ -228,7 +226,7 @@ function sessionHit(current: ScoredSet, prior: ScoredSet[], unit: WeightUnit): R
  * Walks one exercise's sets in order and returns the ids that beat everything
  * before them: the earlier history plus the earlier sets in this workout.
  */
-export function recordSetIds(sets: Array<{ id: string; scored: ScoredSet | null }>, history: ScoredSet[]): Set<string> {
+export function recordSetIds(sets: { id: string; scored: ScoredSet | null }[], history: ScoredSet[]): Set<string> {
   const ids = new Set<string>();
   const prior = [...history];
   for (const set of sets) {
@@ -279,7 +277,7 @@ export function filterSetsByAttachment(sets: LoggedSet[], attachment: string | n
  * Finished workouts that moved more weight than every earlier one.
  * The first workout with any volume sets the bar and is not a record.
  */
-export function volumeRecordIds(workouts: Array<{ id: string; finishedAt: number; volumeKg: number }>): Set<string> {
+export function volumeRecordIds(workouts: { id: string; finishedAt: number; volumeKg: number }[]): Set<string> {
   const ordered = [...workouts].sort((left, right) => left.finishedAt - right.finishedAt || left.id.localeCompare(right.id));
   const ids = new Set<string>();
   let best = 0;
@@ -423,10 +421,30 @@ export function recordCardsFromSets(sets: LoggedSet[], unit: WeightUnit): Record
   const scored = sets.map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
   const best = bestsFromScored(scored);
   return [
-    card('Est. 1RM', best.oneRepMax?.oneRepMaxKg == null ? null : `${formatEstimate(kgToDisplay(best.oneRepMax.oneRepMaxKg, unit))} ${unit}`, best.oneRepMax ? `from ${formatLoggedLoad(best.oneRepMax.weightKg, best.oneRepMax.reps, unit)}` : 'No weighted set yet', best.oneRepMax?.achievedAt ?? null),
-    card('Heaviest', best.heaviest ? `${formatWeight(kgToDisplay(best.heaviest.weightKg, unit))} ${unit}` : null, best.heaviest ? `${best.heaviest.reps} reps` : 'No weighted set yet', best.heaviest?.achievedAt ?? null),
-    card('Best volume', best.volume ? `${formatVolume(kgToDisplay(best.volume.volumeKg, unit))} ${unit}` : null, best.volume ? formatLoggedLoad(best.volume.weightKg, best.volume.reps, unit) : 'No weighted set yet', best.volume?.achievedAt ?? null),
-    card('Most reps', best.reps ? String(best.reps.reps) : null, best.reps ? (best.reps.weightKg > 0 ? `at ${formatWeight(kgToDisplay(best.reps.weightKg, unit))} ${unit}` : 'bodyweight') : 'No completed set yet', best.reps?.achievedAt ?? null),
+    card(
+      'Est. 1RM',
+      best.oneRepMax?.oneRepMaxKg == null ? null : `${formatEstimate(kgToDisplay(best.oneRepMax.oneRepMaxKg, unit))} ${unit}`,
+      best.oneRepMax ? `from ${formatLoggedLoad(best.oneRepMax.weightKg, best.oneRepMax.reps, unit)}` : 'No weighted set yet',
+      best.oneRepMax?.achievedAt ?? null,
+    ),
+    card(
+      'Heaviest',
+      best.heaviest ? `${formatWeight(kgToDisplay(best.heaviest.weightKg, unit))} ${unit}` : null,
+      best.heaviest ? `${best.heaviest.reps} reps` : 'No weighted set yet',
+      best.heaviest?.achievedAt ?? null,
+    ),
+    card(
+      'Best volume',
+      best.volume ? `${formatVolume(kgToDisplay(best.volume.volumeKg, unit))} ${unit}` : null,
+      best.volume ? formatLoggedLoad(best.volume.weightKg, best.volume.reps, unit) : 'No weighted set yet',
+      best.volume?.achievedAt ?? null,
+    ),
+    card(
+      'Most reps',
+      best.reps ? String(best.reps.reps) : null,
+      best.reps ? (best.reps.weightKg > 0 ? `at ${formatWeight(kgToDisplay(best.reps.weightKg, unit))} ${unit}` : 'bodyweight') : 'No completed set yet',
+      best.reps?.achievedAt ?? null,
+    ),
   ];
 }
 

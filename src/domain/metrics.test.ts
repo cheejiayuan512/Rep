@@ -1,7 +1,24 @@
 /**
  * Personal records, estimated 1RM, and the chart numbers.
  */
-import { bestsFromScored, buildSessionStats, chartValues, countOneRepMaxRecords, detectRecord, detectRecords, estimateOneRepMax, filterSetsByAttachment, filterSetsBySetup, groupLoggedSessions, latestSessionSets, recordCardsFromSets, recordSetIds, scoreLoggedSet, volumeRecordIds, type ScoredSet } from './metrics';
+import {
+  bestsFromScored,
+  buildSessionStats,
+  chartValues,
+  countOneRepMaxRecords,
+  detectRecord,
+  detectRecords,
+  estimateOneRepMax,
+  filterSetsByAttachment,
+  filterSetsBySetup,
+  groupLoggedSessions,
+  latestSessionSets,
+  recordCardsFromSets,
+  recordSetIds,
+  scoreLoggedSet,
+  volumeRecordIds,
+  type ScoredSet,
+} from './metrics';
 import { assertClose, assertEqual, assertTrue, test } from './test-support';
 import { sameExerciseSlot, type LoggedSet } from './types';
 
@@ -76,7 +93,10 @@ test('volume can be a record when the estimated max did not rise', () => {
 test('the same load at a lower RPE is a record', () => {
   const prior = scored({ performedAt: 1, reps: 5, rpe: 8, weightKg: 100 });
   const current = scored({ performedAt: 2, reps: 5, rpe: 7, weightKg: 100 });
-  assertEqual(detectRecords(current, [prior], 'kg').map((hit) => hit.kind), ['rpe']);
+  assertEqual(
+    detectRecords(current, [prior], 'kg').map((hit) => hit.kind),
+    ['rpe'],
+  );
 });
 
 test('an easier RPE on a lighter set is not a record', () => {
@@ -109,7 +129,10 @@ test('a second bodyweight set is a session record when one set was the best sess
   const first = scored({ performedAt: 2, reps: 8, weightKg: 0, workoutId: 'today' });
   const second = scored({ performedAt: 3, reps: 8, weightKg: 0, workoutId: 'today' });
   assertEqual(detectRecords(first, [history], 'kg'), []);
-  assertEqual(detectRecords(second, [history, first], 'kg').map((hit) => hit.kind), ['session']);
+  assertEqual(
+    detectRecords(second, [history, first], 'kg').map((hit) => hit.kind),
+    ['session'],
+  );
   assertEqual(detectRecords(second, [history, first], 'kg')[0]?.title, 'Session PR · 16 reps · 2 sets');
 });
 
@@ -127,7 +150,10 @@ test('a second single is a session record when one single was the best session',
   const first = scored({ performedAt: 2, reps: 1, weightKg: 100, workoutId: 'today' });
   const second = scored({ performedAt: 3, reps: 1, weightKg: 100, workoutId: 'today' });
   assertEqual(detectRecords(first, [history], 'kg'), []);
-  assertEqual(detectRecords(second, [history, first], 'kg').map((hit) => hit.kind), ['session']);
+  assertEqual(
+    detectRecords(second, [history, first], 'kg').map((hit) => hit.kind),
+    ['session'],
+  );
   assertEqual(detectRecords(second, [history, first], 'kg')[0]?.title, 'Session PR · 200 kg · 2 sets');
   const ids = recordSetIds(
     [
@@ -153,7 +179,10 @@ test('a fourth matching set is a session record', () => {
   const today = [4, 5, 6, 7].map((position) => scored({ performedAt: position, position, reps: 5, weightKg: 100, workoutId: 'today' }));
   const fourth = today[3];
   assertTrue(fourth != null, 'expected a fourth set');
-  assertEqual(detectRecords(fourth, [...history, ...today.slice(0, 3)], 'kg').map((hit) => hit.kind), ['session']);
+  assertEqual(
+    detectRecords(fourth, [...history, ...today.slice(0, 3)], 'kg').map((hit) => hit.kind),
+    ['session'],
+  );
 });
 
 test('record stars skip the first ever set and warmups', () => {
@@ -198,7 +227,10 @@ test('past sessions list every finished set, newest first', () => {
   ]);
   assertEqual(
     sessions.map((session) => session.sets.map((set) => set.weightKg)),
-    [[105, 110], [60, 100]],
+    [
+      [105, 110],
+      [60, 100],
+    ],
   );
 });
 
@@ -208,14 +240,14 @@ test('two sessions become two chart points in kilograms', () => {
     logged({ performedAt: 2, reps: 8, weightKg: 85, workoutId: 'second' }),
   ]);
   const points = chartValues(sessions, 'volume', 'kg');
-  assertEqual(points.map((point) => point.value), [640, 680]);
+  assertEqual(
+    points.map((point) => point.value),
+    [640, 680],
+  );
 });
 
 test('record cards use the best estimated max', () => {
-  const cards = recordCardsFromSets(
-    [logged({ performedAt: 1, reps: 8, weightKg: 80 }), logged({ performedAt: 2, reps: 8, weightKg: 85 })],
-    'kg',
-  );
+  const cards = recordCardsFromSets([logged({ performedAt: 1, reps: 8, weightKg: 80 }), logged({ performedAt: 2, reps: 8, weightKg: 85 })], 'kg');
   const estimated = cards.find((card) => card.label === 'Est. 1RM');
   assertTrue(estimated != null, 'missing estimated max card');
   assertEqual(estimated.value, '107.7 kg');
@@ -224,7 +256,10 @@ test('record cards use the best estimated max', () => {
 test('previous and records stay on the same stack', () => {
   const precor = logged({ machineSetup: 'Precor', performedAt: 1, weightKg: 25, workoutId: 'a' });
   const life = logged({ machineSetup: 'Life Fitness', performedAt: 2, weightKg: 18, workoutId: 'b' });
-  assertEqual(filterSetsBySetup([precor, life], 'Life Fitness').map((set) => set.weightKg), [18]);
+  assertEqual(
+    filterSetsBySetup([precor, life], 'Life Fitness').map((set) => set.weightKg),
+    [18],
+  );
   assertEqual(latestSessionSets(filterSetsBySetup([precor, life], 'Precor'))[0]?.weightKg, 25);
   const current = scoreLoggedSet(logged({ machineSetup: 'Life Fitness', performedAt: 3, weightKg: 20, workoutId: 'c' }));
   assertTrue(current != null, 'expected a scored set');

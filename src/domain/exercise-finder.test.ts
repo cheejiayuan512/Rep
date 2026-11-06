@@ -36,7 +36,10 @@ test('not sure answers match everything in the muscle group', () => {
   const ids = matches.map((match) => match.exercise.id);
   assertTrue(ids.includes('seated-calf-raise'), 'missing seated calf raise');
   assertTrue(ids.includes('standing-calf-raise'), 'missing standing calf raise');
-  assertTrue(matches.every((match) => match.exact), 'every match is exact');
+  assertTrue(
+    matches.every((match) => match.exact),
+    'every match is exact',
+  );
 });
 
 test('every built-in exercise describes its movement', () => {

@@ -52,12 +52,25 @@ const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityE
         <Spacer />
         <VStack alignment="trailing">
           {resting ? (
-            <Text countsDown modifiers={[font({ size: 36, weight: 'heavy' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 110, alignment: 'trailing' })]} timerInterval={rest} />
+            <Text
+              countsDown
+              modifiers={[font({ size: 36, weight: 'heavy' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 110, alignment: 'trailing' })]}
+              timerInterval={rest}
+            />
           ) : (
-            <Text countsDown={false} modifiers={[font({ size: 22, weight: 'bold' }), monospacedDigit(), foregroundStyle('#F4F7FB'), frame({ width: 110, alignment: 'trailing' })]} timerInterval={elapsed} />
+            <Text
+              countsDown={false}
+              modifiers={[font({ size: 22, weight: 'bold' }), monospacedDigit(), foregroundStyle('#F4F7FB'), frame({ width: 110, alignment: 'trailing' })]}
+              timerInterval={elapsed}
+            />
           )}
           {props.canComplete ? (
-            <Button label="Done" modifiers={[buttonStyle('borderedProminent'), controlSize('small'), tint(accent)]} systemImage="checkmark" target="complete-set" />
+            <Button
+              label="Done"
+              modifiers={[buttonStyle('borderedProminent'), controlSize('small'), tint(accent)]}
+              systemImage="checkmark"
+              target="complete-set"
+            />
           ) : null}
         </VStack>
       </HStack>
@@ -66,7 +79,9 @@ const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityE
     compactTrailing: resting ? (
       <Text countsDown modifiers={[monospacedDigit(), foregroundStyle(accent), frame({ width: 44 })]} timerInterval={rest} />
     ) : percentText ? (
-      <Text modifiers={[font({ size: 14, weight: 'bold' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 46, alignment: 'trailing' })]}>{percentText}</Text>
+      <Text modifiers={[font({ size: 14, weight: 'bold' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 46, alignment: 'trailing' })]}>
+        {percentText}
+      </Text>
     ) : (
       <Text countsDown={false} modifiers={[monospacedDigit(), foregroundStyle('#F4F7FB'), frame({ width: 52 })]} timerInterval={elapsed} />
     ),
@@ -78,16 +93,35 @@ const WorkoutActivity = (props: WorkoutActivityProps, environment: LiveActivityE
       </VStack>
     ),
     expandedTrailing: resting ? (
-      <Text countsDown modifiers={[font({ size: 32, weight: 'heavy' }), monospacedDigit(), foregroundStyle(accent), frame({ width: 100, alignment: 'trailing' }), padding({ trailing: 8, top: 8 })]} timerInterval={rest} />
+      <Text
+        countsDown
+        modifiers={[
+          font({ size: 32, weight: 'heavy' }),
+          monospacedDigit(),
+          foregroundStyle(accent),
+          frame({ width: 100, alignment: 'trailing' }),
+          padding({ trailing: 8, top: 8 }),
+        ]}
+        timerInterval={rest}
+      />
     ) : (
-      <Text countsDown={false} modifiers={[font({ size: 22, weight: 'bold' }), monospacedDigit(), frame({ width: 100, alignment: 'trailing' }), padding({ trailing: 8, top: 8 })]} timerInterval={elapsed} />
+      <Text
+        countsDown={false}
+        modifiers={[font({ size: 22, weight: 'bold' }), monospacedDigit(), frame({ width: 100, alignment: 'trailing' }), padding({ trailing: 8, top: 8 })]}
+        timerInterval={elapsed}
+      />
     ),
     expandedBottom: (
       <HStack modifiers={[padding({ horizontal: 8 })]}>
         <Text modifiers={[font({ size: 14 }), foregroundStyle('#93A0B3')]}>{detail}</Text>
         <Spacer />
         {props.canComplete ? (
-          <Button label="Done" modifiers={[buttonStyle('borderedProminent'), controlSize('small'), tint(accent)]} systemImage="checkmark" target="complete-set" />
+          <Button
+            label="Done"
+            modifiers={[buttonStyle('borderedProminent'), controlSize('small'), tint(accent)]}
+            systemImage="checkmark"
+            target="complete-set"
+          />
         ) : null}
       </HStack>
     ),

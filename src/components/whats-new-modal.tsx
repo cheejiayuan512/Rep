@@ -16,7 +16,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ notice, onClose })
   <Modal animationType="fade" onRequestClose={onClose} transparent visible>
     <View style={styles.backdrop}>
       <View style={styles.card}>
-        <Text style={styles.kicker}>What's new</Text>
+        <Text style={styles.kicker}>What&apos;s new</Text>
         <Text style={styles.title}>{notice.title}</Text>
         {notice.bullets.map((bullet) => (
           <Text key={bullet} style={styles.bullet}>

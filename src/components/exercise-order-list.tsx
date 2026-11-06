@@ -79,16 +79,7 @@ export const ExerciseOrderList: React.FC<ExerciseOrderListProps> = ({ items, onC
   return (
     <View style={{ height: rows.length * ROW_HEIGHT }}>
       {rows.map((row, index) => (
-        <OrderItem
-          detail={row.detail}
-          drag={drag}
-          grant={grant}
-          index={index}
-          key={row.id}
-          move={move}
-          name={row.name}
-          release={release}
-        />
+        <OrderItem detail={row.detail} drag={drag} grant={grant} index={index} key={row.id} move={move} name={row.name} release={release} />
       ))}
     </View>
   );

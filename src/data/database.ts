@@ -334,7 +334,14 @@ function isDatabaseShape(value: unknown): value is DatabaseShape {
     return false;
   }
   const record = value as Partial<DatabaseShape>;
-  return Array.isArray(record.exercises) && Array.isArray(record.routines) && Array.isArray(record.routineExercises) && Array.isArray(record.workouts) && Array.isArray(record.workoutExercises) && Array.isArray(record.sets);
+  return (
+    Array.isArray(record.exercises) &&
+    Array.isArray(record.routines) &&
+    Array.isArray(record.routineExercises) &&
+    Array.isArray(record.workouts) &&
+    Array.isArray(record.workoutExercises) &&
+    Array.isArray(record.sets)
+  );
 }
 
 function normalizeStored(db: DatabaseShape): boolean {
@@ -564,7 +571,15 @@ function backfillChangeTracking(db: DatabaseShape): boolean {
     changed = true;
   }
   const alive = new Set(syncCollections.flatMap((collection) => db[collection].map((row) => `${collection}\0${row.id}`)));
-  const deletions = db.deletions.filter((item) => isSyncCollection(item?.collection) && typeof item.id === 'string' && item.id.length > 0 && typeof item.deletedAt === 'number' && Number.isFinite(item.deletedAt) && !alive.has(`${item.collection}\0${item.id}`));
+  const deletions = db.deletions.filter(
+    (item) =>
+      isSyncCollection(item?.collection) &&
+      typeof item.id === 'string' &&
+      item.id.length > 0 &&
+      typeof item.deletedAt === 'number' &&
+      Number.isFinite(item.deletedAt) &&
+      !alive.has(`${item.collection}\0${item.id}`),
+  );
   if (deletions.length !== db.deletions.length) {
     db.deletions = deletions;
     changed = true;

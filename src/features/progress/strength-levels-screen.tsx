@@ -60,9 +60,9 @@ export const StrengthLevelsScreen: React.FC = () => {
           </View>
         ) : null}
         <Text style={styles.note}>
-          Levels follow common strength standards: Beginner, Novice, Intermediate, Advanced, and Elite sit near the 5th, 20th, 50th, 80th, and 95th percentile of people who
-          lift. Thresholds rise with bodyweight to the ⅔ power and drop for ages outside 24–39. Most people who don&apos;t train would sit below Beginner, so against the
-          general population you rank higher than shown. Estimates use Epley on sets of 10 reps or fewer.
+          Levels follow common strength standards: Beginner, Novice, Intermediate, Advanced, and Elite sit near the 5th, 20th, 50th, 80th, and 95th percentile
+          of people who lift. Thresholds rise with bodyweight to the ⅔ power and drop for ages outside 24–39. Most people who don&apos;t train would sit below
+          Beginner, so against the general population you rank higher than shown. Estimates use Epley on sets of 10 reps or fewer.
         </Text>
       </ScrollView>
     </Screen>

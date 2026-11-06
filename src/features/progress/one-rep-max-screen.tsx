@@ -181,7 +181,8 @@ const WholeSession: React.FC<{ unit: WeightUnit }> = ({ unit }) => {
   return (
     <View>
       <Text style={styles.lead}>
-        Enter every working set of one lift. RPE is optional: RPE 8 means two reps left, so it counts toward the estimate. Sets well below your best, like back-off sets, are left out.
+        Enter every working set of one lift. RPE is optional: RPE 8 means two reps left, so it counts toward the estimate. Sets well below your best, like
+        back-off sets, are left out.
       </Text>
       {trained.length > 0 ? (
         <>
@@ -202,7 +203,15 @@ const WholeSession: React.FC<{ unit: WeightUnit }> = ({ unit }) => {
         <View style={styles.sessionRemove} />
       </View>
       {rows.map((row, index) => (
-        <SessionRowView canRemove={rows.length > 1} estimateKg={perRow[index] ?? null} key={row.id} onChange={changeRow} onRemove={removeRow} row={row} unit={unit} />
+        <SessionRowView
+          canRemove={rows.length > 1}
+          estimateKg={perRow[index] ?? null}
+          key={row.id}
+          onChange={changeRow}
+          onRemove={removeRow}
+          row={row}
+          unit={unit}
+        />
       ))}
       <TextButton label="Add set" onPress={addRow} tone="accent" />
 
@@ -279,7 +288,10 @@ const SessionRowView: React.FC<SessionRowViewProps> = React.memo(function Sessio
   );
 });
 
-const TrainedChip: React.FC<{ exercise: TrainedExercise; onPress: (exercise: TrainedExercise) => void }> = React.memo(function TrainedChip({ exercise, onPress }) {
+const TrainedChip: React.FC<{ exercise: TrainedExercise; onPress: (exercise: TrainedExercise) => void }> = React.memo(function TrainedChip({
+  exercise,
+  onPress,
+}) {
   const handlePress = useCallback(() => onPress(exercise), [exercise, onPress]);
   return (
     <Pressable accessibilityRole="button" onPress={handlePress} style={styles.trainedChip}>

@@ -45,7 +45,16 @@ const questions: Record<Exclude<Step, 'results'>, { title: string; options: Opti
   position: { options: positionOptions, title: 'How is your body placed?' },
 };
 
-export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exercises, addedIds, pendingId, swapping, currentExerciseId, onSelect, onClose, ratingByExercise }) => {
+export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({
+  exercises,
+  addedIds,
+  pendingId,
+  swapping,
+  currentExerciseId,
+  onSelect,
+  onClose,
+  ratingByExercise,
+}) => {
   const [step, setStep] = useState<Step>('muscle');
   const [answers, setAnswers] = useState<FinderAnswers>(empty);
   const matches = useMemo(() => (step === 'results' ? findExercises(exercises, answers) : []), [answers, exercises, step]);
@@ -82,7 +91,9 @@ export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exerci
   }, []);
 
   const question = step === 'results' ? null : questions[step];
-  const summary = [answers.muscle ? feelLabels[answers.muscle] : null, answers.equipment ? usingLabels[answers.equipment] : null, answers.position].filter(Boolean).join(' · ');
+  const summary = [answers.muscle ? feelLabels[answers.muscle] : null, answers.equipment ? usingLabels[answers.equipment] : null, answers.position]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.fill}>
@@ -109,11 +120,29 @@ export const ExerciseFinderPanel: React.FC<ExerciseFinderPanelProps> = ({ exerci
           </Text>
           {summary ? <Text style={styles.summary}>{summary}</Text> : null}
           {exact.map((match) => (
-            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} rating={ratingByExercise.get(match.exercise.id) ?? null} swapping={swapping} />
+            <FinderResult
+              added={addedIds.has(match.exercise.id)}
+              current={currentExerciseId === match.exercise.id}
+              key={match.exercise.id}
+              match={match}
+              onPress={onSelect}
+              pending={pendingId === match.exercise.id}
+              rating={ratingByExercise.get(match.exercise.id) ?? null}
+              swapping={swapping}
+            />
           ))}
           {near.length > 0 ? <Text style={styles.section}>{exact.length > 0 ? 'Also close' : 'One answer differs'}</Text> : null}
           {near.map((match) => (
-            <FinderResult added={addedIds.has(match.exercise.id)} current={currentExerciseId === match.exercise.id} key={match.exercise.id} match={match} onPress={onSelect} pending={pendingId === match.exercise.id} rating={ratingByExercise.get(match.exercise.id) ?? null} swapping={swapping} />
+            <FinderResult
+              added={addedIds.has(match.exercise.id)}
+              current={currentExerciseId === match.exercise.id}
+              key={match.exercise.id}
+              match={match}
+              onPress={onSelect}
+              pending={pendingId === match.exercise.id}
+              rating={ratingByExercise.get(match.exercise.id) ?? null}
+              swapping={swapping}
+            />
           ))}
           {matches.length === 0 ? <Text style={styles.summary}>Nothing in the library matches. Go back to search and create it as a new exercise.</Text> : null}
           <View style={styles.footer}>

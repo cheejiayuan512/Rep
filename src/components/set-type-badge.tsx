@@ -70,7 +70,12 @@ export const SetTypeBadge: React.FC<SetTypeBadgeProps> = React.memo(function Set
   );
 });
 
-const SetTypeMenu: React.FC<{ anchor: Anchor; value: SetType; onChange: (setType: SetType) => void; onClose: () => void }> = ({ anchor, onChange, onClose, value }) => {
+const SetTypeMenu: React.FC<{ anchor: Anchor; value: SetType; onChange: (setType: SetType) => void; onClose: () => void }> = ({
+  anchor,
+  onChange,
+  onClose,
+  value,
+}) => {
   const window = Dimensions.get('window');
   const menuHeight = choices.length * ROW_HEIGHT + 8;
   let top = anchor.y + anchor.height + 6;

@@ -43,7 +43,7 @@ export function withDraft(current: SetDraft | undefined, patch: Partial<SetDraft
 
 export function mergeDrafts(
   previous: DraftMap,
-  sets: Array<{ id: string; weightKg: number | null; reps: number | null; rpe: number | null; durationSeconds?: number | null; distanceKm?: number | null }>,
+  sets: { id: string; weightKg: number | null; reps: number | null; rpe: number | null; durationSeconds?: number | null; distanceKm?: number | null }[],
   unit: WeightUnit,
 ): DraftMap {
   const next = { ...previous };

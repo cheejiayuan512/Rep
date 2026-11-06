@@ -67,7 +67,10 @@ test('variants fold, a heavier set is starred, and deletes can be undone', async
   await expect(page.getByText('New PR', { exact: false })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Add set' }).click();
-  await page.getByRole('button', { name: /^Weight/ }).nth(1).click();
+  await page
+    .getByRole('button', { name: /^Weight/ })
+    .nth(1)
+    .click();
   await typePad(page, '110');
   await hidePad(page);
   await page.getByRole('button', { name: 'Complete set' }).click();
@@ -180,7 +183,10 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
 
   await fillSet(page, '100', '5');
   await page.getByRole('button', { name: 'Complete set' }).click();
-  await page.getByRole('button', { name: /^Weight/ }).first().click();
+  await page
+    .getByRole('button', { name: /^Weight/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'RPE', exact: true }).click();
   const skipBox = await page.getByRole('button', { name: 'Skip rest' }).boundingBox();
   const effortBox = await page.getByText('Effort', { exact: true }).boundingBox();
@@ -197,7 +203,10 @@ test('rest follows the exercise, warmups sort first, and a card can swap or chan
   await page.getByRole('button', { name: 'Normal. Change set type' }).nth(1).click();
   await page.getByRole('button', { name: /Warm-up/ }).click();
   await expect(page.getByRole('button', { name: 'Warm-up. Change set type' })).toBeVisible();
-  await page.getByRole('button', { name: /^Weight/ }).first().click();
+  await page
+    .getByRole('button', { name: /^Weight/ })
+    .first()
+    .click();
   await typePad(page, '50');
   await hidePad(page);
   await page.getByRole('button', { name: 'Complete set' }).first().click();
@@ -267,7 +276,10 @@ test('a blank workout offers quick adds, and search forgives typos', async ({ pa
   await page.goto('/');
 
   await page.getByRole('button', { name: 'Start workout' }).click();
-  await page.getByRole('button', { name: /^Quick add / }).first().click();
+  await page
+    .getByRole('button', { name: /^Quick add / })
+    .first()
+    .click();
   await expect(page.getByRole('button', { name: 'Complete set' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Add exercise' }).click();

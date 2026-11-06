@@ -41,7 +41,10 @@ test('words can come in any order and match prefixes', () => {
 test('muscle and equipment words narrow the list', () => {
   const cable = fuzzyFilter(seedExercises, 'cable chest');
   assertEqual(cable[0]?.name, 'Cable Fly');
-  assertTrue(fuzzyFilter(seedExercises, 'calves').every((exercise) => exercise.muscleGroup === 'Calves'), 'calves lists calf exercises');
+  assertTrue(
+    fuzzyFilter(seedExercises, 'calves').every((exercise) => exercise.muscleGroup === 'Calves'),
+    'calves lists calf exercises',
+  );
 });
 
 test('a word that matches nothing hides the exercise', () => {

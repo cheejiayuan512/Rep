@@ -63,7 +63,33 @@ const CARDIO_PHRASES = [
 ];
 
 /** A name that also says one of these is a lift, even if it contains "walk" or "run". */
-const LIFT_WORDS = ['lunge', 'squat', 'press', 'curl', 'deadlift', 'thrust', 'raise', 'farmer', 'carry', 'clean', 'snatch', 'jerk', 'swing', 'burpee', 'pulldown', 'pullup', 'pull up', 'bench', 'fly', 'crunch', 'plank', 'stretch', 'pushup', 'push up', 'dip'];
+const LIFT_WORDS = [
+  'lunge',
+  'squat',
+  'press',
+  'curl',
+  'deadlift',
+  'thrust',
+  'raise',
+  'farmer',
+  'carry',
+  'clean',
+  'snatch',
+  'jerk',
+  'swing',
+  'burpee',
+  'pulldown',
+  'pullup',
+  'pull up',
+  'bench',
+  'fly',
+  'crunch',
+  'plank',
+  'stretch',
+  'pushup',
+  'push up',
+  'dip',
+];
 
 const MAX_DURATION_SECONDS = 99 * 3600 + 59 * 60 + 59;
 
@@ -211,7 +237,12 @@ export function formatDistance(distanceKm: number, unit: WeightUnit): string {
   return `${formatDecimal(kmToDisplay(distanceKm, unit), 2)} ${distanceUnitLabel(unit)}`;
 }
 
-export function formatCardioEffort(durationSeconds: number | null | undefined, distanceKm: number | null | undefined, unit: WeightUnit, warmup = false): string {
+export function formatCardioEffort(
+  durationSeconds: number | null | undefined,
+  distanceKm: number | null | undefined,
+  unit: WeightUnit,
+  warmup = false,
+): string {
   const time = durationSeconds != null && durationSeconds > 0 ? formatClock(durationSeconds) : null;
   const distance = distanceKm != null && distanceKm > 0 ? formatDistance(distanceKm, unit) : null;
   const text = time && distance ? `${time} · ${distance}` : (time ?? distance);
@@ -226,7 +257,12 @@ export function cardioHasEffort(durationSeconds: number | null | undefined, dist
 }
 
 /** Lifting volume, or the cardio time and distance when the session has no loaded sets. */
-export function formatSessionLoad(volumeKg: number, durationSeconds: number | null | undefined, distanceKm: number | null | undefined, unit: WeightUnit): string {
+export function formatSessionLoad(
+  volumeKg: number,
+  durationSeconds: number | null | undefined,
+  distanceKm: number | null | undefined,
+  unit: WeightUnit,
+): string {
   if (volumeKg > 0) {
     return `${formatVolume(kgToDisplay(volumeKg, unit))} ${unit}`;
   }

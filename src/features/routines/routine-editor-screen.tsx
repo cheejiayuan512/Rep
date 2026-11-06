@@ -59,7 +59,13 @@ interface UndoToast {
 }
 
 function draftsFor(routine: RoutineDetail | null, unit: WeightUnit, previous: DraftMap = {}): DraftMap {
-  return routine ? mergeDrafts(previous, routine.exercises.flatMap((exercise) => exercise.sets.map((set) => ({ ...set, rpe: null }))), unit) : previous;
+  return routine
+    ? mergeDrafts(
+        previous,
+        routine.exercises.flatMap((exercise) => exercise.sets.map((set) => ({ ...set, rpe: null }))),
+        unit,
+      )
+    : previous;
 }
 
 function exerciseKey(exercise: RoutineExercise): string {
@@ -241,15 +247,18 @@ const RoutineEditorBody: React.FC = () => {
   }, [navigation, route.params.routineId]);
 
   /** The set's numbers with what is typed in its boxes applied. */
-  const readSetNumbers = useCallback((set: RoutineSet, override?: { weightText?: string; repsText?: string; durationText?: string; distanceText?: string }): PendingSet => {
-    const draft = draftsRef.current[set.id];
-    return {
-      distanceKm: distanceTextToKm(override?.distanceText ?? draft?.distanceText ?? '', unitRef.current, set.distanceKm ?? null),
-      durationSeconds: durationTextToSeconds(override?.durationText ?? draft?.durationText ?? '', set.durationSeconds ?? null),
-      reps: repsTextToNumber(override?.repsText ?? draft?.repsText ?? '', set.reps),
-      weightKg: weightTextToKg(override?.weightText ?? draft?.weightText ?? '', unitRef.current, set.weightKg),
-    };
-  }, []);
+  const readSetNumbers = useCallback(
+    (set: RoutineSet, override?: { weightText?: string; repsText?: string; durationText?: string; distanceText?: string }): PendingSet => {
+      const draft = draftsRef.current[set.id];
+      return {
+        distanceKm: distanceTextToKm(override?.distanceText ?? draft?.distanceText ?? '', unitRef.current, set.distanceKm ?? null),
+        durationSeconds: durationTextToSeconds(override?.durationText ?? draft?.durationText ?? '', set.durationSeconds ?? null),
+        reps: repsTextToNumber(override?.repsText ?? draft?.repsText ?? '', set.reps),
+        weightKg: weightTextToKg(override?.weightText ?? draft?.weightText ?? '', unitRef.current, set.weightKg),
+      };
+    },
+    [],
+  );
 
   const applyNumbers = useCallback(
     (setId: string, override: { weightText?: string; repsText?: string; durationText?: string; distanceText?: string }) => {
@@ -397,7 +406,10 @@ const RoutineEditorBody: React.FC = () => {
       const last = exercise.sets[exercise.sets.length - 1];
       const numbers = last ? readSetNumbers(last) : { distanceKm: null, durationSeconds: null, reps: null, weightKg: null };
       const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
-      const created = await addRoutineSet(routineExerciseId, cardio ? { ...numbers, reps: null, weightKg: null } : { ...numbers, distanceKm: null, durationSeconds: null });
+      const created = await addRoutineSet(
+        routineExerciseId,
+        cardio ? { ...numbers, reps: null, weightKg: null } : { ...numbers, distanceKm: null, durationSeconds: null },
+      );
       const latest = routineRef.current;
       if (latest) {
         applyRoutine(mapSets(latest, routineExerciseId, (sets) => [...sets, created]));
@@ -555,16 +567,19 @@ const RoutineEditorBody: React.FC = () => {
     });
   }, [dispatch, navigation]);
 
-  const handleChangeSetup = useCallback((routineExerciseId: string, setup: string | null) => {
-    const current = routineRef.current;
-    const exercise = current?.exercises.find((item) => item.id === routineExerciseId);
-    if (!current || !exercise || exercise.machineSetup === setup) {
-      return;
-    }
-    void switchRoutineExerciseSetup(routineExerciseId, setup).then(() => {
-      void load();
-    });
-  }, [load]);
+  const handleChangeSetup = useCallback(
+    (routineExerciseId: string, setup: string | null) => {
+      const current = routineRef.current;
+      const exercise = current?.exercises.find((item) => item.id === routineExerciseId);
+      if (!current || !exercise || exercise.machineSetup === setup) {
+        return;
+      }
+      void switchRoutineExerciseSetup(routineExerciseId, setup).then(() => {
+        void load();
+      });
+    },
+    [load],
+  );
 
   const handleAddAttachment = useCallback(
     (routineExerciseId: string, attachment: CableAttachment | null) => {
@@ -605,7 +620,12 @@ const RoutineEditorBody: React.FC = () => {
         onMove={handleMove}
         onRemove={handleRemove}
         onToggleSuperset={handleToggleSuperset}
-        orderBase={Math.max(0, (routine?.exercises ?? []).findIndex((item) => item.id === exercise.id)) * 1000}
+        orderBase={
+          Math.max(
+            0,
+            (routine?.exercises ?? []).findIndex((item) => item.id === exercise.id),
+          ) * 1000
+        }
         panHandlers={handle.panHandlers}
         canLinkSuperset={(routine?.exercises[routine.exercises.length - 1]?.id ?? exercise.id) !== exercise.id}
         usedAttachments={(routine?.exercises ?? []).filter((item) => item.exerciseId === exercise.exerciseId).map((item) => item.attachment)}
@@ -613,7 +633,21 @@ const RoutineEditorBody: React.FC = () => {
         unit={unit}
       />
     ),
-    [drafts, handleAddAttachment, handleChangeReps, handleChangeSetType, handleChangeSetup, handleChangeWeight, handleDeleteSet, handleMove, handleRemove, handleToggleSuperset, pressAddSet, routine?.exercises, unit],
+    [
+      drafts,
+      handleAddAttachment,
+      handleChangeReps,
+      handleChangeSetType,
+      handleChangeSetup,
+      handleChangeWeight,
+      handleDeleteSet,
+      handleMove,
+      handleRemove,
+      handleToggleSuperset,
+      pressAddSet,
+      routine?.exercises,
+      unit,
+    ],
   );
 
   const exercises = routine?.exercises ?? [];
@@ -642,7 +676,10 @@ const RoutineEditorBody: React.FC = () => {
       </KeyboardAvoidingView>
       <LogPad safeBottom={false} />
       {undo ? (
-        <View pointerEvents="box-none" style={[styles.toasts, { left: 20 + insets.left, right: 20 + insets.right }, pad.open ? { bottom: pad.height + 16 } : null]}>
+        <View
+          pointerEvents="box-none"
+          style={[styles.toasts, { left: 20 + insets.left, right: 20 + insets.right }, pad.open ? { bottom: pad.height + 16 } : null]}
+        >
           <View style={styles.undo}>
             <Text numberOfLines={1} style={styles.undoText}>
               {undo.message}

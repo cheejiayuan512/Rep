@@ -58,8 +58,39 @@ const SEED_CLASSES: Record<string, RestClass> = {
 };
 
 const HEAVY_WORDS = ['squat', 'deadlift', 'clean', 'snatch', 'jerk', 'thruster', 'push press', 'leg press', 'hip thrust'];
-const ISOLATION_WORDS = ['curl', 'extension', 'raise', 'fly', 'flye', 'kickback', 'pushdown', 'crossover', 'pec deck', 'shrug', 'abduction', 'adduction', 'pullover', 'pull-through', 'face pull'];
-const COMPOUND_WORDS = ['press', 'row', 'pull-up', 'pullup', 'chin-up', 'chinup', 'pulldown', 'dip', 'lunge', 'split squat', 'step-up', 'push-up', 'pushup', 'good morning'];
+const ISOLATION_WORDS = [
+  'curl',
+  'extension',
+  'raise',
+  'fly',
+  'flye',
+  'kickback',
+  'pushdown',
+  'crossover',
+  'pec deck',
+  'shrug',
+  'abduction',
+  'adduction',
+  'pullover',
+  'pull-through',
+  'face pull',
+];
+const COMPOUND_WORDS = [
+  'press',
+  'row',
+  'pull-up',
+  'pullup',
+  'chin-up',
+  'chinup',
+  'pulldown',
+  'dip',
+  'lunge',
+  'split squat',
+  'step-up',
+  'push-up',
+  'pushup',
+  'good morning',
+];
 
 export function restClassFor(subject: RestSubject): RestClass {
   const seeded = SEED_CLASSES[subject.exerciseId];

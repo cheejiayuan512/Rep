@@ -26,7 +26,7 @@ const sharedDrawings: Record<string, string> = {
 };
 
 /** Spoken names that are not a separate exercise. Longest phrase first. */
-const spokenDrawings: Array<{ name: string; slug: string }> = [
+const spokenDrawings: { name: string; slug: string }[] = [
   { name: 'conventional deadlift', slug: 'deadlift' },
   { name: 'military press', slug: 'overhead-press' },
   { name: 'strict press', slug: 'overhead-press' },

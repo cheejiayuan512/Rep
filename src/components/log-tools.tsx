@@ -6,7 +6,15 @@ import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { exportLogBackup, getInProgressWorkoutId, getSettings, importWorkoutCsv, listWorkoutsForExport, openLogBackup, restoreLogBackup } from '../data/repository';
+import {
+  exportLogBackup,
+  getInProgressWorkoutId,
+  getSettings,
+  importWorkoutCsv,
+  listWorkoutsForExport,
+  openLogBackup,
+  restoreLogBackup,
+} from '../data/repository';
 import { workoutsToCsv } from '../domain/log-export';
 import { shareBackupFile } from '../features/history/share-backup';
 import { activeWorkoutChanged, dataChanged, useAppDispatch, warmupRestMultiplierChanged, weightUnitChanged } from '../state/store';

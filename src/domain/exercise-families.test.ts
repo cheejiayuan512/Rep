@@ -32,5 +32,8 @@ test('an expanded family lists its variants under it', () => {
 
 test('a family with one visible member is a plain row', () => {
   const items = groupExercises([exercise('dumbbell-bench-press', 'Dumbbell Bench Press')], new Set(), false);
-  assertEqual(items.map((item) => item.kind), ['exercise']);
+  assertEqual(
+    items.map((item) => item.kind),
+    ['exercise'],
+  );
 });

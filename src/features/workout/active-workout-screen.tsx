@@ -33,14 +33,44 @@ import { clampRest, defaultRestFor, restAfterSet, warmupLoadRatio } from '../../
 import { Screen } from '../../components/screen';
 import { QuickAdd } from '../../components/quick-add';
 import { draftFromSet, mergeDrafts, withDraft, type DraftMap } from '../../domain/drafts';
-import { detectRecords, filterSetsByAttachment, filterSetsBySetup, latestSessionSets, recordSetIds, scoreLoggedSet, toLoggedSet, type ScoredSet } from '../../domain/metrics';
+import {
+  detectRecords,
+  filterSetsByAttachment,
+  filterSetsBySetup,
+  latestSessionSets,
+  recordSetIds,
+  scoreLoggedSet,
+  toLoggedSet,
+  type ScoredSet,
+} from '../../domain/metrics';
 import type { CableAttachment, LoggedSet, PreviousSet, SetRecord, SetType, WorkoutDetail, WorkoutExercise } from '../../domain/types';
 import { machineSetupOptions } from '../../domain/machine-setup';
 import { formatMachineSetup, sameExerciseSlot, usesMachineSetup } from '../../domain/types';
 import { createId } from '../../domain/ids';
-import { findNextSet, findSet, moveById, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from '../../domain/workout-edits';
+import {
+  findNextSet,
+  findSet,
+  moveById,
+  previousForSet,
+  shouldRestAfterSet,
+  supersetRole,
+  toggleSupersetWithNext,
+  updateSetInWorkout,
+  warmupsFirst,
+  workoutHasLoggedSet,
+} from '../../domain/workout-edits';
 import { bestWorkingOneRepMax, rateLift, type StrengthRating } from '../../domain/strength';
-import { formatDecimal, formatWeight, kgToDisplay, kmToDisplay, parseDecimal, parseRpe, repsTextToNumber, rpeTextToNumber, weightTextToKg } from '../../domain/units';
+import {
+  formatDecimal,
+  formatWeight,
+  kgToDisplay,
+  kmToDisplay,
+  parseDecimal,
+  parseRpe,
+  repsTextToNumber,
+  rpeTextToNumber,
+  weightTextToKg,
+} from '../../domain/units';
 import {
   addExerciseToWorkout,
   deleteSet,
@@ -117,7 +147,12 @@ function scoreWorkoutSet(workout: WorkoutDetail, exercise: WorkoutExercise, set:
   );
 }
 
-function previousFromHistory(history: LoggedSet[], equipment: WorkoutExercise['equipment'], setup: string | null, attachment: CableAttachment | null): PreviousSet[] {
+function previousFromHistory(
+  history: LoggedSet[],
+  equipment: WorkoutExercise['equipment'],
+  setup: string | null,
+  attachment: CableAttachment | null,
+): PreviousSet[] {
   let sets = usesMachineSetup(equipment) ? filterSetsBySetup(history, setup) : history;
   if (equipment === 'Cable') {
     sets = filterSetsByAttachment(sets, attachment);
@@ -160,7 +195,15 @@ const ActiveWorkoutBody: React.FC = () => {
     return { history, workout: loaded };
   });
   const [workout, setWorkout] = useState<WorkoutDetail | null>(initial.workout);
-  const [drafts, setDrafts] = useState<DraftMap>(() => (initial.workout ? mergeDrafts({}, initial.workout.exercises.flatMap((exercise) => exercise.sets), unit) : {}));
+  const [drafts, setDrafts] = useState<DraftMap>(() =>
+    initial.workout
+      ? mergeDrafts(
+          {},
+          initial.workout.exercises.flatMap((exercise) => exercise.sets),
+          unit,
+        )
+      : {},
+  );
   const [historyByExercise, setHistoryByExercise] = useState<Record<string, LoggedSet[]>>(initial.history ?? {});
   const [missing, setMissing] = useState(false);
   const [title, setTitle] = useState(initial.workout?.name ?? DEFAULT_WORKOUT_NAME);
@@ -212,7 +255,9 @@ const ActiveWorkoutBody: React.FC = () => {
     }
     noteTimersRef.current = {};
     await Promise.all([
-      ...Object.entries(patches).map(([setId, patch]) => updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe, patch.durationSeconds, patch.distanceKm)),
+      ...Object.entries(patches).map(([setId, patch]) =>
+        updateSetNumbers(setId, patch.weightKg, patch.reps, patch.rpe, patch.durationSeconds, patch.distanceKm),
+      ),
       ...Object.entries(notes).map(([workoutExerciseId, text]) => updateWorkoutExerciseNotes(workoutExerciseId, text)),
     ]);
   }, []);
@@ -294,7 +339,13 @@ const ActiveWorkoutBody: React.FC = () => {
     if (!current) {
       return;
     }
-    setDrafts(mergeDrafts({}, current.exercises.flatMap((exercise) => exercise.sets), unit));
+    setDrafts(
+      mergeDrafts(
+        {},
+        current.exercises.flatMap((exercise) => exercise.sets),
+        unit,
+      ),
+    );
   }, [unit]);
 
   useEffect(() => {
@@ -344,7 +395,9 @@ const ActiveWorkoutBody: React.FC = () => {
       return map;
     }
     for (const exercise of workout.exercises) {
-      const history = matchingHistory(historyByExercise[exercise.exerciseId] ?? [], exercise).map(scoreLoggedSet).filter((set): set is ScoredSet => set != null);
+      const history = matchingHistory(historyByExercise[exercise.exerciseId] ?? [], exercise)
+        .map(scoreLoggedSet)
+        .filter((set): set is ScoredSet => set != null);
       const ids = recordSetIds(
         exercise.sets.map((set) => ({ id: set.id, scored: scoreWorkoutSet(workout, exercise, set, workout.startedAt + set.position + 1) })),
         history,
@@ -366,10 +419,13 @@ const ActiveWorkoutBody: React.FC = () => {
     if (restEndsAt == null) {
       return;
     }
-    const id = setTimeout(() => {
-      applyRest(null);
-      void hapticSuccess();
-    }, Math.max(0, restEndsAt - Date.now()));
+    const id = setTimeout(
+      () => {
+        applyRest(null);
+        void hapticSuccess();
+      },
+      Math.max(0, restEndsAt - Date.now()),
+    );
     return () => clearTimeout(id);
   }, [applyRest, restEndsAt]);
 
@@ -418,7 +474,13 @@ const ActiveWorkoutBody: React.FC = () => {
         setMissing(false);
         setWorkout(loaded);
         setHistoryByExercise(history);
-        setDrafts((previous) => mergeDrafts(previous, loaded.exercises.flatMap((exercise) => exercise.sets), unitRef.current));
+        setDrafts((previous) =>
+          mergeDrafts(
+            previous,
+            loaded.exercises.flatMap((exercise) => exercise.sets),
+            unitRef.current,
+          ),
+        );
         if (!titleFocused.current) {
           setTitle(loaded.name);
         }
@@ -831,38 +893,41 @@ const ActiveWorkoutBody: React.FC = () => {
     [handleAddSet],
   );
 
-  const handleRemove = useCallback((workoutExerciseId: string) => {
-    const current = workoutRef.current;
-    const index = current?.exercises.findIndex((item) => item.id === workoutExerciseId) ?? -1;
-    const exercise = current?.exercises[index];
-    const snapshot = exercise ? { ...exercise, sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })) } : null;
-    exercise?.sets.forEach((set) => clearPending(set.id));
-    delete notePendingRef.current[workoutExerciseId];
-    const noteTimer = noteTimersRef.current[workoutExerciseId];
-    if (noteTimer) {
-      clearTimeout(noteTimer);
-      delete noteTimersRef.current[workoutExerciseId];
-    }
-    setWorkout((workout) => (workout ? { ...workout, exercises: workout.exercises.filter((item) => item.id !== workoutExerciseId) } : workout));
-    void removeWorkoutExercise(workoutExerciseId);
-    if (!current || !snapshot) {
-      return;
-    }
-    setUndo({
-      message: `Removed ${snapshot.name}`,
-      restore: () => {
-        setWorkout((workout) => {
-          if (!workout || workout.exercises.some((item) => item.id === snapshot.id)) {
-            return workout;
-          }
-          const exercises = [...workout.exercises];
-          exercises.splice(Math.min(index, exercises.length), 0, snapshot);
-          return { ...workout, exercises: exercises.map((item, position) => ({ ...item, position })) };
-        });
-        void restoreWorkoutExercise(current.id, snapshot, index);
-      },
-    });
-  }, [clearPending, readSetNumbers]);
+  const handleRemove = useCallback(
+    (workoutExerciseId: string) => {
+      const current = workoutRef.current;
+      const index = current?.exercises.findIndex((item) => item.id === workoutExerciseId) ?? -1;
+      const exercise = current?.exercises[index];
+      const snapshot = exercise ? { ...exercise, sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })) } : null;
+      exercise?.sets.forEach((set) => clearPending(set.id));
+      delete notePendingRef.current[workoutExerciseId];
+      const noteTimer = noteTimersRef.current[workoutExerciseId];
+      if (noteTimer) {
+        clearTimeout(noteTimer);
+        delete noteTimersRef.current[workoutExerciseId];
+      }
+      setWorkout((workout) => (workout ? { ...workout, exercises: workout.exercises.filter((item) => item.id !== workoutExerciseId) } : workout));
+      void removeWorkoutExercise(workoutExerciseId);
+      if (!current || !snapshot) {
+        return;
+      }
+      setUndo({
+        message: `Removed ${snapshot.name}`,
+        restore: () => {
+          setWorkout((workout) => {
+            if (!workout || workout.exercises.some((item) => item.id === snapshot.id)) {
+              return workout;
+            }
+            const exercises = [...workout.exercises];
+            exercises.splice(Math.min(index, exercises.length), 0, snapshot);
+            return { ...workout, exercises: exercises.map((item, position) => ({ ...item, position })) };
+          });
+          void restoreWorkoutExercise(current.id, snapshot, index);
+        },
+      });
+    },
+    [clearPending, readSetNumbers],
+  );
 
   const handleUndo = useCallback(() => {
     const pending = undo;
@@ -883,17 +948,23 @@ const ActiveWorkoutBody: React.FC = () => {
     void saveWorkoutExercisePositions(positioned.map((exercise) => ({ id: exercise.id, position: exercise.position })));
   }, []);
 
-  const handleReorder = useCallback((ids: string[]) => {
-    const byId = new Map(workoutRef.current?.exercises.map((exercise) => [exercise.id, exercise]));
-    saveOrder(ids.flatMap((id) => byId.get(id) ?? []));
-  }, [saveOrder]);
+  const handleReorder = useCallback(
+    (ids: string[]) => {
+      const byId = new Map(workoutRef.current?.exercises.map((exercise) => [exercise.id, exercise]));
+      saveOrder(ids.flatMap((id) => byId.get(id) ?? []));
+    },
+    [saveOrder],
+  );
 
-  const handleMove = useCallback((workoutExerciseId: string, direction: -1 | 1) => {
-    const moved = workoutRef.current ? moveById(workoutRef.current.exercises, workoutExerciseId, direction) : null;
-    if (moved) {
-      saveOrder(moved);
-    }
-  }, [saveOrder]);
+  const handleMove = useCallback(
+    (workoutExerciseId: string, direction: -1 | 1) => {
+      const moved = workoutRef.current ? moveById(workoutRef.current.exercises, workoutExerciseId, direction) : null;
+      if (moved) {
+        saveOrder(moved);
+      }
+    },
+    [saveOrder],
+  );
 
   const handleApplyPrevious = useCallback(
     (setId: string) => {
@@ -945,7 +1016,13 @@ const ActiveWorkoutBody: React.FC = () => {
       const loaded = getWorkout.now(workoutId);
       if (loaded) {
         setWorkout(loaded);
-        setDrafts((previous) => mergeDrafts(previous, loaded.exercises.flatMap((exercise) => exercise.sets), unitRef.current));
+        setDrafts((previous) =>
+          mergeDrafts(
+            previous,
+            loaded.exercises.flatMap((exercise) => exercise.sets),
+            unitRef.current,
+          ),
+        );
         const history = getHistorySets.now(
           loaded.exercises.map((exercise) => exercise.exerciseId),
           loaded.id,
@@ -1120,7 +1197,13 @@ const ActiveWorkoutBody: React.FC = () => {
         const loaded = getWorkout.now(workoutId);
         if (loaded) {
           setWorkout(loaded);
-          setDrafts((previous) => mergeDrafts(previous, loaded.exercises.flatMap((item) => item.sets), unitRef.current));
+          setDrafts((previous) =>
+            mergeDrafts(
+              previous,
+              loaded.exercises.flatMap((item) => item.sets),
+              unitRef.current,
+            ),
+          );
           const history = getHistorySets.now(
             loaded.exercises.map((item) => item.exerciseId),
             loaded.id,
@@ -1137,57 +1220,62 @@ const ActiveWorkoutBody: React.FC = () => {
     [dispatch, flushPending, workoutId],
   );
 
-  const handleChangeSetup = useCallback((workoutExerciseId: string, setup: string | null) => {
-    const current = workoutRef.current;
-    const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
-    if (!current || !exercise || exercise.machineSetup === setup) {
-      return;
-    }
-    const snapshot = {
-      machineSetup: exercise.machineSetup,
-      previousSets: exercise.previousSets,
-      sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })),
-    };
-    snapshot.sets.forEach((set) => clearPending(set.id));
-    void (async () => {
-      const sets = await switchWorkoutExerciseSetup(workoutExerciseId, setup);
-      const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup, exercise.attachment);
-      setWorkout((workout) =>
-        workout
-          ? {
-              ...workout,
-              exercises: workout.exercises.map((item) => (item.id === workoutExerciseId ? { ...item, machineSetup: setup, previousSets, sets } : item)),
-            }
-          : workout,
-      );
-      setDrafts((previous) => {
-        const next = { ...previous };
-        snapshot.sets.forEach((set) => {
-          delete next[set.id];
+  const handleChangeSetup = useCallback(
+    (workoutExerciseId: string, setup: string | null) => {
+      const current = workoutRef.current;
+      const exercise = current?.exercises.find((item) => item.id === workoutExerciseId);
+      if (!current || !exercise || exercise.machineSetup === setup) {
+        return;
+      }
+      const snapshot = {
+        machineSetup: exercise.machineSetup,
+        previousSets: exercise.previousSets,
+        sets: exercise.sets.map((set) => ({ ...set, ...readSetNumbers(set.id, set) })),
+      };
+      snapshot.sets.forEach((set) => clearPending(set.id));
+      void (async () => {
+        const sets = await switchWorkoutExerciseSetup(workoutExerciseId, setup);
+        const previousSets = previousFromHistory(historyRef.current[exercise.exerciseId] ?? [], exercise.equipment, setup, exercise.attachment);
+        setWorkout((workout) =>
+          workout
+            ? {
+                ...workout,
+                exercises: workout.exercises.map((item) => (item.id === workoutExerciseId ? { ...item, machineSetup: setup, previousSets, sets } : item)),
+              }
+            : workout,
+        );
+        setDrafts((previous) => {
+          const next = { ...previous };
+          snapshot.sets.forEach((set) => {
+            delete next[set.id];
+          });
+          return mergeDrafts(next, sets, unitRef.current);
         });
-        return mergeDrafts(next, sets, unitRef.current);
-      });
-      setUndo({
-        message: `Switched to ${formatMachineSetup(setup)}`,
-        restore: () => {
-          snapshot.sets.forEach((set) => clearPending(set.id));
-          setWorkout((workout) =>
-            workout
-              ? {
-                  ...workout,
-                  exercises: workout.exercises.map((item) =>
-                    item.id === workoutExerciseId ? { ...item, machineSetup: snapshot.machineSetup, previousSets: snapshot.previousSets, sets: snapshot.sets } : item,
-                  ),
-                }
-              : workout,
-          );
-          setDrafts((previous) => mergeDrafts(previous, snapshot.sets, unitRef.current));
-          void updateWorkoutExerciseSetup(workoutExerciseId, snapshot.machineSetup);
-          void replaceWorkoutExerciseSets(workoutExerciseId, snapshot.sets);
-        },
-      });
-    })();
-  }, [clearPending, readSetNumbers]);
+        setUndo({
+          message: `Switched to ${formatMachineSetup(setup)}`,
+          restore: () => {
+            snapshot.sets.forEach((set) => clearPending(set.id));
+            setWorkout((workout) =>
+              workout
+                ? {
+                    ...workout,
+                    exercises: workout.exercises.map((item) =>
+                      item.id === workoutExerciseId
+                        ? { ...item, machineSetup: snapshot.machineSetup, previousSets: snapshot.previousSets, sets: snapshot.sets }
+                        : item,
+                    ),
+                  }
+                : workout,
+            );
+            setDrafts((previous) => mergeDrafts(previous, snapshot.sets, unitRef.current));
+            void updateWorkoutExerciseSetup(workoutExerciseId, snapshot.machineSetup);
+            void replaceWorkoutExerciseSets(workoutExerciseId, snapshot.sets);
+          },
+        });
+      })();
+    },
+    [clearPending, readSetNumbers],
+  );
   const closeConfirm = useCallback(() => setConfirm(null), []);
 
   return (
@@ -1209,9 +1297,7 @@ const ActiveWorkoutBody: React.FC = () => {
             ref={pad.scrollRef}
             contentContainerStyle={{
               paddingBottom:
-                (restEndsAt || recordBanner || undo || banner ? 168 : 48) +
-                (!editing && !restEndsAt ? 72 : 0) +
-                (pad.open ? pad.height : insets.bottom),
+                (restEndsAt || recordBanner || undo || banner ? 168 : 48) + (!editing && !restEndsAt ? 72 : 0) + (pad.open ? pad.height : insets.bottom),
             }}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
@@ -1244,7 +1330,12 @@ const ActiveWorkoutBody: React.FC = () => {
             </View>
             <View style={styles.list}>
               {workout && workout.exercises.length === 0 ? (
-                <EmptyState actionLabel="Add exercise" message="Tap a quick add below, or search the whole library. Tap a set number to choose warm-up, drop, or failure." onAction={handleAddExercise} title="Empty workout" />
+                <EmptyState
+                  actionLabel="Add exercise"
+                  message="Tap a quick add below, or search the whole library. Tap a set number to choose warm-up, drop, or failure."
+                  onAction={handleAddExercise}
+                  title="Empty workout"
+                />
               ) : null}
               {workout && workout.exercises.length === 0 && !editing ? <QuickAdd onAdd={handleQuickAdd} workoutId={workout.id} /> : null}
               {workout && workout.exercises.length > 0 ? (
@@ -1262,9 +1353,7 @@ const ActiveWorkoutBody: React.FC = () => {
                       onApplyPrevious={handleApplyPrevious}
                       onChangeAttachment={handleChangeAttachment}
                       onChangeNotes={handleChangeNotes}
-                      usedAttachments={workout.exercises
-                        .filter((item) => item.exerciseId === exercise.exerciseId)
-                        .map((item) => item.attachment)}
+                      usedAttachments={workout.exercises.filter((item) => item.exerciseId === exercise.exerciseId).map((item) => item.attachment)}
                       onChangeDistance={handleChangeDistance}
                       onChangeDuration={handleChangeDuration}
                       onChangeReps={handleChangeReps}
@@ -1280,7 +1369,12 @@ const ActiveWorkoutBody: React.FC = () => {
                       onSwap={handleSwap}
                       onToggleComplete={handleToggleComplete}
                       onToggleSuperset={handleToggleSuperset}
-                      orderBase={Math.max(0, workout.exercises.findIndex((item) => item.id === exercise.id)) * 1000}
+                      orderBase={
+                        Math.max(
+                          0,
+                          workout.exercises.findIndex((item) => item.id === exercise.id),
+                        ) * 1000
+                      }
                       recordIds={recordIdsByExercise.get(exercise.id) ?? noRecords}
                       strength={strengthByCard.get(exercise.id) ?? null}
                       canLinkSuperset={workout.exercises[workout.exercises.length - 1]?.id !== exercise.id}
@@ -1302,7 +1396,17 @@ const ActiveWorkoutBody: React.FC = () => {
       </KeyboardAvoidingView>
       <LogPad />
       {!missing && !editing && !restEndsAt ? (
-        <View style={[styles.finishBar, { bottom: pad.open ? pad.height : 0, left: insets.left, paddingBottom: pad.open ? space.sm : Math.max(insets.bottom, space.sm), right: insets.right }]}>
+        <View
+          style={[
+            styles.finishBar,
+            {
+              bottom: pad.open ? pad.height : 0,
+              left: insets.left,
+              paddingBottom: pad.open ? space.sm : Math.max(insets.bottom, space.sm),
+              right: insets.right,
+            },
+          ]}
+        >
           <Button disabled={finishing} label={finishing ? 'Saving…' : 'Finish'} onPress={pressFinish} />
         </View>
       ) : null}

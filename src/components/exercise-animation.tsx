@@ -53,7 +53,9 @@ function setReduceMotion(value: boolean): void {
   notify();
 }
 
-void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
+void AccessibilityInfo.isReduceMotionEnabled()
+  .then(setReduceMotion)
+  .catch(() => undefined);
 AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
 
 function subscribe(listener: () => void): () => void {
@@ -92,7 +94,11 @@ export const ExerciseAnimation: React.FC<ExerciseAnimationProps> = React.memo(fu
   const shown = frameIndex % sources.length;
   const radius = size > 48 ? 16 : 10;
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.frame, { borderRadius: radius, height: size, width: size }]}>
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.frame, { borderRadius: radius, height: size, width: size }]}
+    >
       {sources.map((source, index) => (
         <Image
           key={index}

@@ -1,8 +1,8 @@
 ---
 name: verify
 description: >-
-  The fixed check order for Rep before a task is called done: typecheck, lint
-  when one exists, unit tests, then browser tests for UI changes. Use after any
+  The fixed check order for Rep before a task is called done: typecheck, lint,
+  format check, unit tests, then browser tests for UI changes. Use after any
   code change, when asked to verify or check work, and before committing.
 ---
 
@@ -17,9 +17,12 @@ before continuing. Do not jump ahead to tests to see whether the rest is fine.
 npm run typecheck
 ```
 
-That is `npx tsc --noEmit` for the app plus `tsc -p tsconfig.scripts.json` for
-`scripts/`. `tsconfig.json` excludes `scripts/`, so plain `npx tsc --noEmit`
-never checks the store and seed scripts.
+That is `npx tsc --noEmit`. `tsconfig.json` excludes `scripts/`, so when
+`tsconfig.scripts.json` is present, check that project as well:
+
+```bash
+npx tsc -p tsconfig.scripts.json
+```
 
 ## 2. Lint
 
@@ -27,13 +30,22 @@ never checks the store and seed scripts.
 npm run lint
 ```
 
-Run this only when `lint` exists in `package.json` scripts, or when an
-`eslint.config.*` or `.eslintrc*` file is present. Rep has no linter today. When
-neither exists, skip the step and write `no linter configured` in the report.
-Do not install or configure a linter as part of verification; that is its own
-change.
+That is `expo lint` with `eslint.config.js` (`eslint-config-expo`). Warnings do
+not fail the command and are not a reason to stop; errors are. The React
+Compiler rules (`react-hooks/purity`, `refs`, `immutability`,
+`set-state-in-effect`) are off because `app.json` does not enable the compiler.
+Do not turn them back on to "clean up" a change.
 
-## 3. Unit tests
+## 3. Format
+
+```bash
+npm run format:check
+```
+
+Prettier with `.prettierrc`. Every file it lists is a failure; run
+`npm run format` and rebuild, and never hand-format around it.
+
+## 4. Unit tests
 
 ```bash
 npm test
@@ -44,7 +56,7 @@ file, then `runAll()`. It is not Jest, it has no watch mode, and it exits
 non-zero on the first failed assertion. A new domain file needs an import in
 `run-tests.ts` or its tests never run.
 
-## 4. Browser tests (UI changes only)
+## 5. Browser tests (UI changes only)
 
 ```bash
 npm run test:e2e
@@ -63,7 +75,8 @@ Reply with one line per step and the exact failure when there is one:
 
 ```text
 typecheck  pass
-lint       skipped (no linter configured)
+lint       pass (3 warnings)
+format     pass
 test       pass
 test:e2e   skipped (domain-only change)
 ```

@@ -120,7 +120,12 @@ function buildWorkouts(): PlannedWorkout[] {
         {
           exerciseId: 'overhead-press',
           restSeconds: 150,
-          sets: [warmup(load(30, week, 0), 6), working(load(50, week, 1.25), 8, 7.5), working(load(50, week, 1.25), 7, 8), working(load(50, week, 1.25), 6, 8.5)],
+          sets: [
+            warmup(load(30, week, 0), 6),
+            working(load(50, week, 1.25), 8, 7.5),
+            working(load(50, week, 1.25), 7, 8),
+            working(load(50, week, 1.25), 6, 8.5),
+          ],
         },
         {
           exerciseId: 'lateral-raise',
@@ -317,15 +322,7 @@ function buildWorkouts(): PlannedWorkout[] {
         exerciseId: 'barbell-bench-press',
         notes: 'Felt strong — paused doubles',
         restSeconds: 180,
-        sets: [
-          warmup(40, 8),
-          warmup(70, 5),
-          working(105, 5, 7.5),
-          working(105, 5, 8),
-          working(105, 5, 8.5),
-          working(95, 8, 8),
-          working(85, 10, 8),
-        ],
+        sets: [warmup(40, 8), warmup(70, 5), working(105, 5, 7.5), working(105, 5, 8), working(105, 5, 8.5), working(95, 8, 8), working(85, 10, 8)],
       },
       {
         exerciseId: 'barbell-row',
@@ -432,13 +429,7 @@ function buildWorkouts(): PlannedWorkout[] {
   return workouts;
 }
 
-function addRoutine(
-  db: DatabaseShape,
-  routineId: string,
-  name: string,
-  createdAt: number,
-  plan: PlannedExercise[],
-): void {
+function addRoutine(db: DatabaseShape, routineId: string, name: string, createdAt: number, plan: PlannedExercise[]): void {
   db.routines.push({ id: routineId, name, createdAt, updatedAt: createdAt });
   plan.forEach((exercise, position) => {
     const routineExerciseId = `${routineId}-ex-${position}`;

@@ -19,7 +19,15 @@ import { formatDuration, formatLoggedLoad, formatWorkoutWhen } from '../../domai
 import { formatEstimate, formatVolume, formatWeight, kgToDisplay } from '../../domain/units';
 import { estimateOneRepMax } from '../../domain/metrics';
 import { estimateFromSets } from '../../domain/one-rep-max';
-import { formatMachineSetup, setTypeMark, usesMachineSetup, type SetRecord, type WeightUnit, type WorkoutDetail, type WorkoutExercise } from '../../domain/types';
+import {
+  formatMachineSetup,
+  setTypeMark,
+  usesMachineSetup,
+  type SetRecord,
+  type WeightUnit,
+  type WorkoutDetail,
+  type WorkoutExercise,
+} from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { discardInProgressWorkout } from '../workout/discard-in-progress';
@@ -119,9 +127,15 @@ export const WorkoutDetailScreen: React.FC = () => {
 
   return (
     <Screen bottomInset>
-      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} right={<TextButton label="Delete" onPress={handleDelete} tone="danger" />} title="Workout" />
+      <Header
+        left={<TextButton label="Back" onPress={navigation.goBack} />}
+        right={<TextButton label="Delete" onPress={handleDelete} tone="danger" />}
+        title="Workout"
+      />
       {!workout ? (
-        loaded ? <EmptyState message="This session is no longer on the device." title="Workout missing" /> : null
+        loaded ? (
+          <EmptyState message="This session is no longer on the device." title="Workout missing" />
+        ) : null
       ) : (
         <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
           <Text style={styles.title}>{workout.name}</Text>
@@ -171,83 +185,101 @@ const Summary: React.FC<{ label: string; value: string }> = ({ label, value }) =
 };
 
 /** One exercise as a small table: warmups marked W, working sets numbered on their own. */
-const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit; onOpenHistory: (exercise: WorkoutExercise) => void }> = React.memo(function ExerciseSummaryCard({ exercise, onOpenHistory, unit }) {
-  const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
-  const working = exercise.sets.filter(isWorking);
-  const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
-  const cardioSeconds = working.reduce((sum, set) => sum + (set.durationSeconds ?? 0), 0);
-  const cardioKm = working.reduce((sum, set) => sum + (set.distanceKm ?? 0), 0);
-  const bestOneRepMax = working.reduce((best, set) => {
-    const weight = set.weightKg ?? 0;
-    const reps = set.reps ?? 0;
-    return weight > 0 && reps > 0 ? Math.max(best, estimateOneRepMax(weight, reps)) : best;
-  }, 0);
-  const session = working.length > 1 ? estimateFromSets(working.map((set) => ({ reps: set.reps ?? 0, rpe: set.rpe, weightKg: set.weightKg ?? 0 }))) : null;
-  let workingNumber = 0;
-  const openPastSets = useCallback(() => {
-    onOpenHistory(exercise);
-  }, [exercise, onOpenHistory]);
+const ExerciseSummaryCard: React.FC<{ exercise: WorkoutExercise; unit: WeightUnit; onOpenHistory: (exercise: WorkoutExercise) => void }> = React.memo(
+  function ExerciseSummaryCard({ exercise, onOpenHistory, unit }) {
+    const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
+    const working = exercise.sets.filter(isWorking);
+    const volumeKg = working.reduce((sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0), 0);
+    const cardioSeconds = working.reduce((sum, set) => sum + (set.durationSeconds ?? 0), 0);
+    const cardioKm = working.reduce((sum, set) => sum + (set.distanceKm ?? 0), 0);
+    const bestOneRepMax = working.reduce((best, set) => {
+      const weight = set.weightKg ?? 0;
+      const reps = set.reps ?? 0;
+      return weight > 0 && reps > 0 ? Math.max(best, estimateOneRepMax(weight, reps)) : best;
+    }, 0);
+    const session = working.length > 1 ? estimateFromSets(working.map((set) => ({ reps: set.reps ?? 0, rpe: set.rpe, weightKg: set.weightKg ?? 0 }))) : null;
+    let workingNumber = 0;
+    const openPastSets = useCallback(() => {
+      onOpenHistory(exercise);
+    }, [exercise, onOpenHistory]);
 
-  return (
-    <View style={styles.card}>
-      <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={openPastSets}>
-        <Text style={styles.exercise}>{exercise.name}</Text>
-        <Text style={styles.meta}>
-          {exercise.muscleGroup} · {exercise.equipment}
-          {exercise.attachment ? ` · ${exercise.attachment}` : ''}
-          {usesMachineSetup(exercise.equipment) ? ` · ${formatMachineSetup(exercise.machineSetup)}` : ''}
-        </Text>
-      </Pressable>
-      {exercise.notes.trim() ? (
-        <View style={styles.notesWrap}>
-          <Text style={styles.notes}>{exercise.notes.trim()}</Text>
-        </View>
-      ) : null}
-      <View style={[styles.row, styles.headRow]}>
-        <Text style={[styles.colSet, styles.head]}>Set</Text>
-        <Text style={[styles.colLoad, styles.head]}>{cardio ? 'Time · distance' : `${unit} × reps`}</Text>
-        {cardio ? null : <Text style={[styles.colRpe, styles.head]}>RPE</Text>}
-        {cardio ? null : <Text style={[styles.colMax, styles.head]}>e1RM</Text>}
-      </View>
-      {exercise.sets.map((set) => {
-        const warmup = set.setType === 'warmup';
-        if (!warmup && set.completed) {
-          workingNumber += 1;
-        }
-        const weight = set.weightKg ?? 0;
-        const reps = set.reps ?? 0;
-        const max = !warmup && set.completed && weight > 0 && reps > 0 ? estimateOneRepMax(weight, reps) : null;
-        return (
-          <View key={set.id} style={[styles.row, !set.completed && styles.skipped]}>
-            <Text style={[styles.colSet, styles.setLabel, warmup && styles.warmup, set.setType === 'failure' && styles.failure, set.setType === 'drop' && styles.drop]}>
-              {setTypeMark(set.setType) ?? (set.completed ? workingNumber : '–')}
-            </Text>
-            <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>
-              {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
-            </Text>
-            {cardio ? null : <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>}
-            {cardio ? null : <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>}
+    return (
+      <View style={styles.card}>
+        <Pressable
+          accessibilityHint="Shows every finished set"
+          accessibilityLabel={`Past sets for ${exercise.name}`}
+          accessibilityRole="button"
+          onPress={openPastSets}
+        >
+          <Text style={styles.exercise}>{exercise.name}</Text>
+          <Text style={styles.meta}>
+            {exercise.muscleGroup} · {exercise.equipment}
+            {exercise.attachment ? ` · ${exercise.attachment}` : ''}
+            {usesMachineSetup(exercise.equipment) ? ` · ${formatMachineSetup(exercise.machineSetup)}` : ''}
+          </Text>
+        </Pressable>
+        {exercise.notes.trim() ? (
+          <View style={styles.notesWrap}>
+            <Text style={styles.notes}>{exercise.notes.trim()}</Text>
           </View>
-        );
-      })}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          {working.length} working {working.length === 1 ? 'set' : 'sets'} · {cardio ? formatCardioEffort(cardioSeconds, cardioKm, unit) : `${formatVolume(kgToDisplay(volumeKg, unit))} ${unit}`}
-        </Text>
-        {!cardio && bestOneRepMax > 0 ? (
-          <Text style={styles.footerStrong}>
-            Best e1RM {formatEstimate(kgToDisplay(bestOneRepMax, unit))} {unit}
+        ) : null}
+        <View style={[styles.row, styles.headRow]}>
+          <Text style={[styles.colSet, styles.head]}>Set</Text>
+          <Text style={[styles.colLoad, styles.head]}>{cardio ? 'Time · distance' : `${unit} × reps`}</Text>
+          {cardio ? null : <Text style={[styles.colRpe, styles.head]}>RPE</Text>}
+          {cardio ? null : <Text style={[styles.colMax, styles.head]}>e1RM</Text>}
+        </View>
+        {exercise.sets.map((set) => {
+          const warmup = set.setType === 'warmup';
+          if (!warmup && set.completed) {
+            workingNumber += 1;
+          }
+          const weight = set.weightKg ?? 0;
+          const reps = set.reps ?? 0;
+          const max = !warmup && set.completed && weight > 0 && reps > 0 ? estimateOneRepMax(weight, reps) : null;
+          return (
+            <View key={set.id} style={[styles.row, !set.completed && styles.skipped]}>
+              <Text
+                style={[
+                  styles.colSet,
+                  styles.setLabel,
+                  warmup && styles.warmup,
+                  set.setType === 'failure' && styles.failure,
+                  set.setType === 'drop' && styles.drop,
+                ]}
+              >
+                {setTypeMark(set.setType) ?? (set.completed ? workingNumber : '–')}
+              </Text>
+              <Text style={[styles.colLoad, styles.cell, warmup && styles.warmupText]}>
+                {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
+              </Text>
+              {cardio ? null : <Text style={[styles.colRpe, styles.cellMuted]}>{set.rpe != null ? formatWeight(set.rpe) : '—'}</Text>}
+              {cardio ? null : (
+                <Text style={[styles.colMax, styles.cellMuted]}>{max != null ? formatEstimate(kgToDisplay(max, unit)) : set.completed ? '—' : 'skipped'}</Text>
+              )}
+            </View>
+          );
+        })}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            {working.length} working {working.length === 1 ? 'set' : 'sets'} ·{' '}
+            {cardio ? formatCardioEffort(cardioSeconds, cardioKm, unit) : `${formatVolume(kgToDisplay(volumeKg, unit))} ${unit}`}
+          </Text>
+          {!cardio && bestOneRepMax > 0 ? (
+            <Text style={styles.footerStrong}>
+              Best e1RM {formatEstimate(kgToDisplay(bestOneRepMax, unit))} {unit}
+            </Text>
+          ) : null}
+        </View>
+        {!cardio && session && session.used > 1 ? (
+          <Text style={styles.sessionLine}>
+            Session 1RM {formatEstimate(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
           </Text>
         ) : null}
       </View>
-      {!cardio && session && session.used > 1 ? (
-        <Text style={styles.sessionLine}>
-          Session 1RM {formatEstimate(kgToDisplay(session.sessionKg, unit))} {unit}, from {session.used} of {working.length} sets
-        </Text>
-      ) : null}
-    </View>
-  );
-});
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   action: {

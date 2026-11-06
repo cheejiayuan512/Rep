@@ -63,7 +63,12 @@ test('a routine plans sets, reorders by dragging, and removes by swiping', async
     throw new Error('Handles are not on screen');
   }
   await dragBy(page, benchHandle, 0, squatBox.y - benchBox.y - 20);
-  await expect.poll(async () => ((await page.getByLabel('Reorder Barbell Bench Press').boundingBox())?.y ?? 0) < ((await page.getByLabel('Reorder Back Squat').boundingBox())?.y ?? 0)).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        ((await page.getByLabel('Reorder Barbell Bench Press').boundingBox())?.y ?? 0) < ((await page.getByLabel('Reorder Back Squat').boundingBox())?.y ?? 0),
+    )
+    .toBe(true);
 
   await swipeCard(page, 'Barbell Bench Press');
   await expect(page.getByLabel('Reorder Barbell Bench Press')).toHaveCount(0);

@@ -98,7 +98,14 @@ export const RootNavigator: React.FC = () => {
         const settings = await getSettings();
         const activeWorkoutId = await getInProgressWorkoutId();
         if (!cancel) {
-          dispatch(bootstrapped({ activeWorkoutId, showTutorial: !settings.tutorialSeen, warmupRestMultiplier: settings.warmupRestMultiplier, weightUnit: settings.weightUnit }));
+          dispatch(
+            bootstrapped({
+              activeWorkoutId,
+              showTutorial: !settings.tutorialSeen,
+              warmupRestMultiplier: settings.warmupRestMultiplier,
+              weightUnit: settings.weightUnit,
+            }),
+          );
         }
       } catch (error) {
         if (!cancel) {

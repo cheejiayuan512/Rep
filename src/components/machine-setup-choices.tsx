@@ -68,9 +68,7 @@ const SetupRow: React.FC<SetupRowProps> = React.memo(function SetupRow({ option,
   const handlePress = useCallback(() => {
     onSelect(option.setup);
   }, [onSelect, option.setup]);
-  const last = option.last
-    ? formatLoggedLoad(option.last.weightKg, option.last.reps, unit, option.last.setType === 'warmup')
-    : '—';
+  const last = option.last ? formatLoggedLoad(option.last.weightKg, option.last.reps, unit, option.last.setType === 'warmup') : '—';
 
   return (
     <Pressable

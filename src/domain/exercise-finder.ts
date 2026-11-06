@@ -215,6 +215,9 @@ export function findExercises(exercises: readonly Exercise[], answers: FinderAns
       const positionHit = answers.position == null || position === answers.position;
       return { exact: equipmentHit && positionHit, exercise, score: (equipmentHit ? 2 : 0) + (positionHit ? 1 : 0) };
     })
-    .sort((left, right) => right.score - left.score || Number(right.exercise.isCustom) - Number(left.exercise.isCustom) || left.exercise.name.localeCompare(right.exercise.name));
+    .sort(
+      (left, right) =>
+        right.score - left.score || Number(right.exercise.isCustom) - Number(left.exercise.isCustom) || left.exercise.name.localeCompare(right.exercise.name),
+    );
   return scored.slice(0, RESULT_LIMIT).map(({ exact, exercise }) => ({ exact, exercise }));
 }

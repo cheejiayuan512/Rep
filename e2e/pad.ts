@@ -18,7 +18,10 @@ export async function hidePad(page: Page): Promise<void> {
 }
 
 export async function fillSet(page: Page, weight: string, reps: string, index = 0): Promise<void> {
-  await page.getByRole('button', { name: /^Weight/ }).nth(index).click();
+  await page
+    .getByRole('button', { name: /^Weight/ })
+    .nth(index)
+    .click();
   await typePad(page, weight);
   await page.getByRole('button', { name: /^Reps/ }).nth(index).click();
   await typePad(page, reps);

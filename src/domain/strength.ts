@@ -50,7 +50,7 @@ export function hasStrengthStandard(exerciseId: string): boolean {
 }
 
 /** Highest Epley estimate among working sets of 1–10 reps. Null when none qualify. */
-export function bestWorkingOneRepMax(sets: Array<{ setType: SetType; weightKg: number | null; reps: number | null }>): number | null {
+export function bestWorkingOneRepMax(sets: { setType: SetType; weightKg: number | null; reps: number | null }[]): number | null {
   let best = 0;
   for (const set of sets) {
     const reps = set.reps ?? 0;

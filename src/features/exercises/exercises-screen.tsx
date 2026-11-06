@@ -12,7 +12,7 @@ import { Header, TextButton } from '../../components/header';
 import { Screen } from '../../components/screen';
 import { listExercises } from '../../data/repository';
 import { fuzzyFilter } from '../../domain/fuzzy-search';
-import { muscleGroups, type Exercise, type MuscleGroup } from '../../domain/types';
+import { muscleGroups, type Exercise } from '../../domain/types';
 import type { StackNavigation } from '../../navigation/types';
 import { useStored } from '../../state/hooks';
 import { colors } from '../../theme/colors';
@@ -63,7 +63,11 @@ export const ExercisesScreen: React.FC = () => {
 
   return (
     <Screen>
-      <Header left={<TextButton label="Back" onPress={navigation.goBack} />} right={<TextButton label="New" onPress={handleNew} tone="accent" />} title="Exercises" />
+      <Header
+        left={<TextButton label="Back" onPress={navigation.goBack} />}
+        right={<TextButton label="New" onPress={handleNew} tone="accent" />}
+        title="Exercises"
+      />
       <View style={styles.header}>
         <Text style={styles.subtitle}>
           {exercises.length} in the library · {customCount} custom
@@ -78,7 +82,13 @@ export const ExercisesScreen: React.FC = () => {
           value={query}
         />
       </View>
-      <ScrollView contentContainerStyle={styles.filters} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+      <ScrollView
+        contentContainerStyle={styles.filters}
+        horizontal
+        keyboardShouldPersistTaps="handled"
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScroller}
+      >
         {filters.map((item) => (
           <Chip key={item} label={item} onSelect={selectFilter} selected={item === filter} value={item} />
         ))}

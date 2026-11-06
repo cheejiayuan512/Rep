@@ -164,6 +164,12 @@ export function useHomeData(activeWorkoutId: string | null): HomeData | null {
     if (!routines || !workouts) {
       return null;
     }
-    return { active: activeWorkoutId ? active : null, lastWorkout: workouts[0] ?? null, recent: workouts.slice(0, 3), routines, stats: buildHomeStats(workouts, Date.now()) };
+    return {
+      active: activeWorkoutId ? active : null,
+      lastWorkout: workouts[0] ?? null,
+      recent: workouts.slice(0, 3),
+      routines,
+      stats: buildHomeStats(workouts, Date.now()),
+    };
   }, [active, activeWorkoutId, routines, workouts]);
 }

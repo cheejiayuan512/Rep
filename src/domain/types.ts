@@ -78,31 +78,11 @@ export interface BodyProfile {
 
 export type ChartMetric = 'oneRepMax' | 'topSet' | 'volume';
 
-export const muscleGroups = [
-  'Chest',
-  'Back',
-  'Shoulders',
-  'Biceps',
-  'Triceps',
-  'Quads',
-  'Hamstrings',
-  'Glutes',
-  'Calves',
-  'Core',
-  'Full body',
-] as const;
+export const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Core', 'Full body'] as const;
 
 export type MuscleGroup = (typeof muscleGroups)[number];
 
-export const equipmentTypes = [
-  'Barbell',
-  'Dumbbell',
-  'Machine',
-  'Cable',
-  'Bodyweight',
-  'Kettlebell',
-  'Other',
-] as const;
+export const equipmentTypes = ['Barbell', 'Dumbbell', 'Machine', 'Cable', 'Bodyweight', 'Kettlebell', 'Other'] as const;
 
 export type Equipment = (typeof equipmentTypes)[number];
 
@@ -342,7 +322,7 @@ export function formatMachineSetup(value: string | null | undefined): string {
 }
 
 /** Custom stack names already used, not including the built-in brands. */
-export function extraMachineSetups(values: Array<string | null | undefined>): string[] {
+export function extraMachineSetups(values: (string | null | undefined)[]): string[] {
   const brands = new Set<string>(machineBrands);
   const seen = new Set<string>();
   const extras: string[] = [];

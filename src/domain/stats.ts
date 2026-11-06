@@ -111,8 +111,8 @@ export interface Analysis {
   /** Fraction change against the previous period of the same length. Null when that period was empty. */
   volumeChange: number | null;
   workoutsChange: number | null;
-  muscles: Array<ShareRow<MuscleGroup>>;
-  repRanges: Array<ShareRow<RepRange>>;
+  muscles: ShareRow<MuscleGroup>[];
+  repRanges: ShareRow<RepRange>[];
   /** Monday first. */
   weekdays: number[];
   averageRpe: number | null;
@@ -187,15 +187,13 @@ function liftTrends(sets: AnalysisSet[], priorSets: AnalysisSet[]): LiftTrend[] 
     .slice(0, 6);
 }
 
-function shares<T extends string>(sets: AnalysisSet[], key: (set: AnalysisSet) => T): Array<ShareRow<T>> {
+function shares<T extends string>(sets: AnalysisSet[], key: (set: AnalysisSet) => T): ShareRow<T>[] {
   const counts = new Map<T, number>();
   for (const set of sets) {
     const id = key(set);
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
-  return [...counts.entries()]
-    .map(([id, count]) => ({ id, sets: count, share: count / sets.length }))
-    .sort((left, right) => right.sets - left.sets);
+  return [...counts.entries()].map(([id, count]) => ({ id, sets: count, share: count / sets.length })).sort((left, right) => right.sets - left.sets);
 }
 
 function change(current: number, previous: number): number | null {

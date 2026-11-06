@@ -118,7 +118,14 @@ export const RoutinesScreen: React.FC = () => {
         contentContainerStyle={routines.length === 0 ? styles.emptyList : styles.list}
         data={routines}
         keyExtractor={routineKey}
-        ListEmptyComponent={<EmptyState actionLabel="Create a routine" message="Add the exercises you repeat, then start them as a workout." onAction={pressCreate} title="No routines yet" />}
+        ListEmptyComponent={
+          <EmptyState
+            actionLabel="Create a routine"
+            message="Add the exercises you repeat, then start them as a workout."
+            onAction={pressCreate}
+            title="No routines yet"
+          />
+        }
         renderItem={renderRoutine}
       />
       {routines.length > 0 ? (

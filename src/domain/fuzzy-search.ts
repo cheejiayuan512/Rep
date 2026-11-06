@@ -41,7 +41,7 @@ const ALIASES: Record<string, string> = {
 };
 
 /** A name people say for an exercise that already has another title. Longest first. */
-const PHRASES: Array<[string, string]> = [
+const PHRASES: [string, string][] = [
   ['farmers walk', 'farmer carry'],
   ['farmer s walk', 'farmer carry'],
   ['farmer walk', 'farmer carry'],

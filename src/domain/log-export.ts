@@ -76,7 +76,7 @@ export function workoutsToCsv(workouts: ExportWorkout[]): string {
   return `${lines.join('\n')}\n`;
 }
 
-function row(cells: Array<string | number>): string {
+function row(cells: (string | number)[]): string {
   return cells.map(csvCell).join(',');
 }
 

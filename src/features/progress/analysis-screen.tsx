@@ -67,7 +67,12 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
     <ScrollView contentContainerStyle={styles.content} style={styles.fill}>
       <View style={styles.grid}>
         <Tile change={analysis.workoutsChange} label="Workouts" sub={`${formatDecimal(analysis.perWeek, 1)} per week`} value={String(analysis.workouts)} />
-        <Tile change={analysis.volumeChange} label={`Volume (${unit})`} sub={`vs the ${period} before`} value={formatVolume(kgToDisplay(analysis.volumeKg, unit))} />
+        <Tile
+          change={analysis.volumeChange}
+          label={`Volume (${unit})`}
+          sub={`vs the ${period} before`}
+          value={formatVolume(kgToDisplay(analysis.volumeKg, unit))}
+        />
         <Tile label="Avg session" sub="from start to finish" value={`${analysis.averageMinutes} min`} />
         <Tile label="Avg sets" sub="working sets per workout" value={formatDecimal(analysis.averageSets, 1)} />
       </View>
@@ -90,7 +95,7 @@ const AnalysisBody: React.FC<{ analysis: Analysis; period: string; unit: WeightU
       <Text style={styles.section}>Training days</Text>
       <View style={[styles.card, styles.days]}>
         {analysis.weekdays.map((count, index) => (
-            <View accessibilityLabel={`${WEEKDAYS[index]}, ${countNoun(count, 'workout')}`} key={index} style={styles.day}>
+          <View accessibilityLabel={`${WEEKDAYS[index]}, ${countNoun(count, 'workout')}`} key={index} style={styles.day}>
             <Text style={styles.dayCount}>{count}</Text>
             <View style={styles.dayTrack}>
               <View style={[styles.dayFill, { height: `${(count / peakDay) * 100}%` }]} />

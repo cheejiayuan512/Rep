@@ -29,6 +29,7 @@ function workoutActivity(): LiveActivityFactory<WorkoutActivityProps> | null {
   }
   try {
     // Loaded lazily: importing it where the native module is missing would throw at startup.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- same reason; the import would run at startup
     factory = (require('./workout-activity') as typeof import('./workout-activity')).default;
   } catch {
     factory = null;
@@ -109,6 +110,7 @@ export function addCompleteSetListener(listener: () => void): { remove: () => vo
       });
     }
     if (Platform.OS === 'ios' && workoutActivity()) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: expo-widgets is native-only
       const widgets = require('expo-widgets') as typeof import('expo-widgets');
       return widgets.addUserInteractionListener((event) => {
         if (event.target === COMPLETE_SET_TARGET) {

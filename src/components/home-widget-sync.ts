@@ -50,6 +50,7 @@ export function syncHomeWidget(): void {
     return;
   }
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the widget module does not exist on web
     const widget = require('./home-widget').default as { updateSnapshot: (next: HomeWidgetProps) => void };
     widget.updateSnapshot(props);
   } catch {

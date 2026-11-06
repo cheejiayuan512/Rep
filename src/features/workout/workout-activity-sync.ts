@@ -71,7 +71,11 @@ export function activityPropsFor(workout: WorkoutDetail, unit: WeightUnit): Work
   const empty = workout.exercises.length === 0;
   const progress = progressOf(workout);
   return {
-    canComplete: next != null && (isCardioExercise(next.exercise.exerciseId, next.exercise.name) ? cardioHasEffort(next.set.durationSeconds, next.set.distanceKm) : (next.set.reps ?? 0) > 0),
+    canComplete:
+      next != null &&
+      (isCardioExercise(next.exercise.exerciseId, next.exercise.name)
+        ? cardioHasEffort(next.set.durationSeconds, next.set.distanceKm)
+        : (next.set.reps ?? 0) > 0),
     completedSets: progress.completedSets,
     exerciseName: next ? next.exercise.name : empty ? 'Add an exercise' : 'All sets done',
     nextSet: next
@@ -134,7 +138,12 @@ async function completeNextSetInBackground(): Promise<void> {
   }
   await updateSetCompleted(set.id, true, set.weightKg, set.reps, set.rpe, set.durationSeconds ?? null, set.distanceKm ?? null);
   setLastExercise(workout.id, exercise.id);
-  const seconds = restAfterSet(exercise.restSeconds ?? defaultRestFor(exercise), set.setType, warmupRestMultiplier, warmupLoadRatio(set.weightKg, exercise.sets, exercise.previousSets));
+  const seconds = restAfterSet(
+    exercise.restSeconds ?? defaultRestFor(exercise),
+    set.setType,
+    warmupRestMultiplier,
+    warmupLoadRatio(set.weightKg, exercise.sets, exercise.previousSets),
+  );
   const startedAt = Date.now();
   setRest({ endsAt: startedAt + seconds * 1000, startedAt, workoutExerciseId: exercise.id, workoutId: workout.id });
   showWorkoutActivity(activityPropsFor(updateSetInWorkout(workout, set.id, { completed: true }), weightUnit));

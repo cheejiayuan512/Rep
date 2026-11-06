@@ -16,7 +16,16 @@ import { formatClock } from '../../domain/format';
 import { defaultRestFor, REST_CLASS_LABELS, restClassFor } from '../../domain/rest';
 import { MachineSetupChoices } from '../../components/machine-setup-choices';
 import { machineSetupOptions } from '../../domain/machine-setup';
-import { cableAttachments, equipmentTypes, muscleGroups, usesMachineSetup, type CableAttachment, type Equipment, type Exercise, type MuscleGroup } from '../../domain/types';
+import {
+  cableAttachments,
+  equipmentTypes,
+  muscleGroups,
+  usesMachineSetup,
+  type CableAttachment,
+  type Equipment,
+  type Exercise,
+  type MuscleGroup,
+} from '../../domain/types';
 import { useWeightUnit } from '../../state/hooks';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { dataChanged, useAppDispatch } from '../../state/store';
@@ -174,8 +183,8 @@ export const ExerciseEditorScreen: React.FC = () => {
         {exercise ? (
           <View style={styles.usage}>
             <Text style={styles.usageText}>
-              Used in {usage?.workouts ?? 0} {usage?.workouts === 1 ? 'workout' : 'workouts'} and {usage?.routines ?? 0} {usage?.routines === 1 ? 'routine' : 'routines'}.
-              {exercise.isCustom ? '' : ' Built-in exercises can be edited but not deleted.'}
+              Used in {usage?.workouts ?? 0} {usage?.workouts === 1 ? 'workout' : 'workouts'} and {usage?.routines ?? 0}{' '}
+              {usage?.routines === 1 ? 'routine' : 'routines'}.{exercise.isCustom ? '' : ' Built-in exercises can be edited but not deleted.'}
             </Text>
             {usage && usage.workouts > 0 ? <Button label="View progress" onPress={openProgress} style={styles.secondary} variant="secondary" /> : null}
             {exercise.isCustom ? (

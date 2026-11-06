@@ -12,7 +12,15 @@ import { draftFromSet } from '../domain/drafts';
 import { formatClock } from '../domain/format';
 import { defaultRestFor } from '../domain/rest';
 import type { MachineSetupOption } from '../domain/machine-setup';
-import { cableAttachments, formatMachineSetup, usesMachineSetup, type CableAttachment, type SetType, type WeightUnit, type WorkoutExercise } from '../domain/types';
+import {
+  cableAttachments,
+  formatMachineSetup,
+  usesMachineSetup,
+  type CableAttachment,
+  type SetType,
+  type WeightUnit,
+  type WorkoutExercise,
+} from '../domain/types';
 import { previousForSet, type SupersetRole } from '../domain/workout-edits';
 import type { StrengthRating } from '../domain/strength';
 import { colors } from '../theme/colors';
@@ -49,7 +57,7 @@ interface ExerciseBlockProps {
   onChangeRest: (workoutExerciseId: string, seconds: number | null) => void;
   onChangeAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   /** Attachments already used by this exercise in the workout. Unused ones can open another card. */
-  usedAttachments: ReadonlyArray<CableAttachment | null>;
+  usedAttachments: readonly (CableAttachment | null)[];
   onAddAttachment: (workoutExerciseId: string, attachment: CableAttachment | null) => void;
   onChangeSetup: (workoutExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
@@ -183,16 +191,22 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
   const isCable = exercise.equipment === 'Cable';
   const unusedAttachments = useMemo(() => {
     if (!isCable) {
-      return [] as Array<CableAttachment | null>;
+      return [] as (CableAttachment | null)[];
     }
     const used = new Set(usedAttachments.map((item) => item ?? ''));
-    return ([null, ...cableAttachments] as Array<CableAttachment | null>).filter((item) => !used.has(item ?? ''));
+    return ([null, ...cableAttachments] as (CableAttachment | null)[]).filter((item) => !used.has(item ?? ''));
   }, [isCable, usedAttachments]);
 
   return (
     <View style={[styles.card, superset !== 'single' && styles.cardSuperset, sortHandle.dragging && styles.cardDragging]}>
       <View style={styles.header}>
-        <Pressable accessibilityHint="Shows every finished set" accessibilityLabel={`Past sets for ${exercise.name}`} accessibilityRole="button" onPress={handleOpenHistory} style={styles.titleWrap}>
+        <Pressable
+          accessibilityHint="Shows every finished set"
+          accessibilityLabel={`Past sets for ${exercise.name}`}
+          accessibilityRole="button"
+          onPress={handleOpenHistory}
+          style={styles.titleWrap}
+        >
           {superset !== 'single' ? <Text style={styles.superset}>Superset</Text> : null}
           <View style={styles.nameRow}>
             <Text numberOfLines={1} style={styles.name}>
@@ -349,12 +363,7 @@ export const ExerciseBlock: React.FC<ExerciseBlockProps> = React.memo(function E
           <Text style={styles.secondaryAction}>Add set</Text>
         </Pressable>
         {unusedAttachments.length > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: panel === 'addAttachment' }}
-            onPress={toggleAddAttachment}
-            style={styles.add}
-          >
+          <Pressable accessibilityRole="button" accessibilityState={{ expanded: panel === 'addAttachment' }} onPress={toggleAddAttachment} style={styles.add}>
             <Text style={styles.secondaryAction}>Add with other attachment</Text>
           </Pressable>
         ) : null}

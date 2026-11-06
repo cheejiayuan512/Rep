@@ -69,12 +69,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {stacked ? (
               <>
                 <Button label={confirmLabel} onPress={handleConfirm} style={styles.action} variant={destructive ? 'danger' : 'primary'} />
-                <Button
-                  label={secondaryLabel}
-                  onPress={handleSecondary}
-                  style={styles.action}
-                  variant={secondaryDestructive ? 'danger' : 'secondary'}
-                />
+                <Button label={secondaryLabel} onPress={handleSecondary} style={styles.action} variant={secondaryDestructive ? 'danger' : 'secondary'} />
                 {hideCancel ? null : <Button label="Cancel" onPress={onCancel} style={styles.action} variant="secondary" />}
               </>
             ) : (

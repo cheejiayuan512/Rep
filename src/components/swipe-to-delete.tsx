@@ -3,7 +3,18 @@
  * Nested swipe rows win their own gestures, so a set row inside a swipeable card deletes the set, not the card.
  */
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View, type AccessibilityActionEvent, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type AccessibilityActionEvent,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors } from '../theme/colors';
 import { hapticLight } from './haptics';
@@ -27,7 +38,16 @@ interface SwipeToDeleteProps {
   children: React.ReactNode;
 }
 
-export const SwipeToDelete: React.FC<SwipeToDeleteProps> = ({ label, accessibilityLabel, onDelete, radius = 10, style, frontColor = colors.surface, testID, children }) => {
+export const SwipeToDelete: React.FC<SwipeToDeleteProps> = ({
+  label,
+  accessibilityLabel,
+  onDelete,
+  radius = 10,
+  style,
+  frontColor = colors.surface,
+  testID,
+  children,
+}) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const resting = useRef(0);
   const width = useRef(320);

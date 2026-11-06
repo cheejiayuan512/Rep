@@ -16,7 +16,7 @@ import { activeWorkoutChanged, dataChanged, useAppDispatch } from '../../state/s
 import { formatCardioEffort, formatSessionLoad } from '../../domain/cardio';
 import { formatDuration, formatLoggedLoad, formatLongDate, formatOrdinal } from '../../domain/format';
 import type { ProfileBadge } from '../../domain/profile';
-import { formatEstimate, formatVolume, kgToDisplay } from '../../domain/units';
+import { formatEstimate, kgToDisplay } from '../../domain/units';
 import type { WeightUnit } from '../../domain/types';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { useStored, useWeightUnit } from '../../state/hooks';
@@ -105,7 +105,8 @@ export const WorkoutCompleteScreen: React.FC = () => {
       {recap && (recap.records.length > 0 || recap.workout.volumeRecord) ? (
         <Pressable accessibilityRole="button" onPress={toggleRecords} style={styles.pill}>
           <Text style={styles.pillText}>
-            ★ {recap.records.length + (recap.workout.volumeRecord ? 1 : 0)} Personal {recap.records.length + (recap.workout.volumeRecord ? 1 : 0) === 1 ? 'Record' : 'Records'}
+            ★ {recap.records.length + (recap.workout.volumeRecord ? 1 : 0)} Personal{' '}
+            {recap.records.length + (recap.workout.volumeRecord ? 1 : 0) === 1 ? 'Record' : 'Records'}
           </Text>
         </Pressable>
       ) : null}
@@ -123,7 +124,7 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
     <View>
       <Stars />
       <Text style={styles.wellDone}>Well Done!</Text>
-      <Text style={styles.subtitle}>That's your {formatOrdinal(recap.sessionNumber)} workout!</Text>
+      <Text style={styles.subtitle}>That&apos;s your {formatOrdinal(recap.sessionNumber)} workout!</Text>
 
       <View style={styles.summary}>
         <Text style={styles.workoutName}>{workout.name}</Text>
@@ -151,7 +152,9 @@ const RecapBody: React.FC<{ recap: WorkoutRecap; unit: WeightUnit; recordsOpen: 
             </Text>
           </View>
         ))}
-        {recordsOpen && workout.volumeRecord ? <Text style={styles.recordLine}>Volume PR · {formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}</Text> : null}
+        {recordsOpen && workout.volumeRecord ? (
+          <Text style={styles.recordLine}>Volume PR · {formatSessionLoad(workout.volumeKg, workout.cardioSeconds, workout.cardioKm, unit)}</Text>
+        ) : null}
         {recordsOpen
           ? recap.records.map((record) => (
               <Text key={record.name} style={styles.recordLine}>
@@ -244,7 +247,10 @@ const Stars: React.FC = () => {
       right.setValue(1);
       return;
     }
-    Animated.stagger(90, [left, middle, right].map((value) => Animated.spring(value, { friction: 5, tension: 80, toValue: 1, useNativeDriver: nativeDriver }))).start();
+    Animated.stagger(
+      90,
+      [left, middle, right].map((value) => Animated.spring(value, { friction: 5, tension: 80, toValue: 1, useNativeDriver: nativeDriver })),
+    ).start();
   }, [left, middle, reduceMotion, right]);
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.stars}>

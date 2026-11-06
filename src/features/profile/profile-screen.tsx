@@ -40,7 +40,7 @@ interface ProfileScreenProps {
   navigation: AppNavigation<'Profile'>;
 }
 
-const METRICS: Array<{ id: ProfileChartMetric; label: string }> = [
+const METRICS: { id: ProfileChartMetric; label: string }[] = [
   { id: 'duration', label: 'Duration' },
   { id: 'volume', label: 'Volume' },
   { id: 'reps', label: 'Reps' },
@@ -173,7 +173,9 @@ const LevelBlock: React.FC<{ level: ProfileLevel }> = ({ level }) => {
       <Text style={styles.levelName}>{level.title}</Text>
       <LevelBar ceiling={level.ceiling} floor={level.floor} points={level.points} />
       <View style={styles.levelNumbers}>
-        <Text style={styles.points}>{inLevel ? `${inLevel.done.toLocaleString()} / ${inLevel.span.toLocaleString()} XP` : `${level.points.toLocaleString()} XP`}</Text>
+        <Text style={styles.points}>
+          {inLevel ? `${inLevel.done.toLocaleString()} / ${inLevel.span.toLocaleString()} XP` : `${level.points.toLocaleString()} XP`}
+        </Text>
         <Text style={styles.pointsStrong}>{level.toNext == null ? 'Top level' : `${level.toNext.toLocaleString()} XP to level ${level.level + 1}`}</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: explain }} hitSlop={6} onPress={toggle}>
@@ -242,7 +244,8 @@ const ExerciseArtCredit: React.FC = () => {
       <Text style={styles.section}>Exercise drawings</Text>
       <Text style={styles.hint}>
         © 2026 <CreditLink href="https://bryllim.com" label="Bryl Lim" />, from <CreditLink href="https://github.com/everkinetic/data" label="Everkinetic" />,{' '}
-        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />. <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Scaled, heavier frame left out, figure held in place.
+        <CreditLink href="https://bryllim.github.io/workout-guide/exercises/" label="Workout Guide" />.{' '}
+        <CreditLink href="https://creativecommons.org/licenses/by-sa/4.0/" label="CC BY-SA 4.0" />. Scaled, heavier frame left out, figure held in place.
       </Text>
     </View>
   );
@@ -278,7 +281,13 @@ const Settings: React.FC = () => {
         <Text style={styles.hint}>A light warmup rests this share of the exercise&apos;s rest. Heavier warmups rest longer, up to the full rest.</Text>
         <View style={styles.multipliers}>
           {WARMUP_MULTIPLIERS.map((multiplier) => (
-            <Chip key={multiplier} label={formatMultiplier(multiplier)} onSelect={selectMultiplier} selected={warmupMultiplier === multiplier} value={String(multiplier)} />
+            <Chip
+              key={multiplier}
+              label={formatMultiplier(multiplier)}
+              onSelect={selectMultiplier}
+              selected={warmupMultiplier === multiplier}
+              value={String(multiplier)}
+            />
           ))}
         </View>
       </View>
@@ -397,7 +406,17 @@ const BadgeRing: React.FC<{ badge: ProfileBadge; size: number }> = ({ badge, siz
     <View style={[styles.badgeArt, { height: size, width: size }]}>
       <Svg height={size} viewBox="0 0 64 64" width={size}>
         <Circle cx="32" cy="32" fill="none" r={radius} stroke={colors.border} strokeWidth="4" />
-        <Circle cx="32" cy="32" fill="none" r={radius} stroke={color} strokeDasharray={`${dash} ${circumference}`} strokeLinecap="round" strokeWidth="4" transform="rotate(-90 32 32)" />
+        <Circle
+          cx="32"
+          cy="32"
+          fill="none"
+          r={radius}
+          stroke={color}
+          strokeDasharray={`${dash} ${circumference}`}
+          strokeLinecap="round"
+          strokeWidth="4"
+          transform="rotate(-90 32 32)"
+        />
         <Circle cx="32" cy="32" fill={locked ? colors.surface : colors.surfaceRaised} r="20" />
       </Svg>
       <View style={styles.badgeGlyph}>

@@ -292,12 +292,6 @@ export const ExercisePickerScreen: React.FC = () => {
 
   const listEmpty = useMemo(() => <Text style={styles.empty}>No exercises match that search.</Text>, []);
   const openCreate = useCallback(() => setCreating(true), []);
-  const openFinder = useCallback(() => {
-    setCreating(false);
-    setError(null);
-    setFinderLibrary(listExercises.now('', null) ?? []);
-    void listExercises('', null).then(setFinderLibrary);
-  }, []);
   const closeFinder = useCallback(() => setFinderLibrary(null), []);
   const pressFinderResult = useCallback(
     (exerciseId: string) => {
@@ -331,47 +325,62 @@ export const ExercisePickerScreen: React.FC = () => {
         </>
       ) : (
         <>
-      <View style={styles.searchWrap}>
-        <TextInput accessibilityLabel="Search exercises" autoCorrect={false} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
-      </View>
-      <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-        {filters.map((filter) => (
-          <FilterChip filter={filter} key={filter} onSelect={setMuscle} selected={(filter === 'All' && muscle == null) || filter === muscle} />
-        ))}
-      </ScrollView>
-      <View style={styles.createRow}>
-        <TextButton label={creating ? 'Custom exercise' : 'New exercise'} onPress={openCreate} tone="accent" />
-      </View>
-      {creating ? (
-        <View style={styles.form}>
-          <TextInput autoCapitalize="words" onChangeText={setName} placeholder="Exercise name" placeholderTextColor={colors.faint} style={styles.search} value={name} />
+          <View style={styles.searchWrap}>
+            <TextInput
+              accessibilityLabel="Search exercises"
+              autoCorrect={false}
+              onChangeText={setQuery}
+              placeholder="Search exercises"
+              placeholderTextColor={colors.faint}
+              style={styles.search}
+              value={query}
+            />
+          </View>
           <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-            {muscleGroups.map((group) => (
-              <ChoiceChip key={group} label={group} onPress={setCustomMuscle} selected={customMuscle === group} />
+            {filters.map((filter) => (
+              <FilterChip filter={filter} key={filter} onSelect={setMuscle} selected={(filter === 'All' && muscle == null) || filter === muscle} />
             ))}
           </ScrollView>
-          <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
-            {equipmentTypes.map((equipment) => (
-              <ChoiceChip key={equipment} label={equipment} onPress={setCustomEquipment} selected={customEquipment === equipment} />
-            ))}
-          </ScrollView>
-          <Button label={swapping ? 'Swap to custom exercise' : 'Add custom exercise'} onPress={pressCreate} />
-        </View>
-      ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <FlatList
-        style={styles.list}
-        data={items}
-        extraData={`${pendingId ?? ''}:${slots.length}`}
-        getItemLayout={getExerciseItemLayout}
-        initialNumToRender={12}
-        keyExtractor={itemKey}
-        keyboardShouldPersistTaps="handled"
-        ListEmptyComponent={listEmpty}
-        maxToRenderPerBatch={16}
-        renderItem={renderExercise}
-        windowSize={8}
-      />
+          <View style={styles.createRow}>
+            <TextButton label={creating ? 'Custom exercise' : 'New exercise'} onPress={openCreate} tone="accent" />
+          </View>
+          {creating ? (
+            <View style={styles.form}>
+              <TextInput
+                autoCapitalize="words"
+                onChangeText={setName}
+                placeholder="Exercise name"
+                placeholderTextColor={colors.faint}
+                style={styles.search}
+                value={name}
+              />
+              <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                {muscleGroups.map((group) => (
+                  <ChoiceChip key={group} label={group} onPress={setCustomMuscle} selected={customMuscle === group} />
+                ))}
+              </ScrollView>
+              <ScrollView contentContainerStyle={styles.filters} horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroller}>
+                {equipmentTypes.map((equipment) => (
+                  <ChoiceChip key={equipment} label={equipment} onPress={setCustomEquipment} selected={customEquipment === equipment} />
+                ))}
+              </ScrollView>
+              <Button label={swapping ? 'Swap to custom exercise' : 'Add custom exercise'} onPress={pressCreate} />
+            </View>
+          ) : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <FlatList
+            style={styles.list}
+            data={items}
+            extraData={`${pendingId ?? ''}:${slots.length}`}
+            getItemLayout={getExerciseItemLayout}
+            initialNumToRender={12}
+            keyExtractor={itemKey}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={listEmpty}
+            maxToRenderPerBatch={16}
+            renderItem={renderExercise}
+            windowSize={8}
+          />
         </>
       )}
     </Screen>
@@ -462,7 +471,16 @@ interface ExerciseChoiceProps {
   onPress: (exerciseId: string) => void;
 }
 
-const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({ exercise, added, pending, nested, current, swapping, rating, onPress }) {
+const ExerciseChoice: React.FC<ExerciseChoiceProps> = React.memo(function ExerciseChoice({
+  exercise,
+  added,
+  pending,
+  nested,
+  current,
+  swapping,
+  rating,
+  onPress,
+}) {
   const handlePress = useCallback(() => {
     void onPress(exercise.id);
   }, [exercise.id, onPress]);

@@ -4,7 +4,21 @@
  * Notes and other screens keep the system keyboard.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, Keyboard, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance, type StyleProp, type ViewInstance, type ViewStyle } from 'react-native';
+import {
+  Dimensions,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollViewInstance,
+  type StyleProp,
+  type ViewInstance,
+  type ViewStyle,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { backspaceKey, nudgeLogValue, RPE_SCALE, rpeHint, typeKey, type LogFieldKind } from '../domain/log-pad';
@@ -312,7 +326,26 @@ export const LogPadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       typeDigit,
       unregister,
     }),
-    [activate, activeId, bindPad, dismiss, erase, goNext, height, mode, nudge, onScroll, pickRpe, register, setMeasuredHeight, showEffort, showNumbers, snapshot, typeDigit, unregister],
+    [
+      activate,
+      activeId,
+      bindPad,
+      dismiss,
+      erase,
+      goNext,
+      height,
+      mode,
+      nudge,
+      onScroll,
+      pickRpe,
+      register,
+      setMeasuredHeight,
+      showEffort,
+      showNumbers,
+      snapshot,
+      typeDigit,
+      unregister,
+    ],
   );
 
   return <LogPadContext.Provider value={value}>{children}</LogPadContext.Provider>;
@@ -471,7 +504,13 @@ const EffortKeys: React.FC<EffortKeysProps> = ({ hint, onNext, onNumbers, onNudg
 const RpeChip: React.FC<{ step: number; selected: boolean; onPick: (value: number) => void }> = ({ onPick, selected, step }) => {
   const onPress = useCallback(() => onPick(step), [onPick, step]);
   return (
-    <Pressable accessibilityLabel={`RPE ${formatWeight(step)}`} accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}>
+    <Pressable
+      accessibilityLabel={`RPE ${formatWeight(step)}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.chip, selected && styles.chipSelected]}
+    >
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{formatWeight(step)}</Text>
     </Pressable>
   );
@@ -507,7 +546,12 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
   const label = effort ? 'Effort' : active.kind === 'duration' ? 'Time' : active.kind === 'distance' ? 'Distance' : active.kind === 'reps' ? 'Reps' : 'Weight';
 
   return (
-    <View collapsable={false} onLayout={onLayout} ref={setNode} style={[styles.pad, { left: insets.left, paddingBottom: safeBottom ? Math.max(insets.bottom, 8) : 8, right: insets.right }]}>
+    <View
+      collapsable={false}
+      onLayout={onLayout}
+      ref={setNode}
+      style={[styles.pad, { left: insets.left, paddingBottom: safeBottom ? Math.max(insets.bottom, 8) : 8, right: insets.right }]}
+    >
       <View style={styles.header}>
         <Text style={styles.field}>{label}</Text>
         <Pressable accessibilityLabel="Hide keyboard" accessibilityRole="button" hitSlop={8} onPress={pad.dismiss} style={styles.hide}>
@@ -515,7 +559,14 @@ export const LogPad: React.FC<LogPadProps> = ({ safeBottom = true }) => {
         </Pressable>
       </View>
       {effort ? (
-        <EffortKeys hint={rpeHint(parseRpe(rpeText))} onNext={pad.goNext} onNumbers={pad.showNumbers} onNudge={pad.nudge} onPick={pad.pickRpe} selected={parseRpe(rpeText)} />
+        <EffortKeys
+          hint={rpeHint(parseRpe(rpeText))}
+          onNext={pad.goNext}
+          onNumbers={pad.showNumbers}
+          onNudge={pad.nudge}
+          onPick={pad.pickRpe}
+          selected={parseRpe(rpeText)}
+        />
       ) : (
         <NumberKeys
           kind={active.kind === 'reps' || active.kind === 'duration' || active.kind === 'distance' ? active.kind : 'weight'}

@@ -23,7 +23,14 @@ export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<AppNavigation<'Progress'>>();
   const exercises = useTrainedExercises();
   const [query, setQuery] = useState('');
-  const filtered = useMemo(() => fuzzyFilter(exercises.map((exercise) => ({ ...exercise, equipment: '' })), query), [exercises, query]);
+  const filtered = useMemo(
+    () =>
+      fuzzyFilter(
+        exercises.map((exercise) => ({ ...exercise, equipment: '' })),
+        query,
+      ),
+    [exercises, query],
+  );
 
   const handleOpen = useCallback(
     (exerciseId: string) => {
@@ -34,10 +41,7 @@ export const ProgressScreen: React.FC = () => {
   const openAnalysis = useCallback(() => navigation.navigate('Analysis'), [navigation]);
   const openOneRepMax = useCallback(() => navigation.navigate('OneRepMax'), [navigation]);
   const openStrength = useCallback(() => navigation.navigate('StrengthLevels'), [navigation]);
-  const renderExercise = useCallback(
-    ({ item }: ListRenderItemInfo<TrainedExercise>) => <TrainedRow exercise={item} onPress={handleOpen} />,
-    [handleOpen],
-  );
+  const renderExercise = useCallback(({ item }: ListRenderItemInfo<TrainedExercise>) => <TrainedRow exercise={item} onPress={handleOpen} />, [handleOpen]);
 
   return (
     <Screen>
@@ -51,7 +55,14 @@ export const ProgressScreen: React.FC = () => {
         <View style={styles.tools}>
           <ToolCard detail="Your lifts against other lifters at your bodyweight" label="Strength levels" onPress={openStrength} />
         </View>
-        <TextInput autoCorrect={false} onChangeText={setQuery} placeholder="Search trained exercises" placeholderTextColor={colors.faint} style={styles.search} value={query} />
+        <TextInput
+          autoCorrect={false}
+          onChangeText={setQuery}
+          placeholder="Search trained exercises"
+          placeholderTextColor={colors.faint}
+          style={styles.search}
+          value={query}
+        />
       </View>
       <FlatList
         style={styles.fill}

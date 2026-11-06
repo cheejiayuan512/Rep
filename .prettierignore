@@ -1,0 +1,20 @@
+# Generated or vendored output.
+.expo/
+dist/
+web-build/
+test-results/
+playwright-report/
+blob-report/
+store-assets/
+ios/
+android/
+.eas/
+
+# Data and prose keep their own layout: the demo log is one JSON line per row,
+# and the docs and skills are wrapped by hand.
+fixtures/
+docs/
+.cursor/
+**/*.md
+
+package-lock.json

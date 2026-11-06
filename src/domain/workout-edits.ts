@@ -102,7 +102,8 @@ export interface NextSet {
 export function findNextSet(workout: WorkoutDetail, lastExerciseId: string | null): NextSet | null {
   const current = workout.exercises.find((exercise) => exercise.id === lastExerciseId);
   const partner = nextSupersetExercise(workout.exercises, current);
-  const exercise = partner ?? (current?.sets.some((set) => !set.completed) ? current : workout.exercises.find((item) => item.sets.some((set) => !set.completed)));
+  const exercise =
+    partner ?? (current?.sets.some((set) => !set.completed) ? current : workout.exercises.find((item) => item.sets.some((set) => !set.completed)));
   const set = exercise?.sets.find((item) => !item.completed);
   if (!exercise || !set) {
     return null;
@@ -135,7 +136,7 @@ function nextSupersetExercise(exercises: WorkoutExercise[], current: WorkoutExer
 
 /** True when at least one set was checked off with reps, time, or distance. A blank session can be discarded. */
 export function workoutHasLoggedSet(workout: {
-  exercises: Array<{ sets: Array<{ completed: boolean; reps: number | null; durationSeconds?: number | null; distanceKm?: number | null }> }>;
+  exercises: { sets: { completed: boolean; reps: number | null; durationSeconds?: number | null; distanceKm?: number | null }[] }[];
 }): boolean {
   return workout.exercises.some((exercise) =>
     exercise.sets.some((set) => set.completed && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0)),
@@ -145,7 +146,7 @@ export function workoutHasLoggedSet(workout: {
 export type SupersetRole = 'single' | 'start' | 'middle' | 'end';
 
 /** Where this card sits in its superset, for the shared bar and the link label. */
-export function supersetRole(exercises: Array<{ id: string; supersetId: string | null }>, exerciseId: string): SupersetRole {
+export function supersetRole(exercises: { id: string; supersetId: string | null }[], exerciseId: string): SupersetRole {
   const exercise = exercises.find((item) => item.id === exerciseId);
   if (!exercise?.supersetId) {
     return 'single';

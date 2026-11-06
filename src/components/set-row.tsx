@@ -178,15 +178,67 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
         </Pressable>
         {cardio ? (
           <>
-            <LogValue accessibilityLabel="Time" id={`${set.id}:duration`} kind="duration" links={links} onChange={handleDuration} order={order} style={styles.time} unit={unit} value={draft.durationText} />
-            <LogValue accessibilityLabel="Distance" id={`${set.id}:distance`} kind="distance" links={links} onChange={handleDistance} order={order + 1} style={styles.distance} unit={unit} value={draft.distanceText} />
+            <LogValue
+              accessibilityLabel="Time"
+              id={`${set.id}:duration`}
+              kind="duration"
+              links={links}
+              onChange={handleDuration}
+              order={order}
+              style={styles.time}
+              unit={unit}
+              value={draft.durationText}
+            />
+            <LogValue
+              accessibilityLabel="Distance"
+              id={`${set.id}:distance`}
+              kind="distance"
+              links={links}
+              onChange={handleDistance}
+              order={order + 1}
+              style={styles.distance}
+              unit={unit}
+              value={draft.distanceText}
+            />
           </>
         ) : (
-          <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weight} unit={unit} value={draft.weightText} />
+          <LogValue
+            accessibilityLabel="Weight"
+            id={`${set.id}:weight`}
+            kind="weight"
+            links={links}
+            onChange={handleWeight}
+            order={order}
+            style={styles.weight}
+            unit={unit}
+            value={draft.weightText}
+          />
         )}
-        {cardio ? null : <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.reps} unit={unit} value={draft.repsText} />}
+        {cardio ? null : (
+          <LogValue
+            accessibilityLabel="Reps"
+            id={`${set.id}:reps`}
+            kind="reps"
+            links={links}
+            onChange={handleReps}
+            order={order + 1}
+            style={styles.reps}
+            unit={unit}
+            value={draft.repsText}
+          />
+        )}
         {showRpe && !cardio ? (
-          <LogValue accessibilityLabel="RPE" id={`${set.id}:rpe`} kind="rpe" links={links} onChange={handleRpe} order={order + 2} style={styles.rpe} unit={unit} value={draft.rpeText} />
+          <LogValue
+            accessibilityLabel="RPE"
+            id={`${set.id}:rpe`}
+            kind="rpe"
+            links={links}
+            onChange={handleRpe}
+            order={order + 2}
+            style={styles.rpe}
+            unit={unit}
+            value={draft.rpeText}
+          />
         ) : null}
         <Pressable
           accessibilityLabel={set.completed ? 'Mark set incomplete' : 'Complete set'}
@@ -205,7 +257,10 @@ export const SetRow: React.FC<SetRowProps> = React.memo(function SetRow({
               },
             ]}
           />
-          <Animated.Text maxFontSizeMultiplier={workoutMaxFontScale} style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}>
+          <Animated.Text
+            maxFontSizeMultiplier={workoutMaxFontScale}
+            style={[styles.checkText, set.completed && styles.checkTextDone, { transform: [{ scale: checkScale }] }]}
+          >
             {set.completed ? '✓' : ''}
           </Animated.Text>
         </Pressable>

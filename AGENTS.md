@@ -24,7 +24,7 @@ npx expo start
 npx tsc --noEmit
 ```
 
-Run the `verify` skill before declaring a task done: typecheck, lint when the repo has one, `npm test`, then `npm run test:e2e` for UI changes. For a read-only second opinion on a diff, use the `reviewer` subagent.
+Run the `verify` skill before declaring a task done: typecheck, lint, format check, `npm test`, then `npm run test:e2e` for UI changes. For a read-only second opinion on a diff, use the `reviewer` subagent.
 
 ## Expo
 

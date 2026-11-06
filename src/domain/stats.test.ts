@@ -71,14 +71,20 @@ test('analysis compares the period with the one before it', () => {
   assertEqual(analysis.workoutsChange, 0);
   assertEqual(analysis.volumeKg, 1100);
   assertClose(analysis.volumeChange ?? 0, 1100 / 450 - 1);
-  assertEqual(analysis.muscles.map((row) => row.id), ['Quads', 'Chest']);
+  assertEqual(
+    analysis.muscles.map((row) => row.id),
+    ['Quads', 'Chest'],
+  );
   assertEqual(analysis.repRanges.find((row) => row.id === 'hypertrophy')?.sets, 1);
   assertEqual(analysis.averageRpe, 8);
   assertEqual(analysis.rpeShare, 0.5);
   const squat = analysis.lifts.find((lift) => lift.exerciseId === 'back-squat');
   assertClose(squat?.bestKg ?? 0, 116.6667, 0.001);
   assertClose(squat?.previousKg ?? 0, 105, 0.001);
-  assertEqual(analysis.weekdays.reduce((total, count) => total + count, 0), 1);
+  assertEqual(
+    analysis.weekdays.reduce((total, count) => total + count, 0),
+    1,
+  );
 });
 
 test('an empty period has no changes to report', () => {

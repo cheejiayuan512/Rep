@@ -9,7 +9,10 @@ test('a first launch is an empty log that still needs saving', () => {
   assertEqual(loaded.shouldPersist, true);
   assertEqual(loaded.database.settings.tutorialSeen, false);
   assertEqual(loaded.database.workouts.length, 0);
-  assertTrue(loaded.database.exercises.some((exercise) => exercise.id === 'back-squat'), 'missing seeded squat');
+  assertTrue(
+    loaded.database.exercises.some((exercise) => exercise.id === 'back-squat'),
+    'missing seeded squat',
+  );
 });
 
 test('an older log keeps its sets when newer fields are missing', () => {
@@ -62,38 +65,54 @@ test('an older log learns when its rows last changed', () => {
 
 test('a save stamps the row that changed and remembers a delete', () => {
   const loaded = loadStoredDocument(olderLog());
-  const edited = prepareWrite(loaded.database, (db) => {
-    const set = db.sets[0];
-    if (set) {
-      set.reps = 6;
-    }
-  }, 50);
+  const edited = prepareWrite(
+    loaded.database,
+    (db) => {
+      const set = db.sets[0];
+      if (set) {
+        set.reps = 6;
+      }
+    },
+    50,
+  );
   assertEqual(edited.sets[0]?.reps, 6);
   assertEqual(edited.sets[0]?.updatedAt, 50);
   assertEqual(edited.workouts[0]?.updatedAt, 1);
   assertEqual(edited.settings.settingsUpdatedAt.weightUnit, 0);
 
-  const removed = prepareWrite(edited, (db) => {
-    db.sets = [];
-  }, 80);
+  const removed = prepareWrite(
+    edited,
+    (db) => {
+      db.sets = [];
+    },
+    80,
+  );
   assertEqual(removed.sets, []);
   assertEqual(removed.deletions, [{ collection: 'sets', deletedAt: 80, id: 's' }]);
 
-  const restored = prepareWrite(removed, (db) => {
-    const set = edited.sets[0];
-    if (set) {
-      db.sets.push({ ...set });
-    }
-  }, 90);
+  const restored = prepareWrite(
+    removed,
+    (db) => {
+      const set = edited.sets[0];
+      if (set) {
+        db.sets.push({ ...set });
+      }
+    },
+    90,
+  );
   assertEqual(restored.deletions, []);
   assertEqual(restored.sets[0]?.updatedAt, 90);
 });
 
 test('a save stamps only the setting that changed', () => {
   const loaded = loadStoredDocument(olderLog());
-  const next = prepareWrite(loaded.database, (db) => {
-    db.settings.weightUnit = 'lb';
-  }, 70);
+  const next = prepareWrite(
+    loaded.database,
+    (db) => {
+      db.settings.weightUnit = 'lb';
+    },
+    70,
+  );
   assertEqual(next.settings.weightUnit, 'lb');
   assertEqual(next.settings.settingsUpdatedAt.weightUnit, 70);
   assertEqual(next.settings.settingsUpdatedAt.bodyweightKg, 0);
@@ -101,7 +120,7 @@ test('a save stamps only the setting that changed', () => {
 });
 
 test('a field this version does not know survives a save', () => {
-  const parsed = JSON.parse(olderLog()) as { cloudCursor?: string; sets: Array<{ plateCount?: number }> };
+  const parsed = JSON.parse(olderLog()) as { cloudCursor?: string; sets: { plateCount?: number }[] };
   parsed.cloudCursor = 'abc';
   parsed.sets[0].plateCount = 4;
   const loaded = loadStoredDocument(JSON.stringify(parsed));

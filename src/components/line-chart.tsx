@@ -96,7 +96,13 @@ const ChartCanvas: React.FC<ChartCanvasProps> = ({ points, width }) => {
       )}
       <Polyline fill="none" points={polyline} stroke={colors.accent} strokeLinejoin="round" strokeWidth={2.5} />
       {points.map((point, index) => (
-        <Circle cx={xFor(index)} cy={yFor(point.value)} fill={index === points.length - 1 ? colors.accent : colors.text} key={`${point.at}-${index}`} r={index === points.length - 1 ? 4.5 : 3} />
+        <Circle
+          cx={xFor(index)}
+          cy={yFor(point.value)}
+          fill={index === points.length - 1 ? colors.accent : colors.text}
+          key={`${point.at}-${index}`}
+          r={index === points.length - 1 ? 4.5 : 3}
+        />
       ))}
       {first ? (
         <SvgText fill={colors.faint} fontSize="11" textAnchor="start" x={left} y={HEIGHT - 6}>

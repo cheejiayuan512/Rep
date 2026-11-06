@@ -3,7 +3,19 @@
  */
 import { assertEqual, assertTrue, test } from './test-support';
 import type { SetRecord, WorkoutDetail, WorkoutExercise } from './types';
-import { findNextSet, findSet, moveById, orderByIds, previousForSet, shouldRestAfterSet, supersetRole, toggleSupersetWithNext, updateSetInWorkout, warmupsFirst, workoutHasLoggedSet } from './workout-edits';
+import {
+  findNextSet,
+  findSet,
+  moveById,
+  orderByIds,
+  previousForSet,
+  shouldRestAfterSet,
+  supersetRole,
+  toggleSupersetWithNext,
+  updateSetInWorkout,
+  warmupsFirst,
+  workoutHasLoggedSet,
+} from './workout-edits';
 
 function set(id: string, position: number): SetRecord {
   return { completed: false, id, position, reps: 5, rpe: null, setType: 'normal', weightKg: 80 };

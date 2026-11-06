@@ -45,7 +45,7 @@ export interface SessionEstimate {
   sessionKg: number;
   bestKg: number;
   /** Per input set, null when it could not be estimated. */
-  perSetKg: Array<number | null>;
+  perSetKg: (number | null)[];
   /** How many sets fed the blend. */
   used: number;
 }

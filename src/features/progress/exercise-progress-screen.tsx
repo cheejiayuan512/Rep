@@ -16,15 +16,34 @@ import { Chip } from '../../components/chip';
 import { ExerciseAnimation } from '../../components/exercise-animation';
 import { formatCardioEffort, formatDistance, isCardioExercise } from '../../domain/cardio';
 import { formatClock, formatDay, formatLoggedLoad } from '../../domain/format';
-import { buildSessionStats, chartValues, filterSetsByAttachment, filterSetsBySetup, formatMetricValue, groupLoggedSessions, metricValue, recordCardsFromSets } from '../../domain/metrics';
-import { cableAttachments, extraMachineSetups, formatMachineSetup, isCableAttachment, machineBrands, setTypeMark, usesMachineSetup, type CableAttachment, type ChartMetric, type LoggedSet } from '../../domain/types';
+import {
+  buildSessionStats,
+  chartValues,
+  filterSetsByAttachment,
+  filterSetsBySetup,
+  formatMetricValue,
+  groupLoggedSessions,
+  recordCardsFromSets,
+} from '../../domain/metrics';
+import {
+  cableAttachments,
+  extraMachineSetups,
+  formatMachineSetup,
+  isCableAttachment,
+  machineBrands,
+  setTypeMark,
+  usesMachineSetup,
+  type CableAttachment,
+  type ChartMetric,
+  type LoggedSet,
+} from '../../domain/types';
 import { formatDecimal, formatWeight, kmToDisplay } from '../../domain/units';
 import type { StackNavigation, StackRoute } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 
 const NO_SETS: LoggedSet[] = [];
 
-const metrics: Array<{ id: ChartMetric; label: string }> = [
+const metrics: { id: ChartMetric; label: string }[] = [
   { id: 'oneRepMax', label: '1RM' },
   { id: 'topSet', label: 'Weight' },
   { id: 'volume', label: 'Volume' },
@@ -37,7 +56,9 @@ export const ExerciseProgressScreen: React.FC = () => {
   const exercise = useStored(getExercise, route.params.exerciseId);
   const sets = useStored(getExerciseLog, route.params.exerciseId) ?? NO_SETS;
   const [metric, setMetric] = useState<ChartMetric>('oneRepMax');
-  const [setup, setSetup] = useState<string | null>(() => (route.params.machineSetup !== undefined ? route.params.machineSetup : (exercise?.machineSetup ?? null)));
+  const [setup, setSetup] = useState<string | null>(() =>
+    route.params.machineSetup !== undefined ? route.params.machineSetup : (exercise?.machineSetup ?? null),
+  );
   const [attachment, setAttachment] = useState<CableAttachment | null>(() => {
     if (route.params.attachment !== undefined) {
       return route.params.attachment ?? null;
@@ -57,7 +78,8 @@ export const ExerciseProgressScreen: React.FC = () => {
     }
     return cableAttachments.filter((name) => used.has(name));
   }, [attachment, sets]);
-  const showAttachments = exercise?.equipment === 'Cable' && (attachments.length > 1 || sets.some((set) => (set.attachment ?? null) == null) && attachments.length > 0);
+  const showAttachments =
+    exercise?.equipment === 'Cable' && (attachments.length > 1 || (sets.some((set) => (set.attachment ?? null) == null) && attachments.length > 0));
   const visibleSets = useMemo(() => {
     let next = sets;
     if (exercise && usesMachineSetup(exercise.equipment)) {
@@ -116,7 +138,9 @@ export const ExerciseProgressScreen: React.FC = () => {
           {pastSessions.length === 0 ? (
             <Text style={styles.empty}>Finished sets from earlier workouts show up here.</Text>
           ) : (
-            pastSessions.map((session) => <PastSession cardio={cardio} key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />)
+            pastSessions.map((session) => (
+              <PastSession cardio={cardio} key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />
+            ))
           )}
           <View style={styles.grid}>
             {(cardio ? cardioCards : cards).map((card) => (
@@ -138,7 +162,13 @@ export const ExerciseProgressScreen: React.FC = () => {
             )}
           </View>
           <LineChart
-            caption={cardio ? (cardioMetric === 'duration' ? 'Time in minutes' : `Distance in ${unit === 'lb' ? 'mi' : 'km'}`) : `${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`}
+            caption={
+              cardio
+                ? cardioMetric === 'duration'
+                  ? 'Time in minutes'
+                  : `Distance in ${unit === 'lb' ? 'mi' : 'km'}`
+                : `${metrics.find((item) => item.id === metric)?.label ?? 'Progress'} in ${unit}`
+            }
             emptyLabel={cardio ? 'Complete a set with a time or distance to plot this.' : undefined}
             points={shownPoints}
           />
@@ -146,7 +176,8 @@ export const ExerciseProgressScreen: React.FC = () => {
             <Text style={styles.delta}>Log another session to see the change.</Text>
           ) : cardio ? (
             <Text style={[styles.delta, delta > 0 ? styles.up : delta < 0 ? styles.down : null]}>
-              {cardioMetric === 'duration' ? formatSignedMinutes(delta) : `${delta > 0 ? '+' : ''}${formatDecimal(delta, 2)} ${unit === 'lb' ? 'mi' : 'km'}`} vs last session
+              {cardioMetric === 'duration' ? formatSignedMinutes(delta) : `${delta > 0 ? '+' : ''}${formatDecimal(delta, 2)} ${unit === 'lb' ? 'mi' : 'km'}`} vs
+              last session
             </Text>
           ) : (
             <DeltaText delta={delta} metric={metric} unit={unit} />
@@ -173,7 +204,12 @@ const DeltaText: React.FC<DeltaTextProps> = ({ delta, metric, unit }) => {
   );
 };
 
-const PastSession: React.FC<{ cardio?: boolean; performedAt: number; sets: LoggedSet[]; unit: 'kg' | 'lb' }> = ({ cardio = false, performedAt, sets, unit }) => {
+const PastSession: React.FC<{ cardio?: boolean; performedAt: number; sets: LoggedSet[]; unit: 'kg' | 'lb' }> = ({
+  cardio = false,
+  performedAt,
+  sets,
+  unit,
+}) => {
   let workingNumber = 0;
   return (
     <View style={styles.session}>
@@ -186,7 +222,7 @@ const PastSession: React.FC<{ cardio?: boolean; performedAt: number; sets: Logge
         const mark = setTypeMark(set.setType) ?? String(workingNumber);
         return (
           <Text key={`${set.position}-${index}`} style={styles.sessionSet}>
-            {mark}  {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
+            {mark} {cardio ? formatCardioEffort(set.durationSeconds, set.distanceKm, unit) : formatLoggedLoad(set.weightKg, set.reps, unit)}
             {set.rpe != null ? `  ·  ${formatWeight(set.rpe)}` : ''}
           </Text>
         );
@@ -202,7 +238,7 @@ interface MetricChipProps {
   onSelect: (metric: ChartMetric) => void;
 }
 
-function cardioSessionPoints(sets: LoggedSet[], metric: 'duration' | 'distance', unit: 'kg' | 'lb'): Array<{ at: number; value: number }> {
+function cardioSessionPoints(sets: LoggedSet[], metric: 'duration' | 'distance', unit: 'kg' | 'lb'): { at: number; value: number }[] {
   const groups = new Map<string, { at: number; distance: number; duration: number }>();
   for (const set of sets) {
     if (!set.completed || set.setType === 'warmup' || ((set.durationSeconds ?? 0) <= 0 && (set.distanceKm ?? 0) <= 0)) {
@@ -219,7 +255,7 @@ function cardioSessionPoints(sets: LoggedSet[], metric: 'duration' | 'distance',
     .map((group) => ({ at: group.at, value: metric === 'duration' ? group.duration / 60 : kmToDisplay(group.distance, unit) }));
 }
 
-function cardioRecordCards(sets: LoggedSet[], unit: 'kg' | 'lb'): Array<{ label: string; value: string; detail: string }> {
+function cardioRecordCards(sets: LoggedSet[], unit: 'kg' | 'lb'): { label: string; value: string; detail: string }[] {
   let longest = 0;
   let farthest = 0;
   for (const set of sets) {

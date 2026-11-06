@@ -43,7 +43,10 @@ const appSlice = createSlice({
       state.bootError = action.payload;
       state.ready = false;
     },
-    bootstrapped(state, action: PayloadAction<{ weightUnit: WeightUnit; warmupRestMultiplier: number; activeWorkoutId: string | null; showTutorial: boolean }>) {
+    bootstrapped(
+      state,
+      action: PayloadAction<{ weightUnit: WeightUnit; warmupRestMultiplier: number; activeWorkoutId: string | null; showTutorial: boolean }>,
+    ) {
       state.activeWorkoutId = action.payload.activeWorkoutId;
       state.bootError = null;
       state.ready = true;
@@ -69,7 +72,16 @@ const appSlice = createSlice({
   },
 });
 
-export const { activeWorkoutChanged, bootFailed, bootstrapped, dataChanged, tutorialClosed, tutorialRequested, warmupRestMultiplierChanged, weightUnitChanged } = appSlice.actions;
+export const {
+  activeWorkoutChanged,
+  bootFailed,
+  bootstrapped,
+  dataChanged,
+  tutorialClosed,
+  tutorialRequested,
+  warmupRestMultiplierChanged,
+  weightUnitChanged,
+} = appSlice.actions;
 
 export const store = configureStore({
   reducer: {

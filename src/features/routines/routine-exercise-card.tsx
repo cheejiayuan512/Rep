@@ -51,7 +51,7 @@ interface RoutineExerciseCardProps {
   onChangeSetup: (routineExerciseId: string, setup: string | null) => void;
   setupOptions: MachineSetupOption[];
   /** Attachments already used by this exercise in the routine. */
-  usedAttachments: ReadonlyArray<CableAttachment | null>;
+  usedAttachments: readonly (CableAttachment | null)[];
   onAddAttachment: (routineExerciseId: string, attachment: CableAttachment | null) => void;
   /** Added to each set's pad order so Next continues onto the next card. */
   orderBase?: number;
@@ -119,10 +119,10 @@ export const RoutineExerciseCard: React.FC<RoutineExerciseCardProps> = React.mem
   const cardio = isCardioExercise(exercise.exerciseId, exercise.name);
   const unusedAttachments = useMemo(() => {
     if (exercise.equipment !== 'Cable') {
-      return [] as Array<CableAttachment | null>;
+      return [] as (CableAttachment | null)[];
     }
     const used = new Set(usedAttachments.map((item) => item ?? ''));
-    return ([null, ...cableAttachments] as Array<CableAttachment | null>).filter((item) => !used.has(item ?? ''));
+    return ([null, ...cableAttachments] as (CableAttachment | null)[]).filter((item) => !used.has(item ?? ''));
   }, [exercise.equipment, usedAttachments]);
   const handleMoveAction = useCallback(
     (event: AccessibilityActionEvent) => {
@@ -335,13 +335,53 @@ const RoutineSetRow: React.FC<RoutineSetRowProps> = React.memo(function RoutineS
         </Text>
         {cardio ? (
           <>
-            <LogValue accessibilityLabel="Time" id={`${set.id}:duration`} kind="duration" links={links} onChange={handleDuration} order={order} style={styles.timeCol} unit={unit} value={draft.durationText} />
-            <LogValue accessibilityLabel="Distance" id={`${set.id}:distance`} kind="distance" links={links} onChange={handleDistance} order={order + 1} style={styles.distanceCol} unit={unit} value={draft.distanceText} />
+            <LogValue
+              accessibilityLabel="Time"
+              id={`${set.id}:duration`}
+              kind="duration"
+              links={links}
+              onChange={handleDuration}
+              order={order}
+              style={styles.timeCol}
+              unit={unit}
+              value={draft.durationText}
+            />
+            <LogValue
+              accessibilityLabel="Distance"
+              id={`${set.id}:distance`}
+              kind="distance"
+              links={links}
+              onChange={handleDistance}
+              order={order + 1}
+              style={styles.distanceCol}
+              unit={unit}
+              value={draft.distanceText}
+            />
           </>
         ) : (
           <>
-            <LogValue accessibilityLabel="Weight" id={`${set.id}:weight`} kind="weight" links={links} onChange={handleWeight} order={order} style={styles.weightCol} unit={unit} value={draft.weightText} />
-            <LogValue accessibilityLabel="Reps" id={`${set.id}:reps`} kind="reps" links={links} onChange={handleReps} order={order + 1} style={styles.repsCol} unit={unit} value={draft.repsText} />
+            <LogValue
+              accessibilityLabel="Weight"
+              id={`${set.id}:weight`}
+              kind="weight"
+              links={links}
+              onChange={handleWeight}
+              order={order}
+              style={styles.weightCol}
+              unit={unit}
+              value={draft.weightText}
+            />
+            <LogValue
+              accessibilityLabel="Reps"
+              id={`${set.id}:reps`}
+              kind="reps"
+              links={links}
+              onChange={handleReps}
+              order={order + 1}
+              style={styles.repsCol}
+              unit={unit}
+              value={draft.repsText}
+            />
           </>
         )}
       </View>

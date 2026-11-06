@@ -116,8 +116,7 @@ export function movementFamily(exerciseId: string): string | null {
 }
 
 export type ExerciseListItem =
-  | { kind: 'exercise'; key: string; exercise: Exercise; nested: boolean }
-  | { kind: 'family'; key: string; family: string; count: number; expanded: boolean };
+  { kind: 'exercise'; key: string; exercise: Exercise; nested: boolean } | { kind: 'family'; key: string; family: string; count: number; expanded: boolean };
 
 /**
  * Turns the filtered list into rows. A family with two or more visible

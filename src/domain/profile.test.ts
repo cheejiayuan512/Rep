@@ -24,7 +24,10 @@ test('an empty log is level 1 with locked badges', () => {
   const profile = buildProfile({ customExerciseCount: 0, now: new Date(2026, 9, 22).getTime(), recordCount: 0, workouts: [] });
   assertEqual(profile.level.level, 1);
   assertEqual(profile.level.points, 0);
-  assertEqual(profile.badges.every((item) => item.tier === 'locked'), true);
+  assertEqual(
+    profile.badges.every((item) => item.tier === 'locked'),
+    true,
+  );
   assertEqual(profile.weeks.length, 12);
 });
 
@@ -103,5 +106,8 @@ test('records add XP and the newer badges count their own thing', () => {
   assertEqual(tier('strong'), 'regular');
   assertEqual(tier('sets'), 'locked');
   assertEqual(withoutRecords.badges.find((item) => item.id === 'strong')?.tier, 'locked');
-  assertEqual(withRecords.badges.every((item) => item.description.length > 0), true);
+  assertEqual(
+    withRecords.badges.every((item) => item.description.length > 0),
+    true,
+  );
 });

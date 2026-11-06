@@ -56,7 +56,9 @@ export const HistoryScreen: React.FC = () => {
         style={styles.fill}
         contentContainerStyle={sections.length === 0 ? styles.emptyList : styles.list}
         keyExtractor={workoutKey}
-        ListEmptyComponent={<EmptyState message="Finish a workout and the sessions will land here. Import or restore a log from Profile → Settings." title="No workouts yet" />}
+        ListEmptyComponent={
+          <EmptyState message="Finish a workout and the sessions will land here. Import or restore a log from Profile → Settings." title="No workouts yet" />
+        }
         initialNumToRender={8}
         maxToRenderPerBatch={10}
         removeClippedSubviews

@@ -62,7 +62,10 @@ export function detectLogExport(csvText: string): LogExportKind {
   if (hasAny(header, ['weight (kgs)', 'weight (lbs)', 'weight (kg)', 'weight (lb)']) && hasAll(header, ['exercise', 'date'])) {
     return 'fitnotes';
   }
-  if (hasAll(header, ['exercise name', 'set order']) && (hasAny(header, ['workout notes', 'seconds', 'weight unit']) || hasAll(header, ['workout name', 'date']))) {
+  if (
+    hasAll(header, ['exercise name', 'set order']) &&
+    (hasAny(header, ['workout notes', 'seconds', 'weight unit']) || hasAll(header, ['workout name', 'date']))
+  ) {
     return 'strong';
   }
   if (hasAny(header, ['exercise name', 'exercise']) && hasAny(header, ['date', 'day']) && hasAny(header, ['reps', 'repetitions'])) {

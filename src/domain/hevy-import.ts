@@ -315,10 +315,7 @@ export function parseHevyDate(value: string): number | null {
 export function quoteHevyDates(text: string): string {
   // Only wrap a date when it is its own unquoted field. Hevy's real export
   // already quotes "20 Oct 2026, 18:42", and quoting it again splits the row.
-  return text.replace(
-    /(^|[\n,])(\d{1,2}\s+[A-Za-z]+\s+\d{4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)(?=$|[\n,])/g,
-    '$1"$2, $3"',
-  );
+  return text.replace(/(^|[\n,])(\d{1,2}\s+[A-Za-z]+\s+\d{4}),\s*(\d{1,2}:\d{2}(?::\d{2})?)(?=$|[\n,])/g, '$1"$2, $3"');
 }
 
 export function parseCsv(text: string): string[][] {
@@ -445,12 +442,14 @@ export function parseOptionalRpe(value: string): number | null {
 }
 
 export function cleanWorkoutTitle(title: string): string {
-  return title
-    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
-    .replace(/[\u2600-\u27BF]/g, '')
-    .replace(/[\uFE00-\uFE0F]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim() || 'Workout';
+  return (
+    title
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+      .replace(/[\u2600-\u27BF]/g, '')
+      .replace(/[\uFE00-\uFE0F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Workout'
+  );
 }
 
 export function displayNameForCustom(hevyTitle: string): string {

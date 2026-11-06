@@ -81,11 +81,11 @@ export interface ProfileSnapshot {
   trainedExercises: number;
   weeks: ProfileWeek[];
   badges: ProfileBadge[];
-  contributions: Array<{ id: string; label: string; value: number }>;
+  contributions: { id: string; label: string; value: number }[];
 }
 
 const LEVEL_FLOORS = [0, 20, 60, 120, 200, 320, 480, 700, 1000, 1400, 1900, 2500, 3200, 4000, 5000, 6200, 7600, 9200, 11000, 13000];
-const LEVEL_TITLES: Array<{ from: number; title: string }> = [
+const LEVEL_TITLES: { from: number; title: string }[] = [
   { from: 1, title: 'Starter' },
   { from: 3, title: 'Novice' },
   { from: 6, title: 'Regular' },
@@ -98,7 +98,7 @@ const LEVEL_TITLES: Array<{ from: number; title: string }> = [
 const WEEK_COUNT = 12;
 
 /** How XP is earned, for the explanation under the level bar. */
-export const XP_RULES: Array<{ label: string; points: number }> = [
+export const XP_RULES: { label: string; points: number }[] = [
   { label: 'Finish a workout', points: 10 },
   { label: 'Each working set', points: 1 },
   { label: 'Each personal record', points: 3 },
@@ -227,20 +227,44 @@ function buildBadges(workouts: ProfileWorkout[], trainedCount: number, recordCou
   const dayOf = (workout: ProfileWorkout) => new Date(workout.startedAt).getDay();
   return [
     badge('logger', workouts.length, [1, 10, 50]),
-    badge('lifter', sum(workouts, (item) => item.volumeKg), [1000, 10000, 100000]),
+    badge(
+      'lifter',
+      sum(workouts, (item) => item.volumeKg),
+      [1000, 10000, 100000],
+    ),
     badge('streak', longestStreak(workouts.map((item) => item.finishedAt)), [2, 6, 12]),
     badge('records', recordCount, [1, 10, 50]),
     badge('heavy', Math.max(0, ...workouts.map((item) => item.heaviestKg)), [60, 100, 140]),
     badge('strong', strengthLevelIndex == null ? 0 : strengthLevelIndex + 1, STRONG_STEPS),
     badge('bigday', Math.max(0, ...workouts.map((item) => item.volumeKg)), [5000, 10000, 20000]),
-    badge('sets', sum(workouts, (item) => item.workingSets), [100, 1000, 5000]),
-    badge('reps', sum(workouts, (item) => item.reps), [500, 5000, 25000]),
+    badge(
+      'sets',
+      sum(workouts, (item) => item.workingSets),
+      [100, 1000, 5000],
+    ),
+    badge(
+      'reps',
+      sum(workouts, (item) => item.reps),
+      [500, 5000, 25000],
+    ),
     badge('century', workouts.filter((item) => item.reps >= 100).length, [1, 10, 30]),
     badge('explorer', trainedCount, [3, 10, 25]),
     badge('allrounder', new Set(workouts.flatMap((item) => item.muscleGroups)).size, [4, 7, 10]),
-    badge('scribe', sum(workouts, (item) => item.notedExercises), [1, 10, 40]),
-    badge('rpe', sum(workouts, (item) => item.rpeSets), [10, 100, 500]),
-    badge('warmup', sum(workouts, (item) => item.warmupSets), [5, 50, 200]),
+    badge(
+      'scribe',
+      sum(workouts, (item) => item.notedExercises),
+      [1, 10, 40],
+    ),
+    badge(
+      'rpe',
+      sum(workouts, (item) => item.rpeSets),
+      [10, 100, 500],
+    ),
+    badge(
+      'warmup',
+      sum(workouts, (item) => item.warmupSets),
+      [5, 50, 200],
+    ),
     badge('marathon', workouts.filter((item) => durationMinutes(item) >= 90).length, [1, 10, 30]),
     badge('quick', workouts.filter((item) => durationMinutes(item) <= 45 && item.workingSets >= 10).length, [1, 10, 30]),
     badge('early', workouts.filter((item) => hourOf(item) < 8).length, [1, 10, 30]),
@@ -284,7 +308,10 @@ export const BADGE_INFO: Record<BadgeId, BadgeInfo> = {
 };
 
 /** Kept for screens that only need the unit label. */
-export const BADGE_UNITS: Record<BadgeId, string> = Object.fromEntries(Object.entries(BADGE_INFO).map(([id, info]) => [id, info.unit])) as Record<BadgeId, string>;
+export const BADGE_UNITS: Record<BadgeId, string> = Object.fromEntries(Object.entries(BADGE_INFO).map(([id, info]) => [id, info.unit])) as Record<
+  BadgeId,
+  string
+>;
 
 function badge(id: BadgeId, value: number, steps: [number, number, number]): ProfileBadge {
   const [novice, regular, expert] = steps;

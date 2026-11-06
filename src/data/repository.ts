@@ -5,7 +5,15 @@
  */
 import { LOG_EXPORT_LABEL, parseLogCsv, type LogExportKind } from '../domain/log-import';
 import { buildProfile, type ProfileSnapshot, type ProfileWorkout } from '../domain/profile';
-import { estimateOneRepMax, filterSetsByAttachment, latestSessionSets, oneRepMaxRecordFlags, scoreLoggedSet, volumeRecordIds } from '../domain/metrics';
+import {
+  estimateOneRepMax,
+  filterSetsByAttachment,
+  latestSessionSets,
+  oneRepMaxRecordFlags,
+  scoreLoggedSet,
+  volumeRecordIds,
+  filterSetsBySetup,
+} from '../domain/metrics';
 import type { AnalysisInput, AnalysisSet } from '../domain/stats';
 import { createId } from '../domain/ids';
 import type {
@@ -27,20 +35,46 @@ import type {
   WorkoutDetail,
   WorkoutExercise,
   WorkoutSummary,
+  BodyProfile,
 } from '../domain/types';
-import { isCableAttachment, isEquipment, isMuscleGroup, isWorkingSetType, normalizeMachineSetup, normalizeSetType, sameExerciseSlot, sameMachineSetup, usesMachineSetup } from '../domain/types';
+import {
+  isCableAttachment,
+  isEquipment,
+  isMuscleGroup,
+  isWorkingSetType,
+  normalizeMachineSetup,
+  normalizeSetType,
+  sameExerciseSlot,
+  sameMachineSetup,
+  usesMachineSetup,
+  isBodySex,
+  parseAgeYears,
+} from '../domain/types';
 import type { ExportWorkout } from '../domain/log-export';
-import { filterSetsBySetup } from '../domain/metrics';
 import { warmupsFirst } from '../domain/workout-edits';
 import { isDefaultWorkoutName, DEFAULT_WORKOUT_NAME, suggestWorkoutName } from '../domain/workout-name';
 import { clampRest, DEFAULT_WARMUP_MULTIPLIER, isWarmupMultiplier } from '../domain/rest';
 import { estimateFromSets, type SessionSet } from '../domain/one-rep-max';
 import { fuzzyFilter } from '../domain/fuzzy-search';
 import { rateLift, STRENGTH_LIFTS, STRENGTH_MAX_REPS, type StrengthRating } from '../domain/strength';
-import type { BodyProfile } from '../domain/types';
-import { isBodySex, parseAgeYears } from '../domain/types';
 import { backupFilename, encodeBackup, readBackupDocument } from '../domain/log-backup';
-import { CorruptLogError, flushDatabase, isCommitted, loadStoredDocument, peekDatabase, readDatabase, replaceStoredDocument, writeDatabase, type DatabaseShape, type StoredExercise, type StoredRoutineExercise, type StoredRoutineSet, type StoredSet, type StoredWorkout, type StoredWorkoutExercise } from './database';
+import {
+  CorruptLogError,
+  flushDatabase,
+  isCommitted,
+  loadStoredDocument,
+  peekDatabase,
+  readDatabase,
+  replaceStoredDocument,
+  writeDatabase,
+  type DatabaseShape,
+  type StoredExercise,
+  type StoredRoutineExercise,
+  type StoredRoutineSet,
+  type StoredSet,
+  type StoredWorkout,
+  type StoredWorkoutExercise,
+} from './database';
 
 /** A read that screens can also run synchronously once the log is in memory, so the first frame already has data. */
 export interface Reader<A extends unknown[], R> {
@@ -172,7 +206,18 @@ export const listExercises = reader((db, query: string, muscleGroup: MuscleGroup
   return fuzzyFilter(sorted, query);
 });
 
-const STARTER_EXERCISES = ['barbell-bench-press', 'back-squat', 'deadlift', 'overhead-press', 'barbell-row', 'lat-pulldown', 'dumbbell-curl', 'triceps-pushdown', 'leg-press', 'lateral-raise'];
+const STARTER_EXERCISES = [
+  'barbell-bench-press',
+  'back-squat',
+  'deadlift',
+  'overhead-press',
+  'barbell-row',
+  'lat-pulldown',
+  'dumbbell-curl',
+  'triceps-pushdown',
+  'leg-press',
+  'lateral-raise',
+];
 const QUICK_ADD_COUNT = 8;
 
 /**
@@ -319,8 +364,8 @@ export const getRoutine = reader((db, routineId: string): RoutineDetail | null =
         name: details.name,
         position: exercise.position,
         supersetId: exercise.supersetId,
-        previousSets: latestSessionSets(historyForSlot(history[exercise.exerciseId] ?? [], details.equipment, exercise.machineSetup, exercise.attachment)).map((set) =>
-          toPrevious(set, details.equipment),
+        previousSets: latestSessionSets(historyForSlot(history[exercise.exerciseId] ?? [], details.equipment, exercise.machineSetup, exercise.attachment)).map(
+          (set) => toPrevious(set, details.equipment),
         ),
         sets: routineSetRows(db, exercise.id).map(mapRoutineSet),
       };
@@ -413,7 +458,15 @@ export async function restoreRoutineExercise(routineId: string, exercise: Routin
       return;
     }
     const rows = routineExerciseRows(db, routineId);
-    const restored = { attachment: exercise.attachment, exerciseId: exercise.exerciseId, id: exercise.id, machineSetup: exercise.machineSetup, position: 0, routineId, supersetId: exercise.supersetId };
+    const restored = {
+      attachment: exercise.attachment,
+      exerciseId: exercise.exerciseId,
+      id: exercise.id,
+      machineSetup: exercise.machineSetup,
+      position: 0,
+      routineId,
+      supersetId: exercise.supersetId,
+    };
     rows.splice(Math.min(index, rows.length), 0, restored);
     rows.forEach((row, position) => {
       row.position = position;
@@ -458,7 +511,7 @@ export async function updateRoutineSet(
   });
 }
 
-export async function saveRoutineSetPositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+export async function saveRoutineSetPositions(rows: { id: string; position: number }[]): Promise<void> {
   await writeDatabase((db) => {
     const positions = new Map(rows.map((row) => [row.id, row.position]));
     for (const set of db.routineSets) {
@@ -492,7 +545,7 @@ export async function restoreRoutineSet(routineExerciseId: string, set: RoutineS
   });
 }
 
-export async function saveRoutinePositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+export async function saveRoutinePositions(rows: { id: string; position: number }[]): Promise<void> {
   await writeDatabase((db) => {
     for (const row of rows) {
       const exercise = db.routineExercises.find((item) => item.id === row.id);
@@ -506,9 +559,7 @@ export async function saveRoutinePositions(rows: Array<{ id: string; position: n
 // Workouts: start one, edit its sets, then finish or discard it.
 
 export const getInProgressWorkoutId = reader((db): string | null => {
-  const active = db.workouts
-    .filter((workout) => workout.finishedAt == null)
-    .sort((left, right) => right.startedAt - left.startedAt)[0];
+  const active = db.workouts.filter((workout) => workout.finishedAt == null).sort((left, right) => right.startedAt - left.startedAt)[0];
   return active?.id ?? null;
 });
 
@@ -580,7 +631,9 @@ export async function startWorkoutFromRoutine(routineId: string): Promise<string
         addTemplateSets(
           db,
           workoutExerciseId,
-          latestSessionSets(historyForSlot(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? [], details.equipment, machineSetup, attachment)),
+          latestSessionSets(
+            historyForSlot(historyFor(db, [exercise.exerciseId], workoutId)[exercise.exerciseId] ?? [], details.equipment, machineSetup, attachment),
+          ),
         );
         return;
       }
@@ -796,8 +849,22 @@ export async function addExerciseToWorkout(
     }
     const workoutExerciseId = createId();
     const machineSetup = defaultMachineSetup(db, exerciseId);
-    db.workoutExercises.push({ attachment: chosen, exerciseId, id: workoutExerciseId, machineSetup, notes: '', position, restSeconds: lastRestFor(db, exerciseId), supersetId: null, workoutId });
-    addTemplateSets(db, workoutExerciseId, latestSessionSets(historyForSlot(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? [], library.equipment, machineSetup, chosen)));
+    db.workoutExercises.push({
+      attachment: chosen,
+      exerciseId,
+      id: workoutExerciseId,
+      machineSetup,
+      notes: '',
+      position,
+      restSeconds: lastRestFor(db, exerciseId),
+      supersetId: null,
+      workoutId,
+    });
+    addTemplateSets(
+      db,
+      workoutExerciseId,
+      latestSessionSets(historyForSlot(historyFor(db, [exerciseId], workoutId)[exerciseId] ?? [], library.equipment, machineSetup, chosen)),
+    );
   });
 }
 
@@ -821,7 +888,12 @@ export const listTargetSlots = reader((db, target: { workoutId: string } | { rou
 export async function removeExerciseFromWorkout(workoutId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<'removed' | 'has-sets'> {
   let result: 'removed' | 'has-sets' = 'removed';
   await writeDatabase((db) => {
-    const rows = matchingSlots(db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId), exerciseId, requireExercise(db, exerciseId).equipment, attachment);
+    const rows = matchingSlots(
+      db.workoutExercises.filter((exercise) => exercise.workoutId === workoutId),
+      exerciseId,
+      requireExercise(db, exerciseId).equipment,
+      attachment,
+    );
     const rowIds = new Set(rows.map((row) => row.id));
     if (db.sets.some((set) => rowIds.has(set.workoutExerciseId) && set.completed)) {
       result = 'has-sets';
@@ -835,7 +907,14 @@ export async function removeExerciseFromWorkout(workoutId: string, exerciseId: s
 
 export async function removeExerciseFromRoutine(routineId: string, exerciseId: string, attachment?: CableAttachment | null): Promise<void> {
   await writeDatabase((db) => {
-    const rowIds = new Set(matchingSlots(db.routineExercises.filter((exercise) => exercise.routineId === routineId), exerciseId, requireExercise(db, exerciseId).equipment, attachment).map((exercise) => exercise.id));
+    const rowIds = new Set(
+      matchingSlots(
+        db.routineExercises.filter((exercise) => exercise.routineId === routineId),
+        exerciseId,
+        requireExercise(db, exerciseId).equipment,
+        attachment,
+      ).map((exercise) => exercise.id),
+    );
     db.routineSets = db.routineSets.filter((set) => !rowIds.has(set.routineExerciseId));
     db.routineExercises = db.routineExercises.filter((exercise) => !rowIds.has(exercise.id));
   });
@@ -860,23 +939,33 @@ export async function duplicateWorkout(workoutId: string): Promise<string> {
         supersetId = supersetIds.get(row.supersetId) ?? createId();
         supersetIds.set(row.supersetId, supersetId);
       }
-      db.workoutExercises.push({ attachment: row.attachment, exerciseId: row.exerciseId, id: workoutExerciseId, machineSetup: row.machineSetup, notes: row.notes, position: index, restSeconds: row.restSeconds, supersetId, workoutId: id });
+      db.workoutExercises.push({
+        attachment: row.attachment,
+        exerciseId: row.exerciseId,
+        id: workoutExerciseId,
+        machineSetup: row.machineSetup,
+        notes: row.notes,
+        position: index,
+        restSeconds: row.restSeconds,
+        supersetId,
+        workoutId: id,
+      });
       db.sets
         .filter((set) => set.workoutExerciseId === row.id)
         .sort((left, right) => left.position - right.position)
         .forEach((set, position) => {
           db.sets.push({
-          completed: false,
-          distanceKm: set.distanceKm ?? null,
-          durationSeconds: set.durationSeconds ?? null,
-          id: createId(),
-          position,
-          reps: set.reps,
-          rpe: null,
-          setType: set.setType,
-          weightKg: set.weightKg,
-          workoutExerciseId,
-        });
+            completed: false,
+            distanceKm: set.distanceKm ?? null,
+            durationSeconds: set.durationSeconds ?? null,
+            id: createId(),
+            position,
+            reps: set.reps,
+            rpe: null,
+            setType: set.setType,
+            weightKg: set.weightKg,
+            workoutExerciseId,
+          });
         });
     });
   });
@@ -1007,7 +1096,15 @@ export async function updateWorkoutExerciseAttachment(workoutExerciseId: string,
     }
     const library = requireExercise(db, row.exerciseId);
     const chosen = library.equipment === 'Cable' && isCableAttachment(attachment) ? attachment : null;
-    if (slotTaken(db.workoutExercises.filter((item) => item.workoutId === row.workoutId), row.exerciseId, library.equipment, chosen, row.id)) {
+    if (
+      slotTaken(
+        db.workoutExercises.filter((item) => item.workoutId === row.workoutId),
+        row.exerciseId,
+        library.equipment,
+        chosen,
+        row.id,
+      )
+    ) {
       return;
     }
     saved = true;
@@ -1045,7 +1142,13 @@ export async function switchWorkoutExerciseSetup(workoutExerciseId: string, mach
     }
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
     const details = requireExercise(db, row.exerciseId);
-    addTemplateSets(db, row.id, latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], row.workoutId)[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment)));
+    addTemplateSets(
+      db,
+      row.id,
+      latestSessionSets(
+        historyForSlot(historyFor(db, [row.exerciseId], row.workoutId)[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment),
+      ),
+    );
     next = setsOf(db, row.id).map(mapSet);
   });
   return next;
@@ -1105,7 +1208,9 @@ export async function switchRoutineExerciseSetup(routineExerciseId: string, mach
     }
     db.routineSets = db.routineSets.filter((set) => set.routineExerciseId !== row.id);
     const details = requireExercise(db, row.exerciseId);
-    const previous = latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment));
+    const previous = latestSessionSets(
+      historyForSlot(historyFor(db, [row.exerciseId], '')[row.exerciseId] ?? [], details.equipment, row.machineSetup, row.attachment),
+    );
     const templates = previous.length > 0 ? previous.slice(0, 10) : [null];
     templates.forEach((template, index) => {
       db.routineSets.push({
@@ -1152,7 +1257,15 @@ export async function swapWorkoutExercise(workoutExerciseId: string, exerciseId:
     }
     const library = requireExercise(db, exerciseId);
     const attachment = defaultAttachment(db, exerciseId);
-    if (slotTaken(db.workoutExercises.filter((item) => item.workoutId === row.workoutId), exerciseId, library.equipment, attachment, row.id)) {
+    if (
+      slotTaken(
+        db.workoutExercises.filter((item) => item.workoutId === row.workoutId),
+        exerciseId,
+        library.equipment,
+        attachment,
+        row.id,
+      )
+    ) {
       throw new Error(library.equipment === 'Cable' ? 'That attachment is already in this workout.' : 'That exercise is already in this workout.');
     }
     const restSeconds = lastRestFor(db, exerciseId);
@@ -1166,11 +1279,15 @@ export async function swapWorkoutExercise(workoutExerciseId: string, exerciseId:
       return;
     }
     db.sets = db.sets.filter((set) => set.workoutExerciseId !== row.id);
-    addTemplateSets(db, row.id, latestSessionSets(historyForSlot(historyFor(db, [exerciseId], row.workoutId)[exerciseId] ?? [], library.equipment, machineSetup, attachment)));
+    addTemplateSets(
+      db,
+      row.id,
+      latestSessionSets(historyForSlot(historyFor(db, [exerciseId], row.workoutId)[exerciseId] ?? [], library.equipment, machineSetup, attachment)),
+    );
   });
 }
 
-export async function saveSetPositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+export async function saveSetPositions(rows: { id: string; position: number }[]): Promise<void> {
   await writeDatabase((db) => {
     const positions = new Map(rows.map((row) => [row.id, row.position]));
     for (const set of db.sets) {
@@ -1238,7 +1355,7 @@ export async function restoreWorkoutExercise(workoutId: string, exercise: Workou
   });
 }
 
-export async function saveWorkoutExercisePositions(rows: Array<{ id: string; position: number }>): Promise<void> {
+export async function saveWorkoutExercisePositions(rows: { id: string; position: number }[]): Promise<void> {
   await writeDatabase((db) => {
     for (const row of rows) {
       const exercise = db.workoutExercises.find((item) => item.id === row.id);
@@ -1363,7 +1480,10 @@ export async function importWorkoutCsv(csvText: string): Promise<HevyImportSumma
         const workoutExerciseId = createId();
         const notes =
           exercise.position === 0 && workout.description
-            ? [workout.description, exercise.notes].filter((part) => part.trim().length > 0).join('\n').slice(0, 500)
+            ? [workout.description, exercise.notes]
+                .filter((part) => part.trim().length > 0)
+                .join('\n')
+                .slice(0, 500)
             : exercise.notes.slice(0, 500);
         draft.workoutExercises.push({
           attachment: null,
@@ -1477,9 +1597,9 @@ function profileOf(db: DatabaseShape, now: number, withoutWorkoutId: string | nu
 export interface StrengthOverview {
   body: BodyProfile;
   /** Rated lifts you have trained, strongest percentile first. Empty without bodyweight and sex. */
-  ratings: Array<StrengthRating & { achievedAt: number }>;
+  ratings: (StrengthRating & { achievedAt: number })[];
   /** Lifts with a standard you have not logged yet. */
-  untrained: Array<{ exerciseId: string; name: string }>;
+  untrained: { exerciseId: string; name: string }[];
 }
 
 export const getStrengthOverview = reader((db): StrengthOverview => {
@@ -1490,17 +1610,20 @@ export const getStrengthOverview = reader((db): StrengthOverview => {
   return {
     body,
     ratings: [...ratings].sort((left, right) => right.percentile - left.percentile),
-    untrained: STRENGTH_LIFTS.filter((exerciseId) => !rated.has(exerciseId) && !best.has(exerciseId)).map((exerciseId) => ({ exerciseId, name: exerciseName(db, exerciseId) })),
+    untrained: STRENGTH_LIFTS.filter((exerciseId) => !rated.has(exerciseId) && !best.has(exerciseId)).map((exerciseId) => ({
+      exerciseId,
+      name: exerciseName(db, exerciseId),
+    })),
   };
 });
 
 /** Null when bodyweight or sex is missing. */
-function strengthRatingsOf(db: DatabaseShape, withoutWorkoutId: string | null): Array<StrengthRating & { achievedAt: number }> | null {
+function strengthRatingsOf(db: DatabaseShape, withoutWorkoutId: string | null): (StrengthRating & { achievedAt: number })[] | null {
   const { ageYears, bodyweightKg, sex } = bodyProfileOf(db);
   if (bodyweightKg == null || sex == null) {
     return null;
   }
-  const ratings: Array<StrengthRating & { achievedAt: number }> = [];
+  const ratings: (StrengthRating & { achievedAt: number })[] = [];
   for (const [exerciseId, lift] of bestLifts(db, withoutWorkoutId)) {
     const rating = rateLift(exerciseId, lift.oneRepMaxKg, bodyweightKg, sex, ageYears);
     if (rating) {
@@ -1535,9 +1658,15 @@ export interface WorkoutRecap {
   /** 1 for the earliest finished session, counting this one. */
   sessionNumber: number;
   reps: number;
-  exercises: Array<{ name: string; sets: number; best: { weightKg: number; reps: number } | null; cardio: { durationSeconds: number; distanceKm: number } | null; sessionKg: number | null }>;
+  exercises: {
+    name: string;
+    sets: number;
+    best: { weightKg: number; reps: number } | null;
+    cardio: { durationSeconds: number; distanceKm: number } | null;
+    sessionKg: number | null;
+  }[];
   /** Exercises where a set beat the previous best estimated 1RM. */
-  records: Array<{ name: string; oneRepMaxKg: number }>;
+  records: { name: string; oneRepMaxKg: number }[];
   before: ProfileSnapshot;
   after: ProfileSnapshot;
 }
@@ -1552,8 +1681,16 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
   const exercises = rows.map((row) => {
     const sets = setsOf(db, row.id).filter(isWorkingSet);
     const loaded = sets.filter((set) => (set.reps ?? 0) > 0);
-    const estimate = estimateFromSets(loaded.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })));
-    return { best: bestSet(sets), cardio: cardioBest(sets), name: displayName(db, row.exerciseId, row.attachment), sessionKg: estimate?.sessionKg ?? null, sets: sets.length };
+    const estimate = estimateFromSets(
+      loaded.map((set) => ({ reps: set.reps ?? 0, rpe: typeof set.rpe === 'number' ? set.rpe : null, weightKg: set.weightKg ?? 0 })),
+    );
+    return {
+      best: bestSet(sets),
+      cardio: cardioBest(sets),
+      name: displayName(db, row.exerciseId, row.attachment),
+      sessionKg: estimate?.sessionKg ?? null,
+      sets: sets.length,
+    };
   });
   const records: WorkoutRecap['records'] = [];
   for (const row of rows) {
@@ -1582,7 +1719,14 @@ export const getWorkoutRecap = reader((db, workoutId: string): WorkoutRecap | nu
     before: profileOf(db, now, workoutId),
     exercises: exercises.filter((exercise) => exercise.sets > 0),
     records,
-    reps: rows.reduce((total, row) => total + setsOf(db, row.id).filter(isWorkingSet).reduce((sum, set) => sum + (set.reps ?? 0), 0), 0),
+    reps: rows.reduce(
+      (total, row) =>
+        total +
+        setsOf(db, row.id)
+          .filter(isWorkingSet)
+          .reduce((sum, set) => sum + (set.reps ?? 0), 0),
+      0,
+    ),
     sessionNumber: Math.max(1, finished.findIndex((item) => item.id === workoutId) + 1),
     workout,
   };
@@ -1612,7 +1756,7 @@ export const listWorkoutsForExport = reader((db): ExportWorkout[] => {
 });
 
 /** Writes the superset group for each exercise. A null id means the card stands alone. */
-export async function saveSupersetIds(kind: 'workout' | 'routine', rows: Array<{ id: string; supersetId: string | null }>): Promise<void> {
+export async function saveSupersetIds(kind: 'workout' | 'routine', rows: { id: string; supersetId: string | null }[]): Promise<void> {
   await writeDatabase((db) => {
     const list = kind === 'workout' ? db.workoutExercises : db.routineExercises;
     const ids = new Map(rows.map((row) => [row.id, row.supersetId]));
@@ -1722,9 +1866,9 @@ function addTemplateSets(db: DatabaseShape, workoutExerciseId: string, previous:
 
 function toWorkoutExercise(db: DatabaseShape, row: StoredWorkoutExercise, workoutId: string): WorkoutExercise {
   const exercise = requireExercise(db, row.exerciseId);
-  const previous = latestSessionSets(historyForSlot(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? [], exercise.equipment, row.machineSetup, row.attachment)).map((set) =>
-    toPrevious(set, exercise.equipment),
-  );
+  const previous = latestSessionSets(
+    historyForSlot(historyFor(db, [row.exerciseId], workoutId)[row.exerciseId] ?? [], exercise.equipment, row.machineSetup, row.attachment),
+  ).map((set) => toPrevious(set, exercise.equipment));
   const mapped = setsOf(db, row.id).map(mapSet);
   const sets = warmupsFirst(mapped) ?? mapped;
   return {
@@ -1815,7 +1959,9 @@ function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
 function muscleGroupsWorked(db: DatabaseShape, workoutId: string): string[] {
   const rows = workoutExerciseRows(db, workoutId);
   const trained = (row: StoredWorkoutExercise, workingOnly: boolean) =>
-    setsOf(db, row.id).some((set) => (workingOnly ? isWorkingSet(set) : set.completed && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0)));
+    setsOf(db, row.id).some((set) =>
+      workingOnly ? isWorkingSet(set) : set.completed && ((set.reps ?? 0) > 0 || (set.durationSeconds ?? 0) > 0 || (set.distanceKm ?? 0) > 0),
+    );
   const working = rows.filter((row) => trained(row, true));
   const source = working.length > 0 ? working : rows.filter((row) => trained(row, false));
   const groups: string[] = [];
@@ -1919,7 +2065,12 @@ function historyForSetup(sets: LoggedSet[], equipment: Equipment, setup: string 
   return usesMachineSetup(equipment) ? filterSetsBySetup(sets, normalizeMachineSetup(setup)) : sets;
 }
 
-function historyForSlot(sets: LoggedSet[], equipment: Equipment, setup: string | null | undefined, attachment: CableAttachment | null | undefined): LoggedSet[] {
+function historyForSlot(
+  sets: LoggedSet[],
+  equipment: Equipment,
+  setup: string | null | undefined,
+  attachment: CableAttachment | null | undefined,
+): LoggedSet[] {
   const bySetup = historyForSetup(sets, equipment, setup);
   return equipment === 'Cable' ? filterSetsByAttachment(bySetup, isCableAttachment(attachment) ? attachment : null) : bySetup;
 }
@@ -1935,7 +2086,7 @@ function chosenAttachment(equipment: Equipment, requested: CableAttachment | nul
 }
 
 function slotTaken(
-  rows: Array<{ id: string; exerciseId: string; attachment: CableAttachment | null }>,
+  rows: { id: string; exerciseId: string; attachment: CableAttachment | null }[],
   exerciseId: string,
   equipment: Equipment,
   attachment: CableAttachment | null,
@@ -1944,7 +2095,11 @@ function slotTaken(
   return rows.some(
     (row) =>
       row.id !== exceptId &&
-      sameExerciseSlot(equipment, { attachment: isCableAttachment(row.attachment) ? row.attachment : null, exerciseId: row.exerciseId }, { attachment, exerciseId }),
+      sameExerciseSlot(
+        equipment,
+        { attachment: isCableAttachment(row.attachment) ? row.attachment : null, exerciseId: row.exerciseId },
+        { attachment, exerciseId },
+      ),
   );
 }
 
@@ -1979,7 +2134,7 @@ function defaultMachineSetup(db: DatabaseShape, exerciseId: string): string | nu
   return exercise && usesMachineSetup(exercise.equipment) ? normalizeMachineSetup(exercise.machineSetup) : null;
 }
 
-function nextPosition(rows: Array<{ position: number }>): number {
+function nextPosition(rows: { position: number }[]): number {
   return rows.reduce((max, row) => Math.max(max, row.position), -1) + 1;
 }
 

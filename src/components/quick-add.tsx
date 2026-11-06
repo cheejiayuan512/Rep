@@ -45,13 +45,23 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onAdd, workoutId }) => {
   );
 };
 
-const QuickChip: React.FC<{ exercise: Exercise; pending: boolean; onAdd: (exerciseId: string) => void }> = React.memo(function QuickChip({ exercise, onAdd, pending }) {
+const QuickChip: React.FC<{ exercise: Exercise; pending: boolean; onAdd: (exerciseId: string) => void }> = React.memo(function QuickChip({
+  exercise,
+  onAdd,
+  pending,
+}) {
   const handlePress = useCallback(() => {
     onAdd(exercise.id);
   }, [exercise.id, onAdd]);
 
   return (
-    <Pressable accessibilityHint="Adds it to the workout" accessibilityLabel={`Quick add ${exercise.name}`} accessibilityRole="button" onPress={handlePress} style={[styles.chip, pending && styles.chipPending]}>
+    <Pressable
+      accessibilityHint="Adds it to the workout"
+      accessibilityLabel={`Quick add ${exercise.name}`}
+      accessibilityRole="button"
+      onPress={handlePress}
+      style={[styles.chip, pending && styles.chipPending]}
+    >
       <Text style={styles.plus}>+</Text>
       <Text numberOfLines={1} style={styles.chipText}>
         {exercise.name}
