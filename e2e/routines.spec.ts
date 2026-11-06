@@ -3,6 +3,7 @@
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { openApp } from './app';
 import { fillSet } from './pad';
 
 async function dragBy(page: Page, target: Locator, dx: number, dy: number): Promise<void> {
@@ -40,10 +41,7 @@ async function addExercise(page: Page, name: string): Promise<void> {
 }
 
 test('a routine plans sets, reorders by dragging, and removes by swiping', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.clear();
-  });
-  await page.goto('/');
+  await openApp(page);
 
   await page.getByRole('button', { name: 'Routines' }).click();
   await page.getByRole('button', { name: 'Create a routine' }).click();
