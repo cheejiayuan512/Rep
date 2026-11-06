@@ -134,14 +134,6 @@ export const ExerciseProgressScreen: React.FC = () => {
               ))}
             </View>
           ) : null}
-          <Text style={styles.pastHeading}>Past sets</Text>
-          {pastSessions.length === 0 ? (
-            <Text style={styles.empty}>Finished sets from earlier workouts show up here.</Text>
-          ) : (
-            pastSessions.map((session) => (
-              <PastSession cardio={cardio} key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />
-            ))
-          )}
           <View style={styles.grid}>
             {(cardio ? cardioCards : cards).map((card) => (
               <View key={card.label} style={styles.card}>
@@ -181,6 +173,14 @@ export const ExerciseProgressScreen: React.FC = () => {
             </Text>
           ) : (
             <DeltaText delta={delta} metric={metric} unit={unit} />
+          )}
+          <Text style={styles.pastHeading}>Past sets</Text>
+          {pastSessions.length === 0 ? (
+            <Text style={styles.empty}>Finished sets from earlier workouts show up here.</Text>
+          ) : (
+            pastSessions.map((session) => (
+              <PastSession cardio={cardio} key={session.workoutId} performedAt={session.performedAt} sets={session.sets} unit={unit} />
+            ))
           )}
         </ScrollView>
       )}
