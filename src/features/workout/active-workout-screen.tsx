@@ -310,11 +310,15 @@ const ActiveWorkoutBody: React.FC = () => {
     [applyWarmupOrder],
   );
 
+  // Warmup order is applied when a workout opens or is swapped, not on every
+  // set edit, so this reads the current workout through the ref and re-runs on
+  // the id alone.
   useEffect(() => {
-    if (!workout || workout.finishedAt != null) {
+    const current = workoutRef.current;
+    if (!current || current.finishedAt != null) {
       return;
     }
-    for (const exercise of workout.exercises) {
+    for (const exercise of current.exercises) {
       applyWarmupOrder(exercise.id);
     }
   }, [applyWarmupOrder, workout?.id]);

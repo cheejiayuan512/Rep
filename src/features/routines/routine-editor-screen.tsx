@@ -636,6 +636,8 @@ const RoutineEditorBody: React.FC = () => {
     [
       drafts,
       handleAddAttachment,
+      handleChangeDistance,
+      handleChangeDuration,
       handleChangeReps,
       handleChangeSetType,
       handleChangeSetup,
@@ -645,7 +647,7 @@ const RoutineEditorBody: React.FC = () => {
       handleRemove,
       handleToggleSuperset,
       pressAddSet,
-      routine?.exercises,
+      routine,
       unit,
     ],
   );
