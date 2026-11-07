@@ -195,14 +195,20 @@ export const SHOTS: Shot[] = [
     },
   },
   {
-    caption: 'A library that knows your gym.',
+    caption: 'Every lift is one search away.',
     devices: ['iphone-6.9', 'ipad-13', 'android-phone'],
     id: 'library',
     setup: async (page) => {
       await waitForHome(page);
       await openTab(page, 'Profile');
       await page.getByRole('button', { name: 'Exercise library' }).click();
-      await page.getByRole('textbox', { name: 'Search the library' }).waitFor();
+      const search = page.getByRole('textbox', { name: 'Search the library' });
+      await search.waitFor();
+      await search.fill('squat');
+      await page
+        .getByRole('button', { name: /Squat$/ })
+        .first()
+        .waitFor();
       await page.waitForTimeout(500);
     },
   },

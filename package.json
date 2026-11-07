@@ -57,6 +57,7 @@
     "art": "tsx scripts/store-art.ts",
     "art:force": "tsx scripts/store-art.ts --redraw",
     "video": "tsx scripts/store-video.ts",
+    "creative": "tsx scripts/store-creative.ts",
     "upload": "tsx scripts/store-upload.ts",
     "upload:apply": "tsx scripts/store-upload.ts --apply",
     "upload:if-changed": "tsx scripts/store-upload.ts --apply --if-changed",
